@@ -1,0 +1,13 @@
+.*
+*.so
+*egg-info*
+build/*
+sensitive/*
+dist/
+*.pyc
+*.py.swp
+*.swn
+*.swo
+*.swm
+*.swp
+*.swl
