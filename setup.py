@@ -37,6 +37,7 @@ setup(
     },
     install_requires = [		
         'pandas>=0.18',		
+        'Cython'
     ],
     include_package_data=True,
 
