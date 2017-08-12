@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 
 from setuptools import setup, find_packages, Extension
-from Cython.Distutils import build_ext
 import os
+from setuptools.command.develop import develop
+from setuptools.command.install import install
+from subprocess import check_call
 
 import io
 import re
-import numpy
 
 def read(*names, **kwargs):
     with io.open(
@@ -23,27 +24,53 @@ def find_version(*file_paths):
         return version_match.group(1)
     raise RuntimeError("Unable to find version string.")
 
+class PostDevelopCommand(develop):
+    """Post-installation for development mode."""
+    def run(self):
+        print('Running post-installation for apsw')
+        check_call('''\
+	pip install --user https://github.com/rogerbinns/apsw/releases/download/3.19.3-r1/apsw-3.19.3-r1.zip \
+	--global-option=fetch --global-option=--version --global-option=3.19.3 --global-option=--all \
+	--global-option=build --global-option=--enable-all-extensions'''.split())
+        develop.run(self)
+
+class PostInstallCommand(install):
+    """Post-installation for installation mode."""
+    def run(self):
+        check_call('''\
+	pip install --user https://github.com/rogerbinns/apsw/releases/download/3.19.3-r1/apsw-3.19.3-r1.zip \
+	--global-option=fetch --global-option=--version --global-option=3.19.3 --global-option=--all \
+	--global-option=build --global-option=--enable-all-extensions'''.split())
+        install.run(self)
+
 setup(
-    name = 'M80',
-    version = find_version('M80','__init__.py'),
+    name = 'minus80',
+    version = find_version('minus80','__init__.py'),
     packages = find_packages(),
     scripts = [
     ],
     ext_modules = [],
-    cmdclass = {'build_ext': build_ext},
+    cmdclass = {
+        #'build_ext': build_ext
+        'develop': PostDevelopCommand,
+        'install': PostInstallCommand,
+    },
 
     package_data = {
         '':['*.cyx']    
     },
     install_requires = [		
         'pandas>=0.18',		
-        'Cython'
+        'bcolz',
+        'blaze',
+        'termcolor',
+        'pyyaml'
     ],
     include_package_data=True,
 
     author = 'Rob Schaefer',
-    author_email = 'schae234@gmail.com',
-    description = 'Library for handling Samples.',
-    license = "Copyright Rob Schaefer 2016",
-    url = ''
+    author_email = 'rob@linkage.io',
+    description = 'An abstract library for freezing and unfreezing data.',
+    license = "Copyright Linkage Analytics 2016. Available under the MIT License",
+    url = 'linkage.io'
 )
