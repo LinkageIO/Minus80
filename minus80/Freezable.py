@@ -12,7 +12,6 @@ import bcolz as bcz
 # Suppress the warning until the next wersion
 import blaze as blz
 
-from .Log import log
 from .Config import cf
 from apsw import ConstraintError
 
@@ -37,29 +36,21 @@ class Freezable(object):
 
     def __init__(self, name, type=None, basedir=None):
         # Set up our base directory
-        self.log = log()
-
         if basedir == None:
-            self.basedir = cf.options.basedir
-
-        self.name = name
+            self._m80_basedir = cf.options.basedir
+        self._m80_name = name
+        # 
         if type == None:
             # Just use the class type as the type
-            self.type = re.match(
+            self._m80_type = re.match(
                 "<class '(.+)'>",
                 str(self.__class__)
             ).groups()[0]
         # A dataset already exists, return it
-        self.db = self._database(name)
+        self._db = self._open_db(self._m80_name)
 
         try:
-            #(self.ID, self.name, self.description, self.type, self.added) = \
-            #    self._database('Minus80', type='Freezer') \
-            #    .cursor().execute(
-            #    "SELECT rowid, * FROM datasets WHERE name = ? AND type = ?",
-            #    (name, type)
-            #).fetchone()
-            cur = self.db.cursor()
+            cur = self._db.cursor()
             cur.execute('''
                 CREATE TABLE IF NOT EXISTS globals (
                     key TEXT,
@@ -71,18 +62,18 @@ class Freezable(object):
         except TypeError:
             raise TypeError('{}.{} does not exist'.format(type, name))
 
-    def _database(self, dbname, type=None):
+    def _open_db(self, dbname, type=None):
         '''
         This is the access point to the sqlite database
         '''
         # This lets us grab databases for other types
         if type is None:
-            type = self.type
+            type = self._m80_type
         # return a connection if exists
         return lite.Connection(
             os.path.expanduser(
                 os.path.join(
-                    self.basedir,
+                    self._m80_basedir,
                     'databases',
                     "{}.{}.db".format(type, dbname)
                 )
@@ -94,9 +85,9 @@ class Freezable(object):
         This is the access point to the bcolz database
         '''
         if type is None:
-            type = self.type
+            type = self._m80_type
         if dbname is None:
-            dbname = self.name
+            dbname = self._m80_name
         if df is None:
             # return the dataframe if it exists 
             try:
@@ -158,37 +149,25 @@ class Freezable(object):
             )
         )
 
-    def _global(self, key, val=None):
-        # set the global for the dataset
+    def _dict(self, key, val=None):
+        '''
+            Stores global variables for the freezable object
+        '''
         try:
             if val is not None:
-                self.db.cursor().execute('''
+                val_type = type(val)
+                val = str(val)
+                if val_type not in ('int','float','str'):
+                    raise TypeError(
+                        'val must be in [int,float,str], not {}'.format(val_type)
+                    )
+                self._db.cursor().execute('''
                     INSERT OR REPLACE INTO globals
-                    (key, val)VALUES (?, ?)''', (key, val)
+                    (key, val, type)VALUES (?, ?, ?)''', (key, val, type)
                 )
             else:
-                return self.db.cursor().execute(
+                return self._db.cursor().execute(
                     '''SELECT val FROM globals WHERE key = ?''', (key, )
                 ).fetchone()[0]
         except TypeError:
-            # It pains me to do, but but return none if key isn't in global
-            # TODO: replace returning None with an exception
-            return None
-
-    def __getattr__(self, name):
-        return self._global(name)
-
-    def __del__(self):
-        '''
-            Destroy a Camoco object and associated files.
-        '''
-        pass
-
-    @classmethod
-    def create(cls, name, description, type='Camoco'):
-        '''
-            This is a class method to create a new M80 type object.
-            It initializes base directory hierarchy
-        '''
-        self = cls(name)
-        return self
+            raise ValueError('{} not in database'.format(key))
