@@ -1,10 +1,9 @@
-#Minus 80
+# Minus 80
 This library is for storing data long term. 
 
 
 
-##Installation
+## Installation
 ```
 python setup.py install
-
 ```
