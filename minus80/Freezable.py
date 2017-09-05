@@ -10,6 +10,9 @@ import bcolz as bcz
 
 
 # Suppress the warning until the next wersion
+import warnings
+from flask.exthook import ExtDeprecationWarning
+warnings.simplefilter('ignore',ExtDeprecationWarning)
 import blaze as blz
 
 from .Config import cf
@@ -61,6 +64,15 @@ class Freezable(object):
                 ''')
         except TypeError:
             raise TypeError('{}.{} does not exist'.format(type, name))
+
+    def _dbfilename(self, dbname=None, type=None):
+        if dbname == None:
+            name = self._m80_name
+        if type == None:
+            type = self._m80_type
+        return os.path.expanduser(
+            os.path.join(self._m80_basedir,'databases','{}.{}.db'.format(type,dbname))        
+        )
 
     def _open_db(self, dbname, type=None):
         '''
