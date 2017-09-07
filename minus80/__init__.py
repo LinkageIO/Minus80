@@ -9,7 +9,6 @@ from .Sample import Sample
 def _init():
     import os
     import apsw as lite
-    from .Log import log
     from .Config import cf
     
     basedir = os.path.realpath(
@@ -22,9 +21,8 @@ def _init():
         os.makedirs(os.path.join(basedir, "databases"), exist_ok=True)
         os.makedirs(os.path.join(basedir, "tmp"), exist_ok=True)
     except Exception:
-        log('Could not create files in {}', basedir)
         raise
-    # Create the base camoco database
+    # Create the base database
     lite.Connection(
         os.path.join(basedir, 'databases', 'Minus80.Freezer.db')
     ).cursor().execute('''
