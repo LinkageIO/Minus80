@@ -7,13 +7,20 @@ import os as os
 import numpy as np
 import pandas as pd
 import bcolz as bcz
+import glob
+import shutil
 
 
 # Suppress the warning until the next wersion
 import warnings
 from flask.exthook import ExtDeprecationWarning
 warnings.simplefilter('ignore',ExtDeprecationWarning)
-import blaze as blz
+warnings.simplefilter('ignore',FutureWarning)
+
+try:
+    import blaze as blz
+except FutureWarning as e:
+    pass
 
 from .Config import cf
 from apsw import ConstraintError
@@ -71,7 +78,7 @@ class Freezable(object):
         if type == None:
             type = self._m80_type
         return os.path.expanduser(
-            os.path.join(self._m80_basedir,'databases','{}.{}.db'.format(type,dbname))        
+            os.path.join(self._m80_basedir,'databases','{}.{}.db'.format(type,name))        
         )
 
     def _open_db(self, dbname, type=None):
@@ -108,7 +115,7 @@ class Freezable(object):
                         os.path.join(
                             cf.options.basedir,
                             'databases',
-                            "{}.{}.{}".format(type, dbname, tblname)
+                            "{}.{}.{}.bcz".format(type, dbname, tblname)
                         )
                     )
                 )
@@ -138,7 +145,7 @@ class Freezable(object):
                         os.path.join(
                             cf.options.basedir,
                             'databases',
-                            "{}.{}.{}".format(type, dbname, tblname)
+                            "{}.{}.{}.bcz".format(type, dbname, tblname)
                         )
                     )
                 if df.empty:
@@ -148,7 +155,7 @@ class Freezable(object):
                 
             if 'idx' in df.columns.values:
                 del df
-            return
+            return 
     
     def _tmpfile(self):
         # returns a handle to a tmp file
@@ -178,8 +185,36 @@ class Freezable(object):
                     (key, val, type)VALUES (?, ?, ?)''', (key, val, type)
                 )
             else:
-                return self._db.cursor().execute(
-                    '''SELECT val FROM globals WHERE key = ?''', (key, )
+                (valtype,value) = self._db.cursor().execute(
+                    '''SELECT type,val FROM globals WHERE key = ?''', (key, )
                 ).fetchone()[0]
+                if valtype == 'int':
+                    return int(value)
+                elif valtype == 'float':
+                    return float(value)
+                elif valtype == 'str':
+                    return str(value)
         except TypeError:
             raise ValueError('{} not in database'.format(key))
+
+
+    def _delete_m80(self):
+        '''
+            Deletes all of the Minus80 datasets
+
+            Warning: This is damaging.
+        '''
+        # Get a filecard for all the minus80 filenames that match the 
+        # type and the name
+        wildcard = os.path.expanduser(
+            os.path.join(
+                self._m80_basedir,
+                'databases',
+                '{}.{}.*'.format(self._m80_type,self._m80_name))        
+        )
+        # delete them
+        for filename in glob.glob(wildcard): 
+            if os.path.isfile(filename):
+                os.remove(filename)
+            elif os.path.isdir(filename):
+                shutil.rmtree(filename)
