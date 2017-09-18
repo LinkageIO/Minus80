@@ -25,7 +25,9 @@ def find_version(*file_paths):
     raise RuntimeError("Unable to find version string.")
 
 class PostDevelopCommand(develop):
-    """Post-installation for development mode."""
+    """
+        Post-installation for development mode.
+    """
     def run(self):
         print('Running post-installation for apsw')
         check_call('''\
@@ -35,7 +37,9 @@ class PostDevelopCommand(develop):
         develop.run(self)
 
 class PostInstallCommand(install):
-    """Post-installation for installation mode."""
+    """
+        Post-installation for installation mode.
+    """
     def run(self):
         check_call('''\
 	pip install --user https://github.com/rogerbinns/apsw/releases/download/3.19.3-r1/apsw-3.19.3-r1.zip \
