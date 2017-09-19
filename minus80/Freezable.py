@@ -44,6 +44,16 @@ class Freezable(object):
 
     '''
 
+    @staticmethod
+    def guess_type(object):
+        '''
+            Guess the type of object from the class attribute
+        '''
+        return re.match(
+            "<class '(.+)'>",
+            str(object.__class__)
+        ).groups()[0]
+
     def __init__(self, name, type=None, basedir=None):
         # Set up our base directory
         if basedir == None:
@@ -52,10 +62,9 @@ class Freezable(object):
         # 
         if type == None:
             # Just use the class type as the type
-            self._m80_type = re.match(
-                "<class '(.+)'>",
-                str(self.__class__)
-            ).groups()[0]
+            self._m80_type = self.guess_type(self)
+        else:
+            self._m80_type = type
         # A dataset already exists, return it
         self._db = self._open_db(self._m80_name)
 
