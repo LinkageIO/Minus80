@@ -1,11 +1,13 @@
-from minus80 import Freezable
 
-class Sample(Freezable):
-    def __init__(self,id,**kwargs):
-        super().__init__(id)
-        self.id = id
+class Accession(object):
+    def __init__(self,name,**kwargs):
+        self.name = name
+        if 'files' in kwargs:
+            self.files = kwargs['files']
+            del kwargs['files']
+        else:
+            self.files = []
         self.metadata = kwargs
-        self.files = []
 
     def __getitem__(self,key):
         return self.metadata[key]
