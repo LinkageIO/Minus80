@@ -1,42 +1,44 @@
 import pandas as pd
 import os as os
 
-from minus80 import Sample,Freezable
+from minus80 import Accession,Freezable
 
-class Samples(Freezable):
+class Accessions(Freezable):
 
     '''
-        Samples is a Minus80 class that stores and accesses
-        Samples from the Minus80 Freezer. 
+        A names set of Accessions
     '''
 
-    def __init__(self):
+    def __init__(self,name):
         super().__init__('Samples')
-       # basedir = os.path.expanduser('~/.M80') 
+        self.name = name
+        self._initialize_tables()
 
-        #os.makedirs(os.path.join(basedir,'databases'),exist_ok=True)
-        #self._db = lite.Connection(
-        #    os.path.join(basedir,'databases','M80.sqlite')
-        #) 
 
-        #self._db.cursor().execute(''' 
-        #    CREATE TABLE IF NOT EXISTS Samples (
-        #        ID NOT NULL,
-        #        PRIMARY KEY(ID)
-        #    );        
-        #    CREATE TABLE IF NOT EXISTS Files (
-        #        ID NOT NULL,
-        #        system TEXT,
-        #        path TEXT,
-        #        PRIMARY KEY(ID, system, path)
-        #    );
-        #    CREATE TABLE IF NOT EXISTS Metadata (
-        #        ID NOT NULL,
-        #        key NOL NULL,
-        #        val NOT NULL,
-        #        PRIMARY KEY(ID,key,val)
-        #    );
-        #''')
+    def _initialize_tables(self):
+        cur = self._db.cursor()
+        cur.execute(''' 
+            CREATE TABLE IF NOT EXISTS samples (
+                rowid INTEGER PRIMARY KEY,
+                name NOT NULL UNIQUE
+            );        
+        ''')
+        cur.execute('''
+            CREATE TABLE IF NOT EXISTS files (
+                rowid INTEGER PRIMARY KEY,
+                system TEXT,
+                path TEXT ID NOT NULL UNIQUE
+            );
+        ''')
+        cur.execute('''
+            CREATE TABLE IF NOT EXISTS metadata (
+                sample_rowid NOT NULL,
+                key TEXT NOL NULL,
+                val TEXT NOT NULL,
+                FOREIGN KEY(sample_rowid) REFERENCES samples(rowid)
+                PRIMARY KEY(sample_rowid,key,val)
+            );
+        ''')
 
     def add_sample(self,sample):
         '''
@@ -61,7 +63,7 @@ class Samples(Freezable):
             cur.execute('ROLLBACK')
             raise e
 
-    def update_sample(self,sample,drop=False):
+    def update_sample(self,sample):
         '''
         '''
         cur = self._db.cursor()
@@ -131,21 +133,8 @@ class Samples(Freezable):
     def __contains__(self,item):
         if isinstance(item,str):
             (num_rows,) = self._db.cursor().execute('''
-                SELECT COUNT(*) FROM Samples WHERE ID = ?
+                SELECT COUNT(*) FROM Samples WHERE name = ?
             ''',(item,)).fetchone()    
             if num_rows > 0:
                 return True
         return False
-
-
-    def import_sample_files_from_DataFrame(
-                        self,df,id_col='ID',system_col='System',
-                        path_col='Path'):
-        '''
-            Imports Sample file paths from a dataframe. Expects a DataFrame
-            that has columns for (ID,system, and path).
-        '''
-        for id,df in df.groupby(id_col):
-            x = Sample(id)
-            x.add_files(df[path_col].values)
-            self.add_sample(x)
