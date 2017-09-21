@@ -18,16 +18,22 @@ def test_add_accession(simpleCohort):
     assert len(simpleCohort) == start_len + 1
 
 def test_delitem(simpleCohort):
-    pass
+    a = Accession('TESTSAMPLE_IGNORE',files=['file1.txt','file2.txt'],type='CHIP')
+    if a not in simpleCohort:
+        simpleCohort.add_accession(a)
+    start_len = len(simpleCohort)
+    del simpleCohort['TESTSAMPLE_IGNORE']
+    assert len(simpleCohort) == start_len - 1
 
 def test_getitem(simpleCohort):
-    pass
+    x = simpleCohort['Sample1']
+    assert isinstance(x,Accession)
 
 def test_len(simpleCohort):
-    pass
+    assert isinstance(len(simpleCohort),int)
 
 def test_contains(simpleCohort):
-    pass
+    assert 'Sample1' in simpleCohort
 
 def test_iter(simpleCohort):
     pass
