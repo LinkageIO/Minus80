@@ -30,6 +30,7 @@ class PostDevelopCommand(develop):
     """
     def run(self):
         print('Running post-installation for apsw')
+        check_call('pip install -r requirements.txt'.split())
         check_call('''\
 	pip install --user https://github.com/rogerbinns/apsw/releases/download/3.19.3-r1/apsw-3.19.3-r1.zip \
 	--global-option=fetch --global-option=--version --global-option=3.19.3 --global-option=--all \
@@ -41,6 +42,7 @@ class PostInstallCommand(install):
         Post-installation for installation mode.
     """
     def run(self):
+        check_call('pip install -r requirements.txt'.split())
         check_call('''\
 	pip install --user https://github.com/rogerbinns/apsw/releases/download/3.19.3-r1/apsw-3.19.3-r1.zip \
 	--global-option=fetch --global-option=--version --global-option=3.19.3 --global-option=--all \
@@ -55,7 +57,6 @@ setup(
     ],
     ext_modules = [],
     cmdclass = {
-        #'build_ext': build_ext
         'develop': PostDevelopCommand,
         'install': PostInstallCommand,
     },
@@ -64,11 +65,6 @@ setup(
         '':['*.cyx']    
     },
     install_requires = [		
-        'pandas>=0.18',		
-        'bcolz',
-        'blaze',
-        'termcolor',
-        'pyyaml'
     ],
     include_package_data=True,
 
