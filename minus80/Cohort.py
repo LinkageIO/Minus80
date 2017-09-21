@@ -74,7 +74,7 @@ class Cohort(Freezable):
         try:
             # When a name is added, it is automatically assigned an ID 
             cur.execute(''' 
-                INSERT OR REPLACE INTO accessions (name) VALUES (?)
+                INSERT OR IGNORE INTO accessions (name) VALUES (?)
             ''',(accession.name,))
             # Fetch that ID
             AID = self._get_AID(accession)
@@ -137,7 +137,10 @@ class Cohort(Freezable):
         ''').fetchone()[0]
 
     def __iter__(self):
-        raise NotImplemented()
+        for name in (x[0] for x in self._db.cursor().execute('''
+                SELECT name FROM accessions
+            ''').fetchall()):
+            yield self[name]
 
     def __contains__(self,item):
         if isinstance(item,Accession):
