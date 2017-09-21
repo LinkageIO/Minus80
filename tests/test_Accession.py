@@ -12,5 +12,8 @@ def test_accession_files(simpleAccession):
 def test_accession_metadata(simpleAccession):
     assert simpleAccession.metadata['type'] == 'sample'
 
-def test_accession_getitem_overload(simpleAccession):
+def test_accession_getitem(simpleAccession):
     assert simpleAccession['type'] == 'sample'
+
+
+
