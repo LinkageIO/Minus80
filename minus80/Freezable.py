@@ -49,10 +49,13 @@ class Freezable(object):
         '''
             Guess the type of object from the class attribute
         '''
-        return re.match(
+        # retrieve a list of classes
+        classes = re.match(
             "<class '(.+)'>",
             str(object.__class__)
-        ).groups()[0]
+        ).groups()[0].split('.')
+        # Return the most specific one
+        return classes[-1]
 
     def __init__(self, name, type=None, basedir=None):
         # Set up our base directory
