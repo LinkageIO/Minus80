@@ -3,7 +3,7 @@ __version__ = '0.0.1'
 
 from .Freezable import Freezable
 from .Accession import Accession
-from .Accessions import Accessions
+from .Cohort    import Cohort
 
 
 # Initialize the Minus80 Freezer
