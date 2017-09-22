@@ -6,25 +6,11 @@ import apsw as lite
 import os as os
 import numpy as np
 import pandas as pd
-import bcolz as bcz
 import glob
 import shutil
 
-
-# Suppress the warning until the next wersion
-import warnings
-from flask.exthook import ExtDeprecationWarning
-warnings.simplefilter('ignore',ExtDeprecationWarning)
-warnings.simplefilter('ignore',FutureWarning)
-
-try:
-    import blaze as blz
-except FutureWarning as e:
-    pass
-
 from .Config import cf
 from apsw import ConstraintError
-
 
 class Freezable(object):
 
@@ -115,6 +101,17 @@ class Freezable(object):
         '''
         This is the access point to the bcolz database
         '''
+        # Suppress the warning until the next wersion
+        import bcolz as bcz
+        try:
+            import blaze as blz
+        except FutureWarning as e:
+            pass
+        import warnings
+        from flask.exthook import ExtDeprecationWarning
+        warnings.simplefilter('ignore',ExtDeprecationWarning)
+        warnings.simplefilter('ignore',FutureWarning)
+
         if type is None:
             type = self._m80_type
         if dbname is None:
@@ -172,6 +169,7 @@ class Freezable(object):
     def _tmpfile(self):
         # returns a handle to a tmp file
         return tempfile.NamedTemporaryFile(
+            'w',
             dir=os.path.expanduser(
                 os.path.join(
                     cf.options.basedir,
@@ -185,21 +183,20 @@ class Freezable(object):
             Stores global variables for the freezable object
         '''
         try:
-            if val is not None:
-                val_type = type(val)
-                val = str(val)
+            if val != None:
+                val_type = self.guess_type(val)
                 if val_type not in ('int','float','str'):
                     raise TypeError(
                         'val must be in [int,float,str], not {}'.format(val_type)
                     )
                 self._db.cursor().execute('''
                     INSERT OR REPLACE INTO globals
-                    (key, val, type)VALUES (?, ?, ?)''', (key, val, type)
+                    (key, val, type)VALUES (?, ?, ?)''', (key, val, val_type)
                 )
             else:
                 (valtype,value) = self._db.cursor().execute(
                     '''SELECT type,val FROM globals WHERE key = ?''', (key, )
-                ).fetchone()[0]
+                ).fetchone()
                 if valtype == 'int':
                     return int(value)
                 elif valtype == 'float':
