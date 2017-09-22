@@ -19,7 +19,7 @@ install:
 script:  
   - source activate testEnv
   - cd tests
-  - py.test -v --cov=minus80/ 
+  - py.test -v --cov=minus80 
 
 after_success:
   - coveralls
