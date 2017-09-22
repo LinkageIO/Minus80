@@ -36,4 +36,5 @@ def test_contains(simpleCohort):
     assert 'Sample1' in simpleCohort
 
 def test_iter(simpleCohort):
-    pass
+    for x in simpleCohort:
+        assert isinstance(x,Accession)
