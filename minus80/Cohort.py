@@ -65,6 +65,47 @@ class Cohort(Freezable):
         except TypeError as e:
             raise NameError(f'{item} not in Cohort')
 
+    def get_random_accession(self):
+        '''
+            Returns a random accession from the Cohort
+
+            Parameters
+            ----------
+            None
+
+            Returns
+            -------
+            An Accession object
+        '''
+        name = self._db.cursor().execute('''
+            SELECT name from accessions ORDER BY RANDOM() LIMIT 1; 
+        ''').fetchone()[0]
+        return self[name]
+
+    def get_random_accessions(self,n=1,replace=False):
+        '''
+            Returns a list of random accessions from the Cohort, either
+            with or without replacement.
+
+            Parameters
+            ----------
+            n : int 
+                The number of random accessions to retrieve
+            replace: bool
+                If false, the number of 
+        '''
+        if replace == False:
+            if n > len(self):
+                raise ValueError(f'Only {len(self)} accessions in cohort. Cannot get {n} samples. See replace parameter in help.')
+            return (
+                self[name] for (name,) in self._db.cursor().execute('''
+                    SELECT name from accessions ORDER BY RANDOM() LIMIT ?;
+                ''',(n,))        
+            )
+        else:
+            return (self.get_random_accession() for _ in range(n))
+
+
     def add_accession(self,accession):
         '''
             Add a sample to the Database
@@ -91,6 +132,12 @@ class Cohort(Freezable):
         except Exception as e:
             cur.execute('ROLLBACK')
             raise e
+    
+    @property
+    def AID_mapping(self):
+        return {
+            x.name : x['AID'] 
+            for x in self }
 
     def __delitem__(self,name):
         '''
@@ -124,6 +171,7 @@ class Cohort(Freezable):
                 ''',(AID,)
             ).fetchall()
         } 
+        metadata['AID'] = AID
         files = [x[0] for x in cur.execute(''' 
                 SELECT path FROM files WHERE AID = ?;
             ''',(AID,)
