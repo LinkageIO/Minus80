@@ -24,7 +24,6 @@ def test_get_bcolz(simpleCohort):
     df2 = simpleCohort._bcolz('testTable')
     assert all(df == df2)
     
-
 def test_tmpfile(simpleCohort):
     tmpfile = simpleCohort._tmpfile()
     a = open(tmpfile.name,'w')
@@ -55,4 +54,3 @@ def test_delete_m80():
     assert os.path.exists(dbFile) == True
     c._delete_m80()
     assert os.path.exists(dbFile) == False
-

@@ -9,7 +9,6 @@ def simpleAccession():
     return Accession('Sample1',files=['file1.txt','file2.txt'],type='sample')
 
 
-
 @pytest.fixture(scope='module')
 def simpleCohort():
     # Create the simple 
@@ -21,4 +20,3 @@ def simpleCohort():
     x = Cohort('TestCohort')
     [x.add_accession(_) for _ in [a,b,c,d]]
     return x
-
