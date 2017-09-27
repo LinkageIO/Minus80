@@ -76,25 +76,16 @@ class Freezable(object):
         if type == None:
             type = self._m80_type
         return os.path.expanduser(
-            os.path.join(self._m80_basedir,'databases','{}.{}.db'.format(type,name))        
+            os.path.join(self._m80_basedir,'databases','{}.{}.db'.format(self._m80_name,type))        
         )
 
-    def _open_db(self, dbname, type=None):
+    def _open_db(self, dbname=None, type=None):
         '''
         This is the access point to the sqlite database
         '''
-        # This lets us grab databases for other types
-        if type is None:
-            type = self._m80_type
         # return a connection if exists
         return lite.Connection(
-            os.path.expanduser(
-                os.path.join(
-                    self._m80_basedir,
-                    'databases',
-                    "{}.{}.db".format(type, dbname)
-                )
-            )
+            self._dbfilename(dbname,type)
         )
 
     def _bcolz(self, tblname, dbname=None, type=None, df=None, blaze=False):
@@ -219,7 +210,7 @@ class Freezable(object):
             os.path.join(
                 self._m80_basedir,
                 'databases',
-                '{}.{}.*'.format(self._m80_type,self._m80_name))        
+                '{}.{}*.db'.format(self._m80_name,self._m80_type))        
         )
         # delete them
         for filename in glob.glob(wildcard): 
