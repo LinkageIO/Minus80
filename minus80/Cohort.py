@@ -105,6 +105,40 @@ class Cohort(Freezable):
         else:
             return (self.get_random_accession() for _ in range(n))
 
+    def add_accessions(self,accessions):
+        '''
+            Add multiple Accessions at once
+        '''
+        cur = self._db.cursor()
+        cur.execute('BEGIN TRANSACTION')
+        try:
+            # When a name is added, it is automatically assigned an ID 
+            cur.executemany(''' 
+                INSERT OR IGNORE INTO accessions (name) VALUES (?)
+            ''',[(x.name,) for x in accessions])
+            # Fetch that ID
+            AID_map = self.AID_mapping
+            # Populate the metadata and files tables
+            cur.executemany('''
+                INSERT OR REPLACE INTO metadata (AID,key,val) VALUES (?,?,?)
+            ''',(
+                    (AID_map[accession.name],k,v) \
+                    for accession in accessions \
+                    for k,v in accession.metadata.items() \
+                )
+            )
+            cur.executemany('''
+                INSERT OR REPLACE INTO files (AID,path) VALUES (?,?)
+            ''',(
+                    (AID_map[accession.name],file) \
+                    for accession in accessions \
+                    for file in accession.files \
+                )
+            )
+            cur.execute('END TRANSACTION')
+        except Exception as e:
+            cur.execute('ROLLBACK')
+            raise e
 
     def add_accession(self,accession):
         '''
