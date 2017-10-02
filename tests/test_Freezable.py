@@ -9,7 +9,7 @@ def test_guess_type(simpleCohort):
 def test_dbfilename(simpleCohort):
     mname = simpleCohort._m80_name
     mtype = simpleCohort._m80_type
-    assert simpleCohort._dbfilename().endswith(f'{mtype}.{mname}.db')
+    assert simpleCohort._dbfilename().endswith(f'{mname}.{mtype}.db')
 
 def test_open_db(simpleCohort):
     simpleCohort._open_db(simpleCohort._m80_name)
