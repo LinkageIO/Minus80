@@ -11,6 +11,7 @@ import shutil
 
 from .Config import cf
 from apsw import ConstraintError
+from contextlib import contextmanager
 
 class Freezable(object):
 
@@ -69,6 +70,30 @@ class Freezable(object):
                 ''')
         except TypeError:
             raise TypeError('{}.{} does not exist'.format(type, name))
+
+
+    @contextmanager
+    def bulk_transaction():
+        '''
+            This is a context manager that handles bulk transaction.
+            i.e. this context will handle the BEGIN, END and appropriate
+            ROLLBACKS.
+
+            Usage:
+            >>> with x.bulk_transaction() as cur:
+                     cur.execute('INSERT INTO table XXX VALUES YYY')
+        '''
+        cur = self._db.cursor()
+        cur.execute('PRAGMA synchronous = off')
+        cur.execute('PRAGMA journal_mode = memory')
+        cur.execute('SAVEPOINT bulk_transaction')
+        try:
+            yield cur
+        except Exception as e:
+            cur.execute('ROLLBACK TO SAVEPOINT bulk_transaction')
+        finally:
+            cur.execute('RELEASE SAVEPOINT bulk_transaction')
+
 
     def _dbfilename(self, dbname=None, type=None):
         if dbname == None:
