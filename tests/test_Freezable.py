@@ -49,8 +49,9 @@ def test_m80_type(simpleCohort):
 
 def test_delete_m80():
     import os
+    from minus80.Tools import delete
     c = Cohort('DeleteMe')
     dbFile = c._dbfilename()
     assert os.path.exists(dbFile) == True
-    c._delete_m80()
+    delete('DeleteMe',safe=False)
     assert os.path.exists(dbFile) == False
