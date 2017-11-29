@@ -26,20 +26,25 @@ def available(dtype=None,name=None):
     
     if len(files) == 0:
         print("--- Nothing here yet ---")
-        return None
+        return False
 
     # Get the names of the individual datasets
     datasets = defaultdict(list)
     for f in files:
         if f.endswith('.db'):
-            name,*subjunk,dtype = f.replace('.db','').split('.')
-            datasets[dtype].append(name)
+            x,*subjunk,y = f.replace('.db','').split('.')
+            datasets[y].append(x)
+    if dtype is not None and name is None:
+        datasets = {dtype:datasets[dtype]}
+    elif dtype is not None and name is not None:
+        if name in datasets[dtype]:
+            return True
     for dtype,names in datasets.items():
         print(f"--- {dtype}: -----------------")
         for i,name in enumerate(names,1):
             print(f'\t{i}. {name}')
     
-def delete(name,dtype=None,safe=True):
+def delete(name,dtype=None,force=False):
     '''
         Deletes all of the Minus80 datasets
 
@@ -48,7 +53,7 @@ def delete(name,dtype=None,safe=True):
     # Get a filecard for all the minus80 filenames that match the 
     # type and the name
     files = get_files(dtype,name)
-    if safe:
+    if force != True:
         print(f'Are you sure you want to delete {len(files)} files?:\n{files}')
         if input('[y/n]').upper() != 'Y':
             print('Nothing deleted.')
