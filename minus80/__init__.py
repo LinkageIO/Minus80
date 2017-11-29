@@ -24,18 +24,18 @@ def _init():
     except Exception:
         raise
     # Create the base database
-    lite.Connection(
-        os.path.join(basedir, 'databases', 'Minus80.Freezer.db')
-    ).cursor().execute('''
-        CREATE TABLE IF NOT EXISTS datasets (
-            name TEXT NOT NULL,
-            description TEXT,
-            type TEXT,
-            added datetime DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY(name, type)
-        );
-        INSERT OR IGNORE INTO datasets (name, description, type)
-        VALUES (?, ?, ?)''', ('Freezer', "Freezer Database", 'Minus80')
-    )   
+#    lite.Connection(
+#        os.path.join(basedir, 'databases', 'Minus80.Freezer.db')
+#    ).cursor().execute('''
+#        CREATE TABLE IF NOT EXISTS datasets (
+#            name TEXT NOT NULL,
+#            description TEXT,
+#            type TEXT,
+#            added datetime DEFAULT CURRENT_TIMESTAMP,
+#            PRIMARY KEY(name, type)
+#        );
+#        INSERT OR IGNORE INTO datasets (name, description, type)
+#        VALUES (?, ?, ?)''', ('Freezer', "Freezer Database", 'Minus80')
+#    )   
 
 _init()
