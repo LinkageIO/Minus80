@@ -18,7 +18,7 @@ class Freezable(object):
     '''
     Freezable is an abstract class. Things that inherit from Freezable can
 	be loaded and unloaded from the Minus80.
-
+     
 	A freezable object is a persistant object that lives in a known directory
     aimed to make expensive to build objects and databases loadable from 
     new runtimes.
@@ -28,21 +28,7 @@ class Freezable(object):
     - access to a bcolz databsase (columnar data)
     - access to a key/val store
     - access to named temp files
-
     '''
-
-    @staticmethod
-    def guess_type(object):
-        '''
-            Guess the type of object from the class attribute
-        '''
-        # retrieve a list of classes
-        classes = re.match(
-            "<class '(.+)'>",
-            str(object.__class__)
-        ).groups()[0].split('.')
-        # Return the most specific one
-        return classes[-1]
 
     def __init__(self, name, type=None, basedir=None):
         # Set up our base directory
@@ -73,7 +59,7 @@ class Freezable(object):
 
 
     @contextmanager
-    def bulk_transaction():
+    def bulk_transaction(self):
         '''
             This is a context manager that handles bulk transaction.
             i.e. this context will handle the BEGIN, END and appropriate
@@ -91,11 +77,15 @@ class Freezable(object):
             yield cur
         except Exception as e:
             cur.execute('ROLLBACK TO SAVEPOINT bulk_transaction')
+            raise e
         finally:
             cur.execute('RELEASE SAVEPOINT bulk_transaction')
 
 
     def _dbfilename(self, dbname=None, type=None):
+        '''
+            Get the path to a database file.
+        '''
         if dbname == None:
             name = self._m80_name
         if type == None:
@@ -106,7 +96,7 @@ class Freezable(object):
 
     def _open_db(self, dbname=None, type=None):
         '''
-        This is the access point to the sqlite database
+            This is the access point to the sqlite database
         '''
         # return a connection if exists
         return lite.Connection(
@@ -115,7 +105,7 @@ class Freezable(object):
 
     def _bcolz(self, tblname, dbname=None, type=None, df=None, blaze=False):
         '''
-        This is the access point to the bcolz database
+            This is the access point to the bcolz database
         '''
         # Suppress the warning until the next wersion
         import bcolz as bcz
@@ -196,7 +186,16 @@ class Freezable(object):
 
     def _dict(self, key, val=None):
         '''
-            Stores global variables for the freezable object
+            Stores global variables for the freezable object. The
+            method will automatically infer in the val type is in
+            [int,float,str]. If the value is not one of these, an
+            excpetion will be raised.
+
+            Parameters
+            ----------
+            key : the dictionary key
+            val : the value corresponding to the key
+
         '''
         try:
             if val != None:
@@ -222,24 +221,17 @@ class Freezable(object):
         except TypeError:
             raise ValueError('{} not in database'.format(key))
 
-
-    def _delete_m80(self):
+    @staticmethod
+    def guess_type(object):
         '''
-            Deletes all of the Minus80 datasets
-
-            Warning: This is damaging.
+            Guess the type of object from the class attribute
         '''
-        # Get a filecard for all the minus80 filenames that match the 
-        # type and the name
-        wildcard = os.path.expanduser(
-            os.path.join(
-                self._m80_basedir,
-                'databases',
-                '{}.{}*.db'.format(self._m80_name,self._m80_type))        
-        )
-        # delete them
-        for filename in glob.glob(wildcard): 
-            if os.path.isfile(filename):
-                os.remove(filename)
-            elif os.path.isdir(filename):
-                shutil.rmtree(filename)
+        # retrieve a list of classes
+        classes = re.match(
+            "<class '(.+)'>",
+            str(object.__class__)
+        ).groups()[0].split('.')
+        # Return the most specific one
+        return classes[-1]
+
+
