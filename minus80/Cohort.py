@@ -109,9 +109,7 @@ class Cohort(Freezable):
         '''
             Add multiple Accessions at once
         '''
-        cur = self._db.cursor()
-        cur.execute('BEGIN TRANSACTION')
-        try:
+        with self.bulk_transaction() as cur:
             # When a name is added, it is automatically assigned an ID 
             cur.executemany(''' 
                 INSERT OR IGNORE INTO accessions (name) VALUES (?)
@@ -135,18 +133,12 @@ class Cohort(Freezable):
                     for file in accession.files \
                 )
             )
-            cur.execute('END TRANSACTION')
-        except Exception as e:
-            cur.execute('ROLLBACK')
-            raise e
 
     def add_accession(self,accession):
         '''
             Add a sample to the Database
         '''
-        cur = self._db.cursor()
-        cur.execute('BEGIN TRANSACTION')
-        try:
+        with self.bulk_transaction() as cur:
             # When a name is added, it is automatically assigned an ID 
             cur.execute(''' 
                 INSERT OR IGNORE INTO accessions (name) VALUES (?)
@@ -162,10 +154,6 @@ class Cohort(Freezable):
                 INSERT OR REPLACE INTO files (AID,path) VALUES (?,?)
             ''',((AID,file) for file in accession.files)
             )
-            cur.execute('END TRANSACTION')
-        except Exception as e:
-            cur.execute('ROLLBACK')
-            raise e
     
     @property
     def AID_mapping(self):
