@@ -5,7 +5,7 @@ from glob import glob
 from collections import defaultdict
 from pprint import pprint
 
-def get_files(dtype=None,name=None):
+def get_files(dtype=None,name=None,fullpath=False):
     '''
         List the files in the minus80 directory
     '''
@@ -16,6 +16,8 @@ def get_files(dtype=None,name=None):
         files = [x for x in files if x.endswith(f'{dtype}.db')]
     if name is not None:
         files = [x for x in files if x.startswith(f'{name}.')]
+    if fullpath:
+        files = [f'{data_dir}/{file}' for file in files]
     return files
 
 def available(dtype=None,name=None):
@@ -67,4 +69,6 @@ def delete(name,dtype=None,force=False):
             os.remove(filename)
         elif os.path.isdir(filename):
             shutil.rmtree(filename)
+
+
 
