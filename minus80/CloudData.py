@@ -1,4 +1,5 @@
 from .Tools import get_files
+from .Config import cf
 import os
 
 class CloudData(object):
@@ -7,7 +8,6 @@ class CloudData(object):
 
     def __init__(self):
         try:
-            from .Config import cf
             import boto3
             from botocore.client import Config
         except ModuleNotFoundError as e:
@@ -30,14 +30,20 @@ class CloudData(object):
    
 
     def put(self,name,dtype,raw=False):
+        key = os.path.basename(name)
         if raw == True:
             # The name is a FILENAME
             filename = name
-            self.s3.upload_file(filename,self.bucket,f'Raw/{dtype}/{filename}')
+            self.s3.upload_file(filename,self.bucket,f'Raw/{dtype}/{key}')
         else:
             files = get_files(dtype,name,fullpath=True)
             for filename in files:
-                key = os.path.basename(filename)
                 self.s3.upload_file(filename,self.bucket,f'databases/{dtype}/{key}')
 
 
+    def get(self,name,dtype,raw=False):
+        key = os.path.basename(name)
+        if raw == True:
+            filename = name
+            bdir = os.path.expanduser(cf.options.basedir)
+            self.s3.download_file(self.bucket,f'Raw/{dtype}/{key}',f'{bdir}/Raw/{key}')
