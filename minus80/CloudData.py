@@ -31,13 +31,16 @@ class CloudData(object):
             self.s3.create_bucket(Bucket='minus80')
    
 
-    def put(self,name,dtype,raw=False):
+    def put(self,name,dtype,raw=False,lzma=False):
         key = os.path.basename(name)
         if raw == True:
             # The name is a FILENAME
             filename = name
-            with open(filename,'rb') as OUT:
-                self.s3.upload_fileobj(lzma.compress(OUT.read()),self.bucket,f'Raw/{dtype}/{key}.xz')
+            if lzma:
+                with open(filename,'rb') as OUT:
+                    self.s3.upload_fileobj(lzma.compress(OUT.read()),self.bucket,f'Raw/{dtype}/{key}.xz')
+            else:
+                self.s3.upload_file(filename,self.bucket,f'Raw/{dtype}/{key}.xz')
         else:
             files = get_files(dtype,name,fullpath=True)
             for filename in files:
