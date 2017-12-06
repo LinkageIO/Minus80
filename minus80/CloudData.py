@@ -1,6 +1,8 @@
 from .Tools import get_files
 from .Config import cf
+from collections import defaultdict
 import os
+import lzma
 
 class CloudData(object):
 
@@ -34,7 +36,8 @@ class CloudData(object):
         if raw == True:
             # The name is a FILENAME
             filename = name
-            self.s3.upload_file(filename,self.bucket,f'Raw/{dtype}/{key}')
+            with open(filename,'rb') as OUT:
+                self.s3.upload_fileobj(lzma.compress(OUT.read()),self.bucket,f'Raw/{dtype}/{key}.xz')
         else:
             files = get_files(dtype,name,fullpath=True)
             for filename in files:
@@ -47,3 +50,26 @@ class CloudData(object):
             filename = name
             bdir = os.path.expanduser(cf.options.basedir)
             self.s3.download_file(self.bucket,f'Raw/{dtype}/{key}',f'{bdir}/Raw/{key}')
+
+    def list(self,name=None,dtype=None,raw=False):
+        items = defaultdict(list)
+        for item in self.s3.list_objects(Bucket=self.bucket)['Contents']:
+            key = item['Key']
+            if key.startswith('Raw') and raw == False:
+                pass
+            elif not key.startswith('Raw') and raw == True:
+                pass
+            else:
+                _,key_dtype,key_name = key.split('/')
+                if dtype != None and key_dtype != dtype:
+                    pass
+                elif name != None and not key_name.startswith(name):
+                    pass
+                else:
+                    items[key_dtype].append(key_name)
+        if len(items) == 0:
+            print('Nothing here yet!')
+        else:
+            for key,vals in items.items():
+                print(f'-----{key}------')
+                print('\n'.join(vals))
