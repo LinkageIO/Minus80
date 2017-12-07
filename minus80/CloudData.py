@@ -3,6 +3,7 @@ from .Config import cf
 from collections import defaultdict
 import os
 import lzma
+import sys
 
 class CloudData(object):
 
@@ -46,13 +47,30 @@ class CloudData(object):
             for filename in files:
                 self.s3.upload_file(filename,self.bucket,f'databases/{dtype}/{key}')
 
-
     def get(self,name,dtype,raw=False):
+        # Define a helper
+        def get_percent_done(current,total):
+            write,flush = sys.stdout.write, sys.stdout.flush
+            percent = int((current/total)*100)
+            write('\x08'*17)
+            write(f'Percent done: {percent}%')
+            flush()
+
         key = os.path.basename(name)
         if raw == True:
             filename = name
             bdir = os.path.expanduser(cf.options.basedir)
-            self.s3.download_file(self.bucket,f'Raw/{dtype}/{key}',f'{bdir}/Raw/{key}')
+            # get the number of bytes in the object
+            num_bytes = self.s3.list_objects(Bucket=self.bucket,Prefix=f'Raw/{dtype}/{key}')['Contents'][0]['Size']
+            # download
+            os.makedirs(f'{bdir}/Raw/{dtype}')
+            with open(f'{bdir}/Raw/{dtype}/{key}','wb') as OUT:
+                self.s3.download_fileobj(
+                    self.bucket,
+                    f'Raw/{dtype}/{key}',
+                    OUT,
+                    Callback = lambda x: get_percent_done(x,num_bytes)
+                )
 
     def list(self,name=None,dtype=None,raw=False):
         items = defaultdict(list)
@@ -73,6 +91,8 @@ class CloudData(object):
         if len(items) == 0:
             print('Nothing here yet!')
         else:
+            if raw:
+                print('######   Raw Data:   ######')
             for key,vals in items.items():
                 print(f'-----{key}------')
                 print('\n'.join(vals))
