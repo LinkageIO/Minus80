@@ -41,7 +41,7 @@ class CloudData(object):
                 with open(filename,'rb') as OUT:
                     self.s3.upload_fileobj(lzma.compress(OUT.read()),self.bucket,f'Raw/{dtype}/{key}.xz')
             else:
-                self.s3.upload_file(filename,self.bucket,f'Raw/{dtype}/{key}.xz')
+                self.s3.upload_file(filename,self.bucket,f'Raw/{dtype}/{key}')
         else:
             files = get_files(dtype,name,fullpath=True)
             for filename in files:
@@ -74,25 +74,29 @@ class CloudData(object):
 
     def list(self,name=None,dtype=None,raw=False):
         items = defaultdict(list)
-        for item in self.s3.list_objects(Bucket=self.bucket)['Contents']:
-            key = item['Key']
-            if key.startswith('Raw') and raw == False:
-                pass
-            elif not key.startswith('Raw') and raw == True:
-                pass
-            else:
-                _,key_dtype,key_name = key.split('/')
-                if dtype != None and key_dtype != dtype:
+        try:
+            for item in self.s3.list_objects(Bucket=self.bucket)['Contents']:
+                key = item['Key']
+                if key.startswith('Raw') and raw == False:
                     pass
-                elif name != None and not key_name.startswith(name):
+                elif not key.startswith('Raw') and raw == True:
                     pass
                 else:
-                    items[key_dtype].append(key_name)
-        if len(items) == 0:
-            print('Nothing here yet!')
-        else:
-            if raw:
-                print('######   Raw Data:   ######')
-            for key,vals in items.items():
-                print(f'-----{key}------')
-                print('\n'.join(vals))
+                    _,key_dtype,key_name = key.split('/')
+                    if dtype != None and key_dtype != dtype:
+                        pass
+                    elif name != None and not key_name.startswith(name):
+                        pass
+                    else:
+                        items[key_dtype].append(key_name)
+            if len(items) == 0:
+                print('Nothing here yet!')
+            else:
+                if raw:
+                    print('######   Raw Data:   ######')
+                for key,vals in items.items():
+                    print(f'-----{key}------')
+                    print('\n'.join(vals))
+        except KeyError as e:
+            if len(items) == 0:
+                print('Nothing here yet!')
