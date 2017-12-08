@@ -1,6 +1,7 @@
 # Minus 80
 [![Build Status](https://travis-ci.org/LinkageIO/Minus80.svg?branch=master)](https://travis-ci.org/LinkageIO/Minus80)
 [![Coverage Status](https://coveralls.io/repos/github/LinkageIO/Minus80/badge.svg?branch=master)](https://coveralls.io/github/LinkageIO/Minus80?branch=master)
+[![codecov](https://codecov.io/gh/LinkageIO/Minus80/branch/master/graph/badge.svg)](https://codecov.io/gh/LinkageIO/Minus80)
 
 This library is for storing data long term. 
 
