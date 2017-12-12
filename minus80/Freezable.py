@@ -172,7 +172,7 @@ class Freezable(object):
                 del df
             return 
     
-    def _tmpfile(self):
+    def _tmpfile(self,*args,**kwargs):
         # returns a handle to a tmp file
         return tempfile.NamedTemporaryFile(
             'w',
@@ -181,7 +181,8 @@ class Freezable(object):
                     cf.options.basedir,
                     "tmp"
                 )   
-            )
+            ),
+            **kwargs
         )
 
     def _dict(self, key, val=None):
