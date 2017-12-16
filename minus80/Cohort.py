@@ -65,7 +65,7 @@ class Cohort(Freezable):
         except TypeError as e:
             raise NameError(f'{item} not in Cohort')
 
-    def get_random_accession(self):
+    def random_accession(self):
         '''
             Returns a random accession from the Cohort
 
@@ -82,7 +82,7 @@ class Cohort(Freezable):
         ''').fetchone()[0]
         return self[name]
 
-    def get_random_accessions(self,n=1,replace=False):
+    def random_accessions(self,n=1,replace=False):
         '''
             Returns a list of random accessions from the Cohort, either
             with or without replacement.
@@ -133,6 +133,7 @@ class Cohort(Freezable):
                     for file in accession.files \
                 )
             )
+        return [self[x] for x in accessions]
 
     def add_accession(self,accession):
         '''
@@ -154,6 +155,7 @@ class Cohort(Freezable):
                 INSERT OR REPLACE INTO files (AID,path) VALUES (?,?)
             ''',((AID,file) for file in accession.files)
             )
+        return self[accession]
     
     @property
     def AID_mapping(self):
