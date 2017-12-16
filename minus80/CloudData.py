@@ -71,6 +71,8 @@ class CloudData(object):
                     OUT,
                     Callback = lambda x: get_percent_done(x,num_bytes)
                 )
+        else:
+            raise NotImplementedError('This functionality is currently only available for raw data')
 
     def list(self,name=None,dtype=None,raw=False):
         items = defaultdict(list)
