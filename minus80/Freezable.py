@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 import tempfile
 import re
+# Suppress the warning until the next wersion
+import bcolz as bcz
 
 import apsw as lite
 import os as os
@@ -103,12 +105,44 @@ class Freezable(object):
             self._dbfilename(dbname,type)
         )
 
+
+    def _bcolz_array(self, name, array=None, m80name=None, m80type=None, blaze=False):
+        '''
+            Routines to set/get arrays from the bcolz store
+        '''
+        try:
+            import blaze as blz
+        except FutureWarning as e:
+            pass
+        import warnings
+        from flask.exthook import ExtDeprecationWarning
+        warnings.simplefilter('ignore',ExtDeprecationWarning)
+        warnings.simplefilter('ignore',FutureWarning)
+        # Fill in the defaults if they were not provided
+        if m80type is None:
+            m80type = self._m80_type
+        if m80name is None:
+            m80name = self._m80_name
+        # function is a getter if df is provided
+        path = os.path.expanduser(
+            os.path.join(
+                self._m80_basedir,
+                'databases',
+                "{}.{}.{}.bcz".format(m80type, m80name, name)
+            )
+        )
+        if array is None:
+            # GETTER
+            arr = bcz.open(path)
+            return arr
+        else:
+            # SETTER
+            bcz.carray(array,mode='w',rootdir=path)
+
     def _bcolz(self, tblname, dbname=None, type=None, df=None, blaze=False):
         '''
             This is the access point to the bcolz database
         '''
-        # Suppress the warning until the next wersion
-        import bcolz as bcz
         try:
             import blaze as blz
         except FutureWarning as e:
@@ -118,10 +152,12 @@ class Freezable(object):
         warnings.simplefilter('ignore',ExtDeprecationWarning)
         warnings.simplefilter('ignore',FutureWarning)
 
+        # Fill in the defaults if they were not provided
         if type is None:
             type = self._m80_type
         if dbname is None:
             dbname = self._m80_name
+        # function is a getter if df is provided
         if df is None:
             # return the dataframe if it exists 
             try:
@@ -135,7 +171,7 @@ class Freezable(object):
                     )
                 )
             except IOError:
-                return None
+                raise IOError(f'could not open database for {type}:{dbname} ')
             else:
                 if len(df) == 0:
                     df = pd.DataFrame()
@@ -150,9 +186,9 @@ class Freezable(object):
                     df.set_index('idx', drop=True, inplace=True)
                     df.index.name = None
                 return df
-        
+        # If df is set, then store the 
         else:
-            if not(df.index.dtype_str == 'int64') and not(df.empty):
+            if not(df.index.dtype_str == 'int64') and not (df.empty):
                 df = df.copy()
                 df['idx'] = df.index
             if isinstance(df,pd.DataFrame):
@@ -167,7 +203,6 @@ class Freezable(object):
                     bcz.fromiter((),dtype=np.int32,mode='w',count=0,rootdir=path)
                 else:
                     bcz.ctable.fromdataframe(df,mode='w',rootdir=path)
-                
             if 'idx' in df.columns.values:
                 del df
             return 
