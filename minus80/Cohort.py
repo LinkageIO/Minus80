@@ -1,5 +1,6 @@
 import pandas as pd
 import os as os
+from functools import lru_cache
 
 from minus80 import Accession,Freezable
 
@@ -45,6 +46,7 @@ class Cohort(Freezable):
             );
         ''')
 
+    @lru_cache(maxsize=2048)
     def _get_AID(self,name):
         '''
             Return a Sample ID (AID) 
