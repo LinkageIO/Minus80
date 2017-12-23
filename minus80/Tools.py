@@ -1,30 +1,39 @@
 from .Config import cf
 import os
+import shutil
 
 from glob import glob
 from collections import defaultdict
 from pprint import pprint
 
-def get_files(dtype=None,name=None,fullpath=False):
+__all__ = ['available','delete']
+
+def get_files(name,dtype=None,fullpath=False):
     '''
         List the files in the minus80 directory
     '''
     bdir = os.path.expanduser(cf.options.basedir)
-    data_dir = os.path.join(bdir,'databases')
-    files = os.listdir(data_dir)
     if dtype is not None:
-        files = [x for x in files if x.endswith(f'{dtype}.db')]
-    if name is not None:
-        files = [x for x in files if x.startswith(f'{name}.')]
+        name = f'{name}.*{dtype}.*'
+    else:
+        name = f'{name}.*'
+    data_dir = os.path.join(bdir,'databases',name)
+    files = sorted(glob(data_dir))
+    #if dtype is not None:
+    #    files = [x for x in files if x.endswith(f'{dtype}.db')]
+    #if name is not None:
+    #    files = [x for x in files if x.startswith(f'{name}.')]
     if fullpath:
         files = [f'{data_dir}/{file}' for file in files]
+    else:
+        files = [os.path.basename(x) for x in files]
     return files
 
-def available(dtype=None,name=None):
+def available(dtype='',name='*'):
     '''
         Reports
     '''
-    files = get_files(dtype,name)
+    files = get_files(name,dtype)
     
     if len(files) == 0:
         print("--- Nothing here yet ---")
@@ -46,7 +55,7 @@ def available(dtype=None,name=None):
         for i,name in enumerate(names,1):
             print(f'\t{i}. {name}')
     
-def delete(name,dtype=None,force=False):
+def delete(name,dtype='',force=False):
     '''
         Deletes all of the Minus80 datasets
 
@@ -54,10 +63,11 @@ def delete(name,dtype=None,force=False):
     '''
     # Get a filecard for all the minus80 filenames that match the 
     # type and the name
-    files = get_files(dtype,name)
+    files = get_files(name,dtype=dtype)
     if force != True:
-        print(f'Are you sure you want to delete {len(files)} files?:\n{files}')
-        if input('[y/n]').upper() != 'Y':
+        print(f'Are you sure you want to delete {len(files)} files?:\n')
+        pprint(f'{files}')
+        if input('[y/n]: ').upper() != 'Y':
             print('Nothing deleted.')
             return
     # delete them
