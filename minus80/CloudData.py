@@ -44,6 +44,8 @@ class CloudData(object):
                 self.s3.upload_file(filename,self.bucket,f'Raw/{dtype}/{key}')
         else:
             files = get_files(dtype,name,fullpath=True)
+            if len(files) == 0:
+                raise ValueError('There were no datasets with that name')
             for filename in files:
                 self.s3.upload_file(filename,self.bucket,f'databases/{dtype}/{key}')
 
