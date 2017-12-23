@@ -110,14 +110,14 @@ class Freezable(object):
         '''
             Routines to set/get arrays from the bcolz store
         '''
-        try:
-            import blaze as blz
-        except FutureWarning as e:
-            pass
         import warnings
         from flask.exthook import ExtDeprecationWarning
         warnings.simplefilter('ignore',ExtDeprecationWarning)
         warnings.simplefilter('ignore',FutureWarning)
+        try:
+            import blaze as blz
+        except FutureWarning as e:
+            pass
         # Fill in the defaults if they were not provided
         if m80type is None:
             m80type = self._m80_type
@@ -128,7 +128,7 @@ class Freezable(object):
             os.path.join(
                 self._m80_basedir,
                 'databases',
-                "{}.{}.{}.bcz".format(m80type, m80name, name)
+                "{}.{}.{}.bcz".format(m80name, name, m80type)
             )
         )
         if array is None:
