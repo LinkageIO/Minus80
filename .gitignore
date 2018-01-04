@@ -1,5 +1,5 @@
 .*
-docs/_*
+docs/_build/*
 *.so
 *egg-info*
 build/*
