@@ -1,4 +1,5 @@
 .*
+docs/_*
 *.so
 *egg-info*
 build/*
