@@ -19,9 +19,9 @@ class Freezable(object):
 
     '''
     Freezable is an abstract class. Things that inherit from Freezable can
-	be loaded and unloaded from the Minus80.
+    be loaded and unloaded from the Minus80.
      
-	A freezable object is a persistant object that lives in a known directory
+    A freezable object is a persistant object that lives in a known directory
     aimed to make expensive to build objects and databases loadable from 
     new runtimes.
     
@@ -30,6 +30,7 @@ class Freezable(object):
     - access to a bcolz databsase (columnar data)
     - access to a key/val store
     - access to named temp files
+
     '''
 
     def __init__(self, name, type=None, basedir=None):
