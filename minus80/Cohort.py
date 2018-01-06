@@ -6,13 +6,24 @@ from minus80 import Accession,Freezable
 
 class Cohort(Freezable):
     '''
-        A named set of Accessions
+        A Cohort is a named set of accessions. Once cohorts are
+        created, they are persistant as they are stored in the 
+        disk by minus80.
     '''
 
     def __init__(self,name):
         super().__init__(name)
         self.name = name
         self._initialize_tables()
+
+    def __repr__(self):
+        return f'Cohort("{self.name}") -- contains {len(self)}' 
+
+    @classmethod
+    def from_accessions(cls,name,accessions):
+        self = cls(name)
+        self.add_accessions(accessions)
+        return self
 
     def _initialize_tables(self):
         cur = self._db.cursor()
@@ -77,7 +88,8 @@ class Cohort(Freezable):
 
             Returns
             -------
-            An Accession object
+            Accession
+                An Accession object
         '''
         name = self._db.cursor().execute('''
             SELECT name from accessions ORDER BY RANDOM() LIMIT 1; 
@@ -94,7 +106,7 @@ class Cohort(Freezable):
             n : int 
                 The number of random accessions to retrieve
             replace: bool
-                If false, the number of 
+                If false, randomimzation does not include replacement 
         '''
         if replace == False:
             if n > len(self):
