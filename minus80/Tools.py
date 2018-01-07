@@ -41,7 +41,7 @@ def get_files(name,dtype=None,fullpath=False):
     #if name is not None:
     #    files = [x for x in files if x.startswith(f'{name}.')]
     if fullpath:
-        files = [f'{data_dir}/{file}' for file in files]
+        files = files 
     else:
         files = [os.path.basename(x) for x in files]
     return files
