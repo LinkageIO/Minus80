@@ -25,3 +25,18 @@ Tools
 .. autofunction:: minus80.Tools.available
 .. autofunction:: minus80.Tools.delete
 .. autofunction:: minus80.Tools.get_files
+
+
+CloudData
+---------
+.. autoclass:: CloudData
+   :members:
+
+
+Freezable
+---------
+
+.. autoclass:: Freezable
+   :members:
+   :private-members:
+   :special-members:
