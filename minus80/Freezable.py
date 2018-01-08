@@ -26,14 +26,31 @@ class Freezable(object):
     new runtimes.
     
     The three main things that a Freezable object supplies are:
-    - access to a sqlite database (relational records)
-    - access to a bcolz databsase (columnar data)
-    - access to a key/val store
-    - access to named temp files
+    * access to a sqlite database (relational records)
+    * access to a bcolz databsase (columnar data)
+    * access to a key/val store
+    * access to named temp files
 
     '''
 
     def __init__(self, name, type=None, basedir=None):
+        '''
+        Initialize the Freezable Object.
+
+        Parameters
+        ----------
+        name : str
+            The name of the frozen object.
+        type : str,default=None
+            The type of the frozen object (e.g. Cohort)
+            If None, the type will be inferred from the 
+            object class.
+        basedir : str, default=None
+            The basedir to store the frozen object. If 
+            None, the basedire in the config file will be
+            used.
+
+        '''
         # Set up our base directory
         if basedir == None:
             self._m80_basedir = cf.options.basedir
@@ -87,7 +104,20 @@ class Freezable(object):
 
     def _dbfilename(self, dbname=None, type=None):
         '''
-            Get the path to a database file.
+        Get the path to a database file.
+   
+        Parameters
+        ----------
+        dbname : str, default=None
+            The frozen object name
+        type : str, default=None
+            The datatype of the frozen object
+
+        Returns
+        -------
+        
+            
+
         '''
         if dbname == None:
             name = self._m80_name
@@ -230,8 +260,10 @@ class Freezable(object):
 
             Parameters
             ----------
-            key : the dictionary key
-            val : the value corresponding to the key
+            key : str
+                the dictionary key
+            val : int,float, or str
+                the value corresponding to the key
 
         '''
         try:

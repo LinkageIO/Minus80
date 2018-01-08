@@ -7,9 +7,18 @@ import sys
 
 class CloudData(object):
 
+    '''
+    CloudData objects allow minus80 to interact with the cloud to store both
+    prepared as well as raw datasets.
+    '''
+
     bucket = 'minus80'
 
     def __init__(self):
+        '''
+        Create a CloudData object. Once proper S3 credentials are stored in the 
+        config file (~/.minus80.conf) initialization takes no arguments.
+        '''
         try:
             import boto3
             from botocore.client import Config
@@ -33,6 +42,22 @@ class CloudData(object):
    
 
     def put(self,name,dtype,raw=False,lzma=False):
+        '''
+        Store a minus80 dataset in the cloud using its name and dtype (e.g. Cohort). 
+        the dtype is the name of the Freezable class or object. See :ref:`freezable`.
+        Assume we are storing ``x = Cohort('experiment1')``
+       
+        name : str
+            The name of the dataset (i.e. 'experiment1')
+        dtype : str
+            The type of freezable object (i.e. 'Cohort')
+        raw : bool, default=False
+            If True, raw files can be stored in the cloud. In this case, name changes
+            to the file name and dtype changes to a string representing the future dtype
+            or anything that describes the type of data that is being stored.
+        lzma : bool, default=False
+            If true, lzma compression will be performed (this is slower)
+        '''
         key = os.path.basename(name)
         if raw == True:
             # The name is a FILENAME
@@ -43,13 +68,30 @@ class CloudData(object):
             else:
                 self.s3.upload_file(filename,self.bucket,f'Raw/{dtype}/{key}')
         else:
-            files = get_files(dtype,name,fullpath=True)
+            files = get_files(name,dtype,fullpath=True)
             if len(files) == 0:
                 raise ValueError('There were no datasets with that name')
             for filename in files:
                 self.s3.upload_file(filename,self.bucket,f'databases/{dtype}/{key}')
 
     def get(self,name,dtype,raw=False):
+        '''
+        Retrive a minus80 dataset in the cloud using its name and dtype (e.g. Cohort). 
+        the dtype is the name of the Freezable class or object. See :ref:`freezable`.
+        Assume we are storing ``x = Cohort('experiment1')``
+       
+        name : str
+            The name of the dataset (i.e. 'experiment1')
+        dtype : str
+            The type of freezable object (i.e. 'Cohort')
+        raw : bool, default=False
+            If True, raw files can be stored in the cloud. In this case, name changes
+            to the file name and dtype changes to a string representing the future dtype
+            or anything that describes the type of data that is being stored.
+        lzma : bool, default=False
+            If true, lzma compression will be performed (this is slower)
+        '''
+
         # Define a helper
         def get_percent_done(current,total):
             write,flush = sys.stdout.write, sys.stdout.flush
