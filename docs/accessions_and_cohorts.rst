@@ -16,7 +16,7 @@ Accessions
 Consider an instance where you want to characterize data generated from an
 experiment. This can be accomplished by using an :class:`Accession` object.
 An accession is a simple structure that houses an identifier along with 
-associated data files and accomponying metadata.
+associated data files and accompanying metadata.
 
 .. autoclass:: Accession
    :noindex:
@@ -49,7 +49,7 @@ Once created, data can be accessed from the object in the usual, pythonic way:
    x['age']
 
 
-However usefuls, most experiments do not consist of a single accession. Accessions
+However useful, most experiments do not consist of a single accession. Accessions
 become powerful when they are analyzed together in some sort of experimental context.
 A group of accessions is called a :class:`Cohort`.
 
@@ -60,7 +60,7 @@ data structure and is backed by a database on disk. Revisiting the -80C Freezer 
 Accessions are the units which are *frozen* and *unfrozen* from the database but only when
 they are added to a Cohort. Think of Accessions that are added to Cohorts as from a 
 **master mix**, they can be *unfrozen* and used multiple times through multiple analyses and
-are only changed when they are updated in the Cohort. This is an **important** concent as 
+are only changed when they are updated in the Cohort. This is an **important** concept as 
 multiple instances of the same accession can be generated from the same Cohort (see example 
 below). 
 
@@ -106,7 +106,7 @@ Accessions are accessed from the Cohort by identifier:
 
 Changing the values of an accession do not influence the *frozen* version
 from the Cohort. Another instance of the same Accessions will have the 
-orgininal value.
+original value.
 
 .. ipython:: python
 

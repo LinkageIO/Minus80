@@ -11,11 +11,11 @@ minus80: A library for freezing and integrating biological data
 ###############################################################
 
 **minus80** is a `Python <http://www.python.org>`__ package for storing and
-analyzing biological datasets. Minus80 has a motto of *build once, import many
+analyzing biological datasets. Minus80 has a motto of *build once, use many
 times*.  For example, a dataset can be imported from either a raw dataset or
 from another file format, then be queried or accessed almost instantly using
-the python API. Much like a real -80C Freezer, samples (data) are prepped and
-then stored long term for easy access.
+the python API. Much like a real -80C Freezer, samples (in this case data) are
+prepped and then stored long term for easy access.
 
 .. ipython:: python
 
@@ -23,7 +23,12 @@ then stored long term for easy access.
 
 Minus80 is two main components: a front end and a back end. The front end are
 two python objects (Accession and Cohort) that represent datasets that are
-stored by minus80. The back end is an abstract base class that can be extended
+stored by minus80. These can be used out of the box and for most users, this
+is sufficient. Accessions are objects that store experimental data. Accessions
+are collected into Cohorts, which are stored persistently. Read all the details
+:ref:`here <freezable>`.
+
+The back end is an abstract base class that can be extended
 to make other datasets :ref:`freezable`. It is easier to explain what minus80
 does with a use case. After mastering how Accession and Cohort behave, see the
 Freezable docs to learn how to extend the storage functionality of minus80 to

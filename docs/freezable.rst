@@ -9,16 +9,16 @@ How minus80 works behind the scenes
 -----------------------------------
 As detailed in the :ref:`overview <index>`, minus80 comes with two objects that make it easy to 
 store and access data about experimental *samples* or more broadly, experimental *accessions*.
-Accession objects can be created, but are not persistant across python sessions unless they are
+Accession objects can be created, but are not persistent across python sessions unless they are
 stored within a Cohort. 
 
 Also, changes to the underlying data does not happen when accessions are
 changed, only when they are changed through the Cohort methods. Think of taking DNA samples out of the
-freezer and using them in an assay. A small aliquot is taked from the frozen sample to perform the 
-analysis on, changes to this aliquot (the non-persistant accession here) does not change the underlying
+freezer and using them in an assay. A small aliquot is taken from the frozen sample to perform the 
+analysis on, changes to this aliquot (the non-persistent accession here) does not change the underlying
 DNA stored in the freezer (the cohort).
 
-In the same vein, duplicate Accessions can stored (with sometimems different metadata, etc) in multiple
+In the same vein, duplicate Accessions can stored (with sometimes different metadata, etc) in multiple
 Cohorts in minus80. It is the context of the Cohort name differentiates what data goes along with each 
 accession contained within it. Think of 10 individuals. You could have a cohort called "genomicDNA" that
 contains all 10 samples data. You could have the **same 10 accessions** under a different context, perhaps
@@ -26,7 +26,7 @@ contains all 10 samples data. You could have the **same 10 accessions** under a 
 
 Freezable datastructures
 ------------------------
-Cohorts persist across python sessions becuase the Cohort class inherits from the Freezable class. Accessions
+Cohorts persist across python sessions because the Cohort class inherits from the Freezable class. Accessions
 do not inherit these properties. The freezable class is an abstract one, meaning that you would most likely not
 create a *freezable* instance on its own. This is much like how lists inherit from the *iterable* abstract class,
 you would never create just an *iterable* but rather create objects that *are iterable*. In the same way, you can
@@ -38,7 +38,7 @@ Here is the signature for the Freezable class:
     :noindex:
 
 
-A Freezable object needs a ``name`` attribute and a discernable ``dtype`` in order to be frozen.
+A Freezable object needs a ``name`` attribute and a discernible ``dtype`` in order to be frozen.
 For instance, since Cohorts are freezable, assume the following::
     
     >>> import minus80 as m80
@@ -50,7 +50,7 @@ Part of these attributes are links to several centralized databases. These datab
 directory dictated by the ``basedir`` options in the ``~/.minus80.conf`` file. 
 
 Three different databases are supported, each serving a slightly different purpose. You can read the full
-detauls in the :ref:`api`, or read a summary here.
+details in the :ref:`api`, or read a summary here.
 
 Relational Data
 ~~~~~~~~~~~~~~~
@@ -83,7 +83,7 @@ Or the path to the object database can be accessed:
 
 Columnar Data
 -------------
-Columanr datastructures, such as numpy arrays or pandas dataframes, are not as well suited to
+Columnar data structures, such as numpy arrays or pandas dataframes, are not as well suited to
 be stored and accessed quickly in an SQL database. Minus80 stores columnar data internally on disk
 as bcolz tables. These are *very* fast to load from disk and can even be accessed out of memory using
 things like blaze.
@@ -117,14 +117,14 @@ If you want to store a numpy array instead of an entire dataframe, you can do th
 Key/Value Store
 ---------------
 A simple key/value store is included with Freezable object for things like object attributes. This
-is backed internally by sqlite. This is mainly for a small number of object attributes or the like.
+is backed internally by sqlite3. This is mainly for a small number of object attributes or the like.
 The internal method is smart enough to detect three different types of values: ``int``, ``float``, and
 ``str``. More complex values are not supported by this method.
 
 
 .. Note:: This is not optimized for massive datasets and does not compete with specialized key/value stores.
 
-The key/value store can be accesse using the internal ``_dict`` method::
+The key/value store can be accessed using the internal ``_dict`` method::
 
     >>> x = Cohort('Sample4Liver')
     # Store a value in the dict

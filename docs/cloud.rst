@@ -28,7 +28,7 @@ datasets.
 Accessing minus80 data in the cloud
 -----------------------------------
 
-Initilization is easy as credentials are taken from ``~/.minus80.conf`` so no arguments are needed::
+Initialization is easy as credentials are taken from ``~/.minus80.conf`` so no arguments are needed::
 
     >>> import minus80 as m80
     >>> x = m80.CloudData()
@@ -58,7 +58,7 @@ Sometimes you have raw data that needs to be shared or stored. The cloud is a pe
 All of the CloudData methods have a ``raw`` keyword argument that indicates raw data. If ``True``, 
 the ``name`` argument changes to a filename and the ``dtype`` argument changes to a string indicating
 the raw datatype that the file contains. In practice this can be anything, it just categorizes the raw
-data. Often the file extension suffices (e.g. a fastq file). See the :ref:`api` for full detsils.
+data. Often the file extension suffices (e.g. a fastq file). See the :ref:`api` for full details.
 
 
 .. Warning:: These are convenience methods are are not substitutes for properly backing up your data. There are not guarantees on integrity.
