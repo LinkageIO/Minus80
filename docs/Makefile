@@ -14,6 +14,11 @@ help:
 
 .PHONY: help Makefile
 
+
+# 
+live:
+	scp -r _build/html/* rob@linkage.io:/var/www/html/docs/minus80/
+
 # Catch-all target: route all unknown targets to Sphinx using the new
 # "make mode" option.  $(O) is meant as a shortcut for $(SPHINXOPTS).
 %: Makefile
