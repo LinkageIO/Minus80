@@ -290,6 +290,25 @@ class Freezable(object):
         except TypeError:
             raise ValueError('{} not in database'.format(key))
 
+    def _cassandra(self,name=None,dtype=None):
+        '''
+            Provides an interface to a cassandra NOSQL database. This is 
+            experimental.
+
+        '''
+        try:
+            import cassandra.cluster import Cluster
+        except ImportError as e:
+            raise ImportError('Please install `cassandra-driver` to use this feature',e)
+        if dtype is None:
+            dtype = self._m80_type
+        if name is None:
+            name = self._m80_name
+        cluster = Cluster()
+        # Connect to the keyspace dictated by the object
+        session = cluster.connect(f'{name}.{dtype}')
+        return session
+
     @staticmethod
     def guess_type(object):
         '''
