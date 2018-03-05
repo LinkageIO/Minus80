@@ -21,6 +21,9 @@ class Accession(object):
             The name of the accession
         files : iterable of str
             Files associated with the accession
+        **kwargs : keyword arguments
+            Any number of key=value arguments that
+            contain metadata.
 
         Returns
         -------

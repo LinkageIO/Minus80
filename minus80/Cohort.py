@@ -21,6 +21,22 @@ class Cohort(Freezable):
 
     @classmethod
     def from_accessions(cls,name,accessions):
+        '''
+        Create a Cohort from an iterable of Accessions.
+
+        Parameters
+        ----------
+        name : str
+            The name of the Cohort
+        accessions : iterable of Accessions
+            The accessions that will be frozen in the cohort
+            under the given name
+
+        Returns
+        -------
+        A Cohort object
+
+        '''
         self = cls(name)
         self.add_accessions(accessions)
         return self
@@ -76,7 +92,7 @@ class Cohort(Freezable):
                 'SELECT AID FROM aliases WHERE alias = ?',(name,) 
             ).fetchone()[0]
         except TypeError as e:
-            raise NameError(f'{item} not in Cohort')
+            raise NameError(f'{name} not in Cohort')
 
     def random_accession(self):
         '''
