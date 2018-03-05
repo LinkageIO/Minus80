@@ -297,7 +297,7 @@ class Freezable(object):
 
         '''
         try:
-            import cassandra.cluster import Cluster
+            from cassandra.cluster import Cluster
         except ImportError as e:
             raise ImportError('Please install `cassandra-driver` to use this feature',e)
         if dtype is None:
