@@ -142,5 +142,27 @@ def delete(name,dtype='',force=False):
     return num_deleted
 
 
+def directory_search(directory,suffix='.fastq'):
+    '''
+        Search a directory and create Accessions from the files found there.
+    '''
+    import os
+    import re
+    from minus80 import Accession
+    
+    accessions = dict()
+    for root, dirs, files in os.walk(directory,followlinks=True):
+        for f in files:
+            if f.endswith(suffix):
+                id,*args = f.split('_') 
+                if id not in accessions:
+                    accessions[id] = Accession(id,files=[])
+                x = accessions[id]
+                x.add_file(os.path.join(root,f))
+
+
+    return accessions
+        
+
 
 
