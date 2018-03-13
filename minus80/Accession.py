@@ -31,7 +31,7 @@ class Accession(object):
         '''
         self.name = name
         if files != None:
-            self.files = files
+            self.files = set(files)
         else:
             self.files = set()
         self.metadata = kwargs
@@ -93,7 +93,7 @@ class Accession(object):
         for path in paths:
             self.add_file(path)
 
-    def __repr__(self):
+    def __repr__(self): #pragma: no cover
         '''
         String representation of Accession
         '''
