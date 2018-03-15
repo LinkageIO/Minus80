@@ -20,6 +20,31 @@ class Cohort(Freezable):
         return f'Cohort("{self.name}") -- contains {len(self)}' 
 
     @classmethod
+    def from_yaml(cls,name,yaml_file):
+        '''
+        Create a Cohort from a YAML file. Note: this yaml file
+        must be created from 
+
+        Parameters
+        ----------
+        name : str
+            The name of the Cohort
+        yaml_file : pathlike
+            The path to the YAML file that contains the
+            Accessions
+
+        Returns
+        -------
+        A Cohort object
+        '''
+        import yaml
+        self = cls(name)
+        accessions = yaml.load(open(yaml_file,'r'))
+        self.add_accessions(accessions)
+        return self
+
+
+    @classmethod
     def from_accessions(cls,name,accessions):
         '''
         Create a Cohort from an iterable of Accessions.
