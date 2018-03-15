@@ -46,7 +46,7 @@ def get_files(name,dtype=None,fullpath=False):
         files = [os.path.basename(x) for x in files]
     return files
 
-def available(dtype='',name='*'):
+def available(name='*',dtype=''):
     '''
         Reports the available datasets **Frozen** in the minus80 
         database. 
@@ -70,7 +70,7 @@ def available(dtype='',name='*'):
             table is printed and None is returned.
     '''
     files = get_files(name,dtype)
-
+    
     # Get the names of the individual datasets
     datasets = defaultdict(list)
     for f in files:
@@ -78,7 +78,7 @@ def available(dtype='',name='*'):
             x,*subjunk,y = f.replace('.db','').split('.')
             datasets[y].append(x)
     # If both are specified, return a boolean
-    if dtype != '' and name is not '*':
+    if dtype != '' and name != '*':
         if name in datasets[dtype]:
             return True
         else:
