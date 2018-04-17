@@ -21,50 +21,14 @@ def cli(debug):
     Minus80 is a library for storing biological data. See minus80.linkage.io 
     for more details.
     '''
-    click.echo(f'Debug mode is {debug}')
-
-@cli.command(help='List the available minus80 datasets')
-def available():
-    m80.Tools.available()
-
-
-
-#class minus80CLI(object):
-#
-#    def __init__(self):
-#        parser = argparse.ArgumentParser(
-#            description=(
-#            ),
-#            formatter_class=argparse.RawDescriptionHelpFormatter,
-#            epilog= "\n".join([
-#                'version: {}'.format(m80.__version__),
-#                'src:{}'.format(m80.__file__),
-#            ])
-#        )
-#        subparsers = parser.add_subparsers(help='sub-command help', dest='subparser_name')
-#        parser_a = subparsers.add_parser('command_a', help='command_a help')
-#
-#        parser.add_argument('extra', nargs='*', help='Other commands')
-#        args = parser.parse_args()
-#        extra_namespaces = self.parse_extra(parser,args)
-#        if not hasattr(self, args.command):
-#            print(f'Unrecognized command.')
-#            parser.print_help()
-#            exit(1)
-#        getattr(self, args.command)()
-#
-#
-#    def parse_extra (parser, namespace):
-#        namespaces = []
-#        extra = namespace.extra
-#        while extra:
-#            n = parser.parse_args(extra)
-#            extra = n.extra
-#            namespaces.append(n)
-#        return namespaces
-#
-#
-#
-#
-if __name__ == '__main__':
-    minus80CLI()
+@cli.command(short_help='List the available minus80 datasets',
+    help='Reports the available datasets **Frozen** in the minus80 database.'
+)
+@click.option('--name',  default='*', 
+    help="The name of the dataset you want to check is available. The default value is the wildcard '*' which will return all available datasets with the specified dtype."
+)
+@click.option('--dtype', default='',
+    help='Each dataset has a datatype associated with it. E.g.: `Cohort`. If no dtype is specified, all available dtypes  will be returned.'
+)
+def available(name,dtype):
+    m80.Tools.available(name,dtype)
