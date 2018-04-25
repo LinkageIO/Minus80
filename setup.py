@@ -75,7 +75,8 @@ setup(
 
     author = 'Rob Schaefer',
     author_email = 'rob@linkage.io',
-    description = 'An abstract library for freezing and unfreezing data.',
+    description = 'A library for freezing, unfreezing and storing biological data.',
     license = "Copyright Linkage Analytics 2016. Available under the MIT License",
-    url = 'linkage.io'
+    url = 'linkage.io',
+    keywords = ['database','storage','biology','data','freeze']
 )
