@@ -4,7 +4,7 @@ from setuptools import setup, find_packages, Extension
 import os
 from setuptools.command.develop import develop
 from setuptools.command.install import install
-from subprocess import check_call
+from subprocess import check_call,CalledProcessError
 
 import io
 import re
@@ -29,29 +29,36 @@ class PostDevelopCommand(develop):
         Post-installation for development mode.
     """
     def run(self):
-        print('Running post-installation for apsw')
-        check_call('pip install -r requirements.txt'.split())
-        check_call('''\
-	pip install --user https://github.com/rogerbinns/apsw/releases/download/3.22.0-r1/apsw-3.22.0-r1.zip \
-	--global-option=fetch --global-option=--version --global-option=3.22.0 --global-option=--all \
-	--global-option=build --global-option=--enable-all-extensions'''.split())
-        develop.run(self)
+        try:
+            print('Running post-installation for apsw')
+            check_call('pip install -r requirements.txt'.split())
+            check_call('''\
+	    pip install --user https://github.com/rogerbinns/apsw/releases/download/3.22.0-r1/apsw-3.22.0-r1.zip \
+	    --global-option=fetch --global-option=--version --global-option=3.22.0 --global-option=--all \
+	    --global-option=build --global-option=--enable-all-extensions'''.split())
+            develop.run(self)
+        except CalledProcessError as e:
+            pass
+            
 
 class PostInstallCommand(install):
     """
         Post-installation for installation mode.
     """
     def run(self):
-        check_call('pip install -r requirements.txt'.split())
-        check_call('''\
-	pip install --user https://github.com/rogerbinns/apsw/releases/download/3.22.0-r1/apsw-3.22.0-r1.zip \
-	--global-option=fetch --global-option=--version --global-option=3.22.0 --global-option=--all \
-	--global-option=build --global-option=--enable-all-extensions'''.split())
-        install.run(self)
+        try:
+            check_call('''\
+	    pip install --user https://github.com/rogerbinns/apsw/releases/download/3.22.0-r1/apsw-3.22.0-r1.zip \
+	    --global-option=fetch --global-option=--version --global-option=3.22.0 --global-option=--all \
+	    --global-option=build --global-option=--enable-all-extensions'''.split())
+            install.run(self)
+        except CalledProcessError as e:
+            print('a bad thing happened')
+            raise e
 
 setup(
     name = 'minus80',
-    version = find_version('minus80','__init__.py'),
+    version = find_version('minus80','__init__.py'),#+'-dev3',
     description = 'A library for freezing, unfreezing and storing biological data.',
     url = 'http://linkage.io',
     author = 'Rob Schaefer',
@@ -78,7 +85,7 @@ setup(
     ],
     keywords='data storage biology freeze', 
     project_urls={
-        'Documentation' : 'hhtp://linkage.io/docs/minus80',
+        'Documentation' : 'http://linkage.io/docs/minus80',
         'Source' : 'https://github.com/LinkageIO/Minus80',
         'Tracker' : 'https://github.com/LinkageIO/Minus80/issues'
     },
@@ -96,7 +103,12 @@ setup(
         '':['*.cyx']    
     },
     install_requires = [		
-        'Click'
+        'pandas >= 0.22.0',
+        'bcolz >= 1.2.1',
+        'blaze >= 0.10.1',
+        'termcolor >= 1.1.0',
+        'pyyaml >= 3.12',
+        'click >= 6.7'
     ],
     include_package_data=True,
     entry_points='''
