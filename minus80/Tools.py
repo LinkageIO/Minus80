@@ -71,6 +71,8 @@ def available(name='*',dtype=''):
     '''
     files = get_files(name,dtype)
     
+    bdir = os.path.expanduser(cf.options.basedir)
+    print(f'Using basedir: {bdir}')
     # Get the names of the individual datasets
     datasets = defaultdict(list)
     for f in files:
