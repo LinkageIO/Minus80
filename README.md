@@ -11,6 +11,7 @@ This library is for freezing and integrating data. Modeled after how minus 80°C
 
 Option 1: Clone the repo manually and run:
 ```
+git clone git@github.com:LinkageIO/Minus80.git && cd Minus80
 python setup.py install
 ```
 Option 1: Use pip:
