@@ -52,6 +52,37 @@ class PostInstallCommand(install):
 setup(
     name = 'minus80',
     version = find_version('minus80','__init__.py'),
+    description = 'A library for freezing, unfreezing and storing biological data.',
+    url = 'http://linkage.io',
+    author = 'Rob Schaefer',
+    license = "Copyright Linkage Analytics 2016. Available under the MIT License",
+
+    classifiers=[
+	# How mature is this project? Common values are
+	#   3 - Alpha
+	#   4 - Beta
+	#   5 - Production/Stable
+	'Development Status :: 4 - Beta',
+
+	# Indicate who your project is intended for
+	'Intended Audience :: Developers',
+	'Topic :: Software Development :: Build Tools',
+
+	# Pick your license as you wish (should match "license" above)
+	 'License :: OSI Approved :: MIT License',
+
+	# Specify the Python versions you support here. In particular, ensure
+	# that you indicate whether you support Python 2, Python 3 or both.
+	'Programming Language :: Python :: 3',
+	'Programming Language :: Python :: 3.6',
+    ],
+    keywords='data storage biology freeze', 
+    project_urls={
+        'Documentation' : 'hhtp://linkage.io/docs/minus80',
+        'Source' : 'https://github.com/LinkageIO/Minus80',
+        'Tracker' : 'https://github.com/LinkageIO/Minus80/issues'
+    },
+
     packages = find_packages(),
     scripts = [
     ],
@@ -73,10 +104,5 @@ setup(
         minus80=minus80.cli.minus80:cli
     ''',
 
-    author = 'Rob Schaefer',
     author_email = 'rob@linkage.io',
-    description = 'A library for freezing, unfreezing and storing biological data.',
-    license = "Copyright Linkage Analytics 2016. Available under the MIT License",
-    url = 'linkage.io',
-    keywords = ['database','storage','biology','data','freeze']
 )
