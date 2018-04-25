@@ -13,11 +13,11 @@ Option 1: Use pip to install the most recent tagged version:
 pip install minus80
 ```
 
-Option 2: Clone the repo manually and install 
+Option 2: Clone the repo manually and install the development version
 ```
 git clone git@github.com:LinkageIO/Minus80.git
 cd Minus80
-python setup.py install
+python setup.py develop
 ```
 
 ## Documentation
