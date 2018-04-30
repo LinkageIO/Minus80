@@ -159,18 +159,19 @@ class Freezable(object):
             os.path.join(
                 self._m80_basedir,
                 'databases',
-                "{}.{}.{}.bcz".format(m80name, name, m80type)
+                "{}.{}.bcz".format(m80name, m80type)
             )
         )
+        os.makedirs(path,exist_ok=True)
         if array is None:
             # GETTER
-            arr = bcz.open(path)
+            arr = bcz.open(os.path.join(path,name))
             return arr
         else:
             # SETTER
-            bcz.carray(array,mode='w',rootdir=path)
+            bcz.carray(array,mode='w',rootdir=os.path.join(path,name))
 
-    def _bcolz(self, tblname, dbname=None, type=None, df=None, blaze=False):
+    def _bcolz(self, tblname, df=None, m80name=None, m80type=None, blaze=False):
         '''
             This is the access point to the bcolz database
         '''
@@ -184,25 +185,26 @@ class Freezable(object):
         warnings.simplefilter('ignore',FutureWarning)
 
         # Fill in the defaults if they were not provided
-        if type is None:
-            type = self._m80_type
-        if dbname is None:
-            dbname = self._m80_name
+        if m80type is None:
+            m80type = self._m80_type
+        if m80name is None:
+            m80name = self._m80_name
+        path = os.path.expanduser(
+            os.path.join(
+                self._m80_basedir,
+                'databases',
+                "{}.{}.bcz".format(m80name, m80type)
+            )
+        )
+        os.makedirs(path,exist_ok=True)
+
         # function is a getter if df is provided
         if df is None:
             # return the dataframe if it exists 
             try:
-                df = bcz.open(
-                    os.path.expanduser(
-                        os.path.join(
-                            cf.options.basedir,
-                            'databases',
-                            "{}.{}.{}.bcz".format(type, dbname, tblname)
-                        )
-                    )
-                )
+                df = bcz.open(os.path.join(path,tblname))
             except IOError:
-                raise IOError(f'could not open database for {type}:{dbname} ')
+                raise IOError(f'could not open database for {m80type}:{m80name} ')
             else:
                 if len(df) == 0:
                     df = pd.DataFrame()
@@ -217,19 +219,13 @@ class Freezable(object):
                     df.set_index('idx', drop=True, inplace=True)
                     df.index.name = None
                 return df
-        # If df is set, then store the 
+        # If df is set, then store the table 
         else:
             if not(df.index.dtype_str == 'int64') and not (df.empty):
                 df = df.copy()
                 df['idx'] = df.index
             if isinstance(df,pd.DataFrame):
-                path = os.path.expanduser(
-                        os.path.join(
-                            cf.options.basedir,
-                            'databases',
-                            "{}.{}.{}.bcz".format(type, dbname, tblname)
-                        )
-                    )
+                path = os.path.join(path,tblname)
                 if df.empty:
                     bcz.fromiter((),dtype=np.int32,mode='w',count=0,rootdir=path)
                 else:
@@ -306,7 +302,7 @@ class Freezable(object):
             name = self._m80_name
         cluster = Cluster()
         # Connect to the keyspace dictated by the object
-        session = cluster.connect(f'{name}.{dtype}')
+        session = cluster.connect()#f'{name}.{dtype}')
         return session
 
     @staticmethod
