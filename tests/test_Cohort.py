@@ -2,7 +2,7 @@ import pytest
 
 from minus80 import Accession,Cohort
 
-def test_init(simpleCohort):
+def test_init(simpleCohort,RNACohort):
     x = simpleCohort
     assert isinstance(x,Cohort)
 
