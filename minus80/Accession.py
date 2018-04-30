@@ -81,11 +81,11 @@ class Accession(object):
         -------
         None
         '''
-        if not os.path.exists(path) and not skip_test:
-            raise ValueError(f'{path} does not exist')
         if not skip_test:
             # Get absolute path
             path = os.path.abspath(path)
+        if not os.path.exists(path) and not skip_test:
+            raise ValueError(f'{path} does not exist')
         self.files.add(path)
 
     def add_files(self,paths,skip_test=False):
