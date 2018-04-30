@@ -1,4 +1,5 @@
 import pytest
+import numpy as np
 import pandas as pd
 
 from minus80 import Cohort
@@ -18,11 +19,22 @@ def test_store_bcolz(simpleCohort):
     df = pd.DataFrame([[1,2,3],[4,5,6],[7,8,9]],columns=['a','b','c']) 
     simpleCohort._bcolz('testTable',df=df)
 
+
 def test_get_bcolz(simpleCohort):
     df = pd.DataFrame([[1,2,3],[4,5,6],[7,8,9]],columns=['a','b','c']) 
     simpleCohort._bcolz('testTable',df=df)
     df2 = simpleCohort._bcolz('testTable')
     assert all(df == df2)
+
+def test_store_bcolz_array(simpleCohort):
+    arr = np.array([1,2,3,4,5,6,7,8,9])
+    simpleCohort._bcolz_array('testArray',array=arr)
+
+def test_get_bcolz_array(simpleCohort):
+    arr = np.array([1,2,3,4,5,6,7,8,9])
+    simpleCohort._bcolz_array('testArray',array=arr)
+    arr2 = simpleCohort._bcolz_array('testArray')
+    assert all(arr == arr2)
     
 def test_tmpfile(simpleCohort):
     tmpfile = simpleCohort._tmpfile()

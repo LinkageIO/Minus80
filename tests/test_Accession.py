@@ -20,12 +20,12 @@ def test_accession_setitem(simpleAccession):
     assert simpleAccession['added'] == True
 
 def test_accession_add_file(simpleAccession):
-    simpleAccession.add_file('/path/to/file.txt')
+    simpleAccession.add_file('/path/to/file.txt',skip_test=True)
     assert '/path/to/file.txt' in simpleAccession.files
 
 def test_accession_files_are_set(simpleAccession):
-    simpleAccession.add_file('/path/to/file.txt')
+    simpleAccession.add_file('/path/to/file.txt',skip_test=True)
     len_files = len(simpleAccession.files)
-    simpleAccession.add_file('/path/to/file.txt')
+    simpleAccession.add_file('/path/to/file.txt',skip_test=True)
     assert len(simpleAccession.files) == len_files
 
