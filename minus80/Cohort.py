@@ -23,7 +23,7 @@ class Cohort(Freezable):
     def from_yaml(cls,name,yaml_file):
         '''
         Create a Cohort from a YAML file. Note: this yaml file
-        must be created from 
+        must be created from
 
         Parameters
         ----------

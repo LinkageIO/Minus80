@@ -142,8 +142,8 @@ class Freezable(object):
             Routines to set/get arrays from the bcolz store
         '''
         import warnings
-        from flask.exthook import ExtDeprecationWarning
-        warnings.simplefilter('ignore',ExtDeprecationWarning)
+        #from flask.exthook import ExtDeprecationWarning
+        #warnings.simplefilter('ignore',ExtDeprecationWarning)
         warnings.simplefilter('ignore',FutureWarning)
         try:
             import blaze as blz
@@ -180,8 +180,8 @@ class Freezable(object):
         except FutureWarning as e:
             pass
         import warnings
-        from flask.exthook import ExtDeprecationWarning
-        warnings.simplefilter('ignore',ExtDeprecationWarning)
+        #from flask.exthook import ExtDeprecationWarning
+        #warnings.simplefilter('ignore',ExtDeprecationWarning)
         warnings.simplefilter('ignore',FutureWarning)
 
         # Fill in the defaults if they were not provided
