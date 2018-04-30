@@ -6,8 +6,7 @@ import minus80 as m80
 import click
 
 
-
-@click.group()
+@click.group(epilog=f'Version {m80.__version__}')
 @click.option('--debug/--no-debug', default=False)
 def cli(debug):
     '''
@@ -17,6 +16,7 @@ def cli(debug):
       / /|_/ / / __ \/ / / / ___/ __  / / / /
      / /  / / / / / / /_/ (__  ) /_/ / /_/ / 
     /_/  /_/_/_/ /_/\__,_/____/\____/\____/  
+                                    
     
     Minus80 is a library for storing biological data. See minus80.linkage.io 
     for more details.
