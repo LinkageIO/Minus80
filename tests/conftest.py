@@ -10,6 +10,26 @@ def simpleAccession():
 
 
 @pytest.fixture(scope='module')
+def RNAAccession():
+    a = Accession(
+        'RNAAccession',
+        files = [
+            './data/Sample1_ATGTCA_L007_R1_001.fastq',
+            './data/Sample1_ATGTCA_L007_R2_001.fastq',
+            './data/Sample1_ATGTCA_L008_R1_001.fastq',
+            './data/Sample1_ATGTCA_L008_R2_001.fastq',
+        ],
+        type='RNASeq'
+    )
+    return a
+
+@pytest.fixture(scope='module')
+def RNACohort(RNAAccession):
+    x = Cohort('RNACohort')
+    x.add_accession(RNAAccession)
+    return x
+
+@pytest.fixture(scope='module')
 def simpleCohort():
     # Create the simple 
     a = Accession('Sample1',files=['file1.txt','file2.txt'],type='WGS')
