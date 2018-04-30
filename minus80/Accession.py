@@ -1,3 +1,4 @@
+import os
 
 class Accession(object):
     '''
@@ -64,34 +65,47 @@ class Accession(object):
         '''
         self.metadata[key] = val
 
-    def add_file(self,path):
+    def add_file(self,path,skip_test=False):
         '''
         Add a file that is associated with the accession.
 
         Parameters
         ----------
         path: string
+            The path the the file
+        skip_test : bool
+            If true, the method will not test if the file 
+            exists
 
         Returns
         -------
         None
         '''
+        if not os.path.exists(path) and not skip_test:
+            raise ValueError(f'{path} does not exist')
+        if not skip_test:
+            # Get absolute path
+            path = os.path.abspath(path)
         self.files.add(path)
 
-    def add_files(self,paths):
+    def add_files(self,paths,skip_test=False):
         '''
         Add multiple paths that are associated with an accession
 
         Parameters
         ----------
         paths : iterable of strings
+            The paths the the files
+        skip_test : bool
+            If true, the method will not test if the file 
+            exists
 
         Returns
         -------
         None
         '''
         for path in paths:
-            self.add_file(path)
+            self.add_file(path,skip_test=skip_test)
 
     def __repr__(self): #pragma: no cover
         '''
