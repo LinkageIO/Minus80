@@ -1,11 +1,32 @@
 from .Tools import get_files
 from .Config import cf
+
 from collections import defaultdict
 import os
 import lzma
 import sys
 
-class CloudData(object):
+
+__all__ = ['CloudData']
+
+def CloudData(engine='s3'):
+    if engine == 's3':
+        return S3CloudData()
+    else:
+        raise ValueError(f'Cannot use {engine} as a cloud engine.')
+
+
+class BaseCloudData(object):
+    def __init__(self):
+        pass
+    def put(self):
+        pass
+    def get(self):
+        pass
+    def list(self):
+        pass
+
+class S3CloudData(BaseCloudData):
 
     '''
     CloudData objects allow minus80 to interact with the cloud to store both
@@ -26,7 +47,7 @@ class CloudData(object):
             raise ModuleNotFoundError('boto3 must be installed to use this feature')
    
         if cf.cloud.access_key == 'None' or cf.cloud.secret_key == 'None':
-            raise ValueError('Fill in your Amazon Credentials in ~/.minus80.conf')
+            raise ValueError('Fill in your S3 Credentials in ~/.minus80.conf')
 
         self.s3 = boto3.client(
             service_name='s3',
