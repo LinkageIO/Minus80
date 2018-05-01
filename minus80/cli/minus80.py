@@ -6,7 +6,7 @@ import minus80 as m80
 import click
 
 
-@click.group(epilog=f'Version {m80.__version__}')
+@click.group(epilog=f'Made with Love in St Paul -- Version {m80.__version__}')
 @click.option('--debug/--no-debug', default=False)
 def cli(debug):
     '''
@@ -21,7 +21,8 @@ def cli(debug):
     Minus80 is a library for storing biological data. See minus80.linkage.io 
     for more details.
     '''
-@cli.command(short_help='List the available minus80 datasets',
+
+@click.command(short_help='List the available minus80 datasets',
     help='Reports the available datasets **Frozen** in the minus80 database.'
 )
 @click.option('--name',  default='*', 
@@ -32,3 +33,50 @@ def cli(debug):
 )
 def available(name,dtype):
     m80.Tools.available(name,dtype)
+
+cli.add_command(available)
+
+@click.group()
+@click.option('--engine',default='s3',help='Cloud engine.')
+@click.option('--raw/--no-raw',default=False,help='Flag to list raw data')
+@click.option('--name',default=None,help='Name of m80 dataset')
+@click.option('--dtype',default=None,help='Type of m80 dataset')
+@click.pass_context
+def cloud(ctx,engine,raw,name,dtype):
+    '''
+    Manage your minus80 datasets in the cloud.
+    '''
+    ctx.obj = {}
+    ctx.obj['engine'] = engine
+    ctx.obj['RAW'] = raw
+    ctx.obj['NAME'] = name
+    ctx.obj['DTYPE'] = dtype
+
+cli.add_command(cloud)
+
+@click.command()
+@click.pass_context
+def available(ctx):
+    '''List available datasets'''
+    cloud = m80.CloudData()
+    raw = ctx.obj['RAW']
+    cloud.list(
+        raw=ctx.obj['RAW'],
+        name=ctx.obj['NAME'],
+        dtype=ctx.obj['DTYPE']
+    )
+
+
+@click.command()
+def get():
+    'Download a dataset from the cloud'
+    pass
+
+@click.command()
+def put():
+    'Upload a dataset in the cloud'
+    pass
+
+cloud.add_command(available)
+cloud.add_command(get)
+cloud.add_command(put)
