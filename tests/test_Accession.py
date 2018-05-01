@@ -19,8 +19,8 @@ def test_accession_setitem(simpleAccession):
     simpleAccession['added'] = True
     assert simpleAccession['added'] == True
 
-def test_accession_file_check(RNAAccession):
-    assert len(RNAAccession.files) == 4
+def test_accession_file_check(RNAAccession1):
+    assert len(RNAAccession1.files) == 4
 
 def test_accession_add_file_skip_test(simpleAccession):
     simpleAccession.add_file('/path/to/file.txt',skip_test=True)
