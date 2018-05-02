@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from setuptools import setup, find_packages, Extension
+from setuptools import setup, find_packages
 import os
 from setuptools.command.develop import develop
 from setuptools.command.install import install
@@ -37,9 +37,9 @@ class PostDevelopCommand(develop):
 	    --global-option=fetch --global-option=--version --global-option=3.22.0 --global-option=--all \
 	    --global-option=build --global-option=--enable-all-extensions'''.split())
             develop.run(self)
-        except CalledProcessError as e:
+        except CalledProcessError:
             pass
-            
+
 
 class PostInstallCommand(install):
     """
