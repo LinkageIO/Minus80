@@ -47,7 +47,7 @@ class Config(object):
 
     def __init__(self,filename):
         filename = os.path.expanduser(filename)
-        self.data = Level(yaml.load(open(filename,'r')))
+        self.data = Level(yaml.safe_load(open(filename,'r')))
 
     def __getattr__(self,item):
         return self.data[item]
