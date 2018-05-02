@@ -8,23 +8,21 @@ import apsw as lite
 import os as os
 import numpy as np
 import pandas as pd
-import glob
-import shutil
 
 from .Config import cf
-from apsw import ConstraintError
 from contextlib import contextmanager
+
 
 class Freezable(object):
 
     '''
     Freezable is an abstract class. Things that inherit from Freezable can
     be loaded and unloaded from the Minus80.
-     
+
     A freezable object is a persistant object that lives in a known directory
-    aimed to make expensive to build objects and databases loadable from 
+    aimed to make expensive to build objects and databases loadable from
     new runtimes.
-    
+
     The three main things that a Freezable object supplies are:
     * access to a sqlite database (relational records)
     * access to a bcolz databsase (columnar data)
@@ -41,22 +39,22 @@ class Freezable(object):
         ----------
         name : str
             The name of the frozen object.
-        type : str,default=None
+        type : str, default=None
             The type of the frozen object (e.g. Cohort)
-            If None, the type will be inferred from the 
+            If None, the type will be inferred from the
             object class.
         basedir : str, default=None
-            The basedir to store the frozen object. If 
+            The basedir to store the frozen object. If
             None, the basedire in the config file will be
             used.
 
         '''
         # Set up our base directory
-        if basedir == None:
+        if basedir is None:
             self._m80_basedir = cf.options.basedir
         self._m80_name = name
-        # 
-        if type == None:
+        #
+        if type is None:
             # Just use the class type as the type
             self._m80_type = self.guess_type(self)
         else:
@@ -76,7 +74,6 @@ class Freezable(object):
                 ''')
         except TypeError:
             raise TypeError('{}.{} does not exist'.format(type, name))
-
 
     @contextmanager
     def bulk_transaction(self):
@@ -101,11 +98,10 @@ class Freezable(object):
         finally:
             cur.execute('RELEASE SAVEPOINT bulk_transaction')
 
-
     def _dbfilename(self, dbname=None, type=None):
         '''
         Get the path to a database file.
-   
+
         Parameters
         ----------
         dbname : str, default=None
@@ -115,16 +111,20 @@ class Freezable(object):
 
         Returns
         -------
-        
-            
+
+
 
         '''
-        if dbname == None:
+        if dbname is None:
             name = self._m80_name
-        if type == None:
-            type = self._m80_type
+        if type is None:
+            dtype = self._m80_type
         return os.path.expanduser(
-            os.path.join(self._m80_basedir,'databases','{}.{}.db'.format(self._m80_name,type))        
+            os.path.join(
+                self._m80_basedir,
+                'databases',
+                '{}.{}.db'.format(name, dtype)
+            )
         )
 
     def _open_db(self, dbname=None, type=None):
@@ -133,22 +133,14 @@ class Freezable(object):
         '''
         # return a connection if exists
         return lite.Connection(
-            self._dbfilename(dbname,type)
+            self._dbfilename(dbname, type)
         )
 
-
-    def _bcolz_array(self, name, array=None, m80name=None, m80type=None, blaze=False):
+    def _bcolz_array(self, name, array=None, m80name=None,
+                     m80type=None):
         '''
             Routines to set/get arrays from the bcolz store
         '''
-        import warnings
-        #from flask.exthook import ExtDeprecationWarning
-        #warnings.simplefilter('ignore',ExtDeprecationWarning)
-        warnings.simplefilter('ignore',FutureWarning)
-        try:
-            import blaze as blz
-        except FutureWarning as e:
-            pass
         # Fill in the defaults if they were not provided
         if m80type is None:
             m80type = self._m80_type
@@ -162,16 +154,17 @@ class Freezable(object):
                 "{}.{}.bcz".format(m80name, m80type)
             )
         )
-        os.makedirs(path,exist_ok=True)
+        os.makedirs(path, exist_ok=True)
         if array is None:
             # GETTER
-            arr = bcz.open(os.path.join(path,name))
+            arr = bcz.open(os.path.join(path, name))
             return arr
         else:
             # SETTER
-            bcz.carray(array,mode='w',rootdir=os.path.join(path,name))
+            bcz.carray(array, mode='w', rootdir=os.path.join(path, name))
 
-    def _bcolz(self, tblname, df=None, m80name=None, m80type=None, blaze=False):
+    def _bcolz(self, tblname, df=None, m80name=None, m80type=None,
+               blaze=False):
         '''
             This is the access point to the bcolz database
         '''
@@ -180,9 +173,9 @@ class Freezable(object):
         except FutureWarning as e:
             pass
         import warnings
-        #from flask.exthook import ExtDeprecationWarning
-        #warnings.simplefilter('ignore',ExtDeprecationWarning)
-        warnings.simplefilter('ignore',FutureWarning)
+        # from flask.exthook import ExtDeprecationWarning
+        # warnings.simplefilter('ignore', ExtDeprecationWarning)
+        warnings.simplefilter('ignore', FutureWarning)
 
         # Fill in the defaults if they were not provided
         if m80type is None:
@@ -196,15 +189,17 @@ class Freezable(object):
                 "{}.{}.bcz".format(m80name, m80type)
             )
         )
-        os.makedirs(path,exist_ok=True)
+        os.makedirs(path, exist_ok=True)
 
         # function is a getter if df is provided
         if df is None:
-            # return the dataframe if it exists 
+            # return the dataframe if it exists
             try:
-                df = bcz.open(os.path.join(path,tblname))
+                df = bcz.open(os.path.join(path, tblname))
             except IOError:
-                raise IOError(f'could not open database for {m80type}:{m80name} ')
+                raise IOError(
+                    f'could not open database for {m80type}:{m80name} '
+                )
             else:
                 if len(df) == 0:
                     df = pd.DataFrame()
@@ -219,22 +214,25 @@ class Freezable(object):
                     df.set_index('idx', drop=True, inplace=True)
                     df.index.name = None
                 return df
-        # If df is set, then store the table 
+        # If df is set, then store the table
         else:
             if not(df.index.dtype_str == 'int64') and not (df.empty):
                 df = df.copy()
                 df['idx'] = df.index
-            if isinstance(df,pd.DataFrame):
-                path = os.path.join(path,tblname)
+            if isinstance(df, pd.DataFrame):
+                path = os.path.join(path, tblname)
                 if df.empty:
-                    bcz.fromiter((),dtype=np.int32,mode='w',count=0,rootdir=path)
+                    bcz.fromiter(
+                        (), dtype=np.int32, mode='w',
+                        count=0, rootdir=path
+                    )
                 else:
-                    bcz.ctable.fromdataframe(df,mode='w',rootdir=path)
+                    bcz.ctable.fromdataframe(df, mode='w', rootdir=path)
             if 'idx' in df.columns.values:
                 del df
-            return 
-    
-    def _tmpfile(self,*args,**kwargs):
+            return
+
+    def _tmpfile(self, *args, **kwargs):
         # returns a handle to a tmp file
         return tempfile.NamedTemporaryFile(
             'w',
@@ -242,7 +240,7 @@ class Freezable(object):
                 os.path.join(
                     cf.options.basedir,
                     "tmp"
-                )   
+                )
             ),
             **kwargs
         )
@@ -251,31 +249,32 @@ class Freezable(object):
         '''
             Stores global variables for the freezable object. The
             method will automatically infer in the val type is in
-            [int,float,str]. If the value is not one of these, an
+            [int, float, str]. If the value is not one of these, an
             excpetion will be raised.
 
             Parameters
             ----------
             key : str
                 the dictionary key
-            val : int,float, or str
+            val : int, float, or str
                 the value corresponding to the key
 
         '''
         try:
-            if val != None:
+            if val is not None:
                 val_type = self.guess_type(val)
-                if val_type not in ('int','float','str'):
+                if val_type not in ('int', 'float', 'str'):
                     raise TypeError(
-                        'val must be in [int,float,str], not {}'.format(val_type)
+                        f'val must be in [int, float, str], not {val_type}'
                     )
-                self._db.cursor().execute('''
+                self._db.cursor().execute(
+                    '''
                     INSERT OR REPLACE INTO globals
                     (key, val, type)VALUES (?, ?, ?)''', (key, val, val_type)
                 )
             else:
-                (valtype,value) = self._db.cursor().execute(
-                    '''SELECT type,val FROM globals WHERE key = ?''', (key, )
+                (valtype, value) = self._db.cursor().execute(
+                    '''SELECT type, val FROM globals WHERE key = ?''', (key, )
                 ).fetchone()
                 if valtype == 'int':
                     return int(value)
@@ -286,23 +285,24 @@ class Freezable(object):
         except TypeError:
             raise ValueError('{} not in database'.format(key))
 
-    def _cassandra(self,name=None,dtype=None):
+    def _cassandra(self, name=None, dtype=None):
         '''
-            Provides an interface to a cassandra NOSQL database. This is 
+            Provides an interface to a cassandra NOSQL database. This is
             experimental.
-
         '''
         try:
             from cassandra.cluster import Cluster
         except ImportError as e:
-            raise ImportError('Please install `cassandra-driver` to use this feature',e)
+            raise ImportError(
+                'Please install `cassandra-driver` to use this feature', e
+            )
         if dtype is None:
             dtype = self._m80_type
         if name is None:
             name = self._m80_name
         cluster = Cluster()
         # Connect to the keyspace dictated by the object
-        session = cluster.connect()#f'{name}.{dtype}')
+        session = cluster.connect()  # f'{name}.{dtype}')
         return session
 
     @staticmethod
@@ -317,5 +317,3 @@ class Freezable(object):
         ).groups()[0].split('.')
         # Return the most specific one
         return classes[-1]
-
-
