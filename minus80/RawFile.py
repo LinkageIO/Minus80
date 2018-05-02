@@ -15,5 +15,5 @@ class RawFile(object):
             self.handle = open(filename,'r')
     def __enter__(self):
         return self.handle
-    def __exit__(self,type,value,traceback):
+    def __exit__(self,dtype,value,traceback):
         self.handle.close()

@@ -21,13 +21,13 @@ class BaseCloudData(object):
     def __init__(self):
         pass
 
-    def put(self):
+    def put(self, name, dtype, raw=False, compress=False):
         pass
 
-    def get(self):
+    def get(self, name, dtype, raw=False):
         pass
 
-    def list(self):
+    def list(self, name=None, dtype=None, raw=None):
         pass
 
 

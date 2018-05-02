@@ -280,7 +280,7 @@ class Cohort(Freezable):
             name = item
         try:
             self._get_AID(name)
-        except NameError as e:
+        except NameError:
             return False
         else:
             return True
