@@ -108,13 +108,13 @@ class Cohort(Freezable):
             return cur.execute(
                 'SELECT AID FROM accessions WHERE name = ?', (name, )
             ).fetchone()[0]
-        except TypeError as e:
+        except TypeError:
             pass
         try:
             return cur.execute(
                 'SELECT AID FROM aliases WHERE alias = ?', (name, )
             ).fetchone()[0]
-        except TypeError as e:
+        except TypeError:
             raise NameError(f'{name} not in Cohort')
 
     def random_accession(self):
