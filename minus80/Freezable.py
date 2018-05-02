@@ -116,14 +116,14 @@ class Freezable(object):
 
         '''
         if dbname is None:
-            name = self._m80_name
+            dbname = self._m80_name
         if type is None:
             dtype = self._m80_type
         return os.path.expanduser(
             os.path.join(
                 self._m80_basedir,
                 'databases',
-                '{}.{}.db'.format(name, dtype)
+                '{}.{}.db'.format(dbname, dtype)
             )
         )
 
