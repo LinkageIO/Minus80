@@ -1,4 +1,3 @@
-import pytest
 import numpy as np
 import pandas as pd
 
@@ -16,7 +15,7 @@ def test_open_db(simpleCohort):
     simpleCohort._open_db(simpleCohort._m80_name)
 
 def test_store_bcolz(simpleCohort):
-    df = pd.DataFrame([[1,2,3],[4,5,6],[7,8,9]],columns=['a','b','c']) 
+    df = pd.DataFrame([[1,2,3],[4,5,6],[7,8,9]],columns=['a','b','c'])
     simpleCohort._bcolz('testTable',df=df)
 
 
@@ -35,7 +34,7 @@ def test_get_bcolz_array(simpleCohort):
     simpleCohort._bcolz_array('testArray',array=arr)
     arr2 = simpleCohort._bcolz_array('testArray')
     assert all(arr == arr2)
-    
+ 
 def test_tmpfile(simpleCohort):
     tmpfile = simpleCohort._tmpfile()
     a = open(tmpfile.name,'w')

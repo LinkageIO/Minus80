@@ -54,5 +54,6 @@ def simpleCohort():
     d = Accession('Sample4',files=['file1.txt','file2.txt'],type='CHIP')
 
     x = Cohort('TestCohort')
-    [x.add_accession(_) for _ in [a,b,c,d]]
+    for acc in [a,b,c,d]:
+        x.add_accession(acc) 
     return x
