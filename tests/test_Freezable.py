@@ -5,7 +5,7 @@ import pandas as pd
 from minus80 import Cohort
 
 def test_guess_type(simpleCohort):
-    assert Cohort.guess_type(simpleCohort) == 'Cohort' 
+    assert Cohort.guess_type(simpleCohort) == 'Cohort'
 
 def test_dbfilename(simpleCohort):
     mname = simpleCohort._m80_name
@@ -49,7 +49,7 @@ def test_dict(simpleCohort):
     assert simpleCohort._dict('test') == 'TEST'
     try:
         simpleCohort._dict('TEST')
-    except ValueError as e:
+    except ValueError:
         pass
     assert True
 
