@@ -77,7 +77,7 @@ def available(name='*',dtype=''):
     datasets = defaultdict(list)
     for f in files:
         if f.endswith('.db'):
-            x,*subjunk,y = f.replace('.db','').split('.')
+            x,*_,y = f.replace('.db','').split('.')
             datasets[y].append(x)
     # If both are specified, return a boolean
     if dtype != '' and name != '*':
@@ -148,15 +148,13 @@ def directory_search(directory,suffix='.fastq'):
     '''
         Search a directory and create Accessions from the files found there.
     '''
-    import os
-    import re
     from minus80 import Accession
     
     accessions = dict()
-    for root, dirs, files in os.walk(directory,followlinks=True):
+    for root, _, files in os.walk(directory,followlinks=True):
         for f in files:
             if f.endswith(suffix):
-                id,*args = f.split('_') 
+                id,*_ = f.split('_') 
                 if id not in accessions:
                     accessions[id] = Accession(id,files=[])
                 x = accessions[id]

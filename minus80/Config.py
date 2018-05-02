@@ -58,9 +58,9 @@ class Config(object):
     def __repr__(self):
         return pprint.pformat(self.data)
 
-''' -------------------------------------------------------------------------
-        Program Logic
-'''
+#  -------------------------------------------------------------------------
+#        Program Logic
+
 
 cf_file = os.path.expanduser('~/.minus80.conf')
 
