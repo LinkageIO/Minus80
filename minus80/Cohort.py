@@ -1,26 +1,25 @@
-import pandas as pd
-import os as os
 from functools import lru_cache
 
-from minus80 import Accession,Freezable
+from minus80 import Accession, Freezable
+
 
 class Cohort(Freezable):
     '''
         A Cohort is a named set of accessions. Once cohorts are
-        created, they are persistant as they are stored in the 
+        created, they are persistant as they are stored in the
         disk by minus80.
     '''
 
-    def __init__(self,name):
+    def __init__(self, name):
         super().__init__(name)
         self.name = name
         self._initialize_tables()
 
     def __repr__(self):
-        return f'Cohort("{self.name}") -- contains {len(self)}' 
+        return f'Cohort("{self.name}") -- contains {len(self)}'
 
     @classmethod
-    def from_yaml(cls,name,yaml_file):
+    def from_yaml(cls, name, yaml_file):
         '''
         Create a Cohort from a YAML file. Note: this yaml file
         must be created from
@@ -39,13 +38,12 @@ class Cohort(Freezable):
         '''
         import yaml
         self = cls(name)
-        accessions = yaml.load(open(yaml_file,'r'))
+        accessions = yaml.load(open(yaml_file, 'r'))
         self.add_accessions(accessions)
         return self
 
-
     @classmethod
-    def from_accessions(cls,name,accessions):
+    def from_accessions(cls, name, accessions):
         '''
         Create a Cohort from an iterable of Accessions.
 
@@ -68,11 +66,11 @@ class Cohort(Freezable):
 
     def _initialize_tables(self):
         cur = self._db.cursor()
-        cur.execute(''' 
+        cur.execute('''
             CREATE TABLE IF NOT EXISTS accessions (
                 AID INTEGER PRIMARY KEY AUTOINCREMENT,
                 name NOT NULL UNIQUE
-            );        
+            );
         ''')
         cur.execute('''
             CREATE TABLE IF NOT EXISTS aliases (
@@ -94,27 +92,27 @@ class Cohort(Freezable):
                 key TEXT NOL NULL,
                 val TEXT NOT NULL,
                 FOREIGN KEY(AID) REFERENCES accessions(AID)
-                UNIQUE(AID,key,val)
+                UNIQUE(AID, key, val)
             );
         ''')
 
     @lru_cache(maxsize=2048)
-    def _get_AID(self,name):
+    def _get_AID(self, name):
         '''
-            Return a Sample ID (AID) 
+            Return a Sample ID (AID)
         '''
-        if isinstance(name,Accession):
+        if isinstance(name, Accession):
             name = name.name
         cur = self._db.cursor()
         try:
             return cur.execute(
-                'SELECT AID FROM accessions WHERE name = ?',(name,)
+                'SELECT AID FROM accessions WHERE name = ?', (name, )
             ).fetchone()[0]
         except TypeError as e:
             pass
         try:
             return cur.execute(
-                'SELECT AID FROM aliases WHERE alias = ?',(name,) 
+                'SELECT AID FROM aliases WHERE alias = ?', (name, )
             ).fetchone()[0]
         except TypeError as e:
             raise NameError(f'{name} not in Cohort')
@@ -133,105 +131,111 @@ class Cohort(Freezable):
                 An Accession object
         '''
         name = self._db.cursor().execute('''
-            SELECT name from accessions ORDER BY RANDOM() LIMIT 1; 
+            SELECT name from accessions ORDER BY RANDOM() LIMIT 1;
         ''').fetchone()[0]
         return self[name]
 
-    def random_accessions(self,n=1,replace=False):
+    def random_accessions(self, n=1, replace=False):
         '''
             Returns a list of random accessions from the Cohort, either
             with or without replacement.
 
             Parameters
             ----------
-            n : int 
+            n : int
                 The number of random accessions to retrieve
             replace: bool
-                If false, randomimzation does not include replacement 
+                If false, randomimzation does not include replacement
         '''
-        if replace == False:
+        if replace is False:
             if n > len(self):
-                raise ValueError(f'Only {len(self)} accessions in cohort. Cannot get {n} samples. See replace parameter in help.')
+                raise ValueError(
+                        f'Only {len(self)} accessions in cohort. Cannot'
+                        ' get {n} samples. See replace parameter in help.'
+                )
             return (
-                self[name] for (name,) in self._db.cursor().execute('''
+                self[name] for (name, ) in self._db.cursor().execute('''
                     SELECT name from accessions ORDER BY RANDOM() LIMIT ?;
-                ''',(n,))        
+                ''', (n, ))
             )
         else:
             return (self.get_random_accession() for _ in range(n))
 
-    def add_accessions(self,accessions):
+    def add_accessions(self, accessions):
         '''
             Add multiple Accessions at once
         '''
         with self.bulk_transaction() as cur:
-            # When a name is added, it is automatically assigned an ID 
-            cur.executemany(''' 
+            # When a name is added, it is automatically assigned an ID
+            cur.executemany('''
                 INSERT OR IGNORE INTO accessions (name) VALUES (?)
-            ''',[(x.name,) for x in accessions])
+            ''', [(x.name, ) for x in accessions])
             # Fetch that ID
             AID_map = self.AID_mapping
             # Populate the metadata and files tables
             cur.executemany('''
-                INSERT OR REPLACE INTO metadata (AID,key,val) VALUES (?,?,?)
-            ''',(
-                    (AID_map[accession.name],k,v) \
-                    for accession in accessions \
-                    for k,v in accession.metadata.items() \
+                INSERT OR REPLACE INTO metadata (AID, key, val)
+                VALUES (?, ?, ?)
+            ''', (
+                    (AID_map[accession.name], k, v)
+                    for accession in accessions
+                    for k, v in accession.metadata.items()
                 )
             )
             cur.executemany('''
-                INSERT OR REPLACE INTO files (AID,path) VALUES (?,?)
-            ''',(
-                    (AID_map[accession.name],file) \
-                    for accession in accessions \
-                    for file in accession.files \
+                INSERT OR REPLACE INTO files (AID, path) VALUES (?, ?)
+            ''', (
+                    (AID_map[accession.name], file)
+                    for accession in accessions
+                    for file in accession.files
                 )
             )
         return [self[x] for x in accessions]
 
-    def add_accession(self,accession):
+    def add_accession(self, accession):
         '''
             Add a sample to the Database
         '''
         with self.bulk_transaction() as cur:
-            # When a name is added, it is automatically assigned an ID 
-            cur.execute(''' 
+            # When a name is added, it is automatically assigned an ID
+            cur.execute('''
                 INSERT OR IGNORE INTO accessions (name) VALUES (?)
-            ''',(accession.name,))
+            ''', (accession.name, ))
             # Fetch that ID
             AID = self._get_AID(accession)
             # Populate the metadata and files tables
             cur.executemany('''
-                INSERT OR REPLACE INTO metadata (AID,key,val) VALUES (?,?,?)
-            ''',((AID,k,v) for k,v in accession.metadata.items())
+                INSERT OR REPLACE INTO metadata (AID, key, val)
+                VALUES (?, ?, ?)
+            ''', ((AID, k, v) for k, v in accession.metadata.items())
             )
             cur.executemany('''
-                INSERT OR REPLACE INTO files (AID,path) VALUES (?,?)
-            ''',((AID,file) for file in accession.files)
+                INSERT OR REPLACE INTO files (AID, path) VALUES (?, ?)
+            ''', ((AID, file) for file in accession.files)
             )
         return self[accession]
-    
+
     @property
     def AID_mapping(self):
         return {
-            x.name : x['AID'] 
-            for x in self }
+            x.name: x['AID']
+            for x in self
+        }
 
-    def __delitem__(self,name):
+    def __delitem__(self, name):
         '''
             Remove a sample by name (or by composition)
         '''
-        # First try 
+        # First try
         AID = self._get_AID(name)
-        
+
         self._db.cursor().execute('''
             DELETE FROM accessions WHERE AID = ?;
             DELETE FROM metadata WHERE AID = ?;
             DELETE FROM files WHERE AID = ?;
-        ''',(AID,AID,AID))
+        ''', (AID, AID, AID))
 
-    def __getitem__(self,name):
+    def __getitem__(self, name):
         '''
             Get an accession from the database the pythonic way.
 
@@ -245,18 +249,18 @@ class Cohort(Freezable):
         AID = self._get_AID(name)
         cur = self._db.cursor()
         metadata = {
-            k:v for k,v in cur.execute('''
-                SELECT key,val FROM metadata WHERE AID = ?;
-                ''',(AID,)
+            k: v for k, v in cur.execute('''
+                SELECT key, val FROM metadata WHERE AID = ?;
+                ''', (AID, )
             ).fetchall()
-        } 
+        }
         metadata['AID'] = AID
-        files = [x[0] for x in cur.execute(''' 
+        files = [x[0] for x in cur.execute('''
                 SELECT path FROM files WHERE AID = ?;
-            ''',(AID,)
+            ''', (AID, )
             ).fetchall()
         ]
-        return Accession(name,files=files,**metadata)
+        return Accession(name, files=files, **metadata)
 
     def __len__(self):
         return self._db.cursor().execute('''
@@ -266,11 +270,11 @@ class Cohort(Freezable):
     def __iter__(self):
         for name in (x[0] for x in self._db.cursor().execute('''
                 SELECT name FROM accessions
-            ''').fetchall()):
+                ''').fetchall()):
             yield self[name]
 
-    def __contains__(self,item):
-        if isinstance(item,Accession):
+    def __contains__(self, item):
+        if isinstance(item, Accession):
             name = item.name
         else:
             name = item
@@ -280,4 +284,3 @@ class Cohort(Freezable):
             return False
         else:
             return True
-
