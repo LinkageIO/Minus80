@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 
-import sys
-import argparse
-import minus80 as m80
 import click
+import minus80 as m80
 
 
 @click.group(epilog=f'Made with Love in St Paul -- Version {m80.__version__}')
@@ -11,38 +9,38 @@ import click
 def cli(debug):
     '''
     \b
-        __  ____                  ____  ____ 
+        __  ____                  ____  ____
        /  |/  (_)___  __  _______( __ )/ __ \\
       / /|_/ / / __ \/ / / / ___/ __  / / / /
-     / /  / / / / / / /_/ (__  ) /_/ / /_/ / 
-    /_/  /_/_/_/ /_/\__,_/____/\____/\____/  
-                                    
-    
-    Minus80 is a library for storing biological data. See minus80.linkage.io 
+     / /  / / / / / / /_/ (__  ) /_/ / /_/ /
+    /_/  /_/_/_/ /_/\__, _/____/\____/\____/
+
+
+    Minus80 is a library for storing biological data. See minus80.linkage.io
     for more details.
     '''
 
 @click.command(short_help='List the available minus80 datasets',
     help='Reports the available datasets **Frozen** in the minus80 database.'
 )
-@click.option('--name',  default='*', 
+@click.option('--name',  default='*',
     help="The name of the dataset you want to check is available. The default value is the wildcard '*' which will return all available datasets with the specified dtype."
 )
 @click.option('--dtype', default='',
     help='Each dataset has a datatype associated with it. E.g.: `Cohort`. If no dtype is specified, all available dtypes  will be returned.'
 )
-def available(name,dtype):
-    m80.Tools.available(name,dtype)
+def available(name, dtype):
+    m80.Tools.available(name, dtype)
 
 cli.add_command(available)
 
 @click.group()
-@click.option('--engine',default='s3',help='Cloud engine.')
-@click.option('--raw/--no-raw',default=False,help='Flag to list raw data')
-@click.option('--name',default=None,help='Name of m80 dataset')
-@click.option('--dtype',default=None,help='Type of m80 dataset')
+@click.option('--engine', default='s3', help='Cloud engine.')
+@click.option('--raw/--no-raw', default=False, help='Flag to list raw data')
+@click.option('--name', default=None, help='Name of m80 dataset')
+@click.option('--dtype', default=None, help='Type of m80 dataset')
 @click.pass_context
-def cloud(ctx,engine,raw,name,dtype):
+def cloud(ctx, engine, raw, name, dtype):
     '''
     Manage your minus80 datasets in the cloud.
     '''
