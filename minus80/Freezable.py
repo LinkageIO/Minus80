@@ -31,7 +31,7 @@ class Freezable(object):
 
     '''
 
-    def __init__(self, name, type=None, basedir=None):
+    def __init__(self, name, dtype=None, basedir=None):
         '''
         Initialize the Freezable Object.
 
@@ -39,7 +39,7 @@ class Freezable(object):
         ----------
         name : str
             The name of the frozen object.
-        type : str, default=None
+        dtype : str, default=None
             The type of the frozen object (e.g. Cohort)
             If None, the type will be inferred from the
             object class.
@@ -54,11 +54,11 @@ class Freezable(object):
             self._m80_basedir = cf.options.basedir
         self._m80_name = name
         #
-        if type is None:
+        if dtype is None:
             # Just use the class type as the type
             self._m80_type = self.guess_type(self)
         else:
-            self._m80_type = type
+            self._m80_type = dtype
         # A dataset already exists, return it
         self._db = self._open_db(self._m80_name)
 
@@ -73,7 +73,7 @@ class Freezable(object):
                 CREATE UNIQUE INDEX IF NOT EXISTS uniqkey ON globals(key)
                 ''')
         except TypeError:
-            raise TypeError('{}.{} does not exist'.format(type, name))
+            raise TypeError('{}.{} does not exist'.format(dtype, name))
 
     @contextmanager
     def bulk_transaction(self):
@@ -98,7 +98,7 @@ class Freezable(object):
         finally:
             cur.execute('RELEASE SAVEPOINT bulk_transaction')
 
-    def _dbfilename(self, dbname=None, type=None):
+    def _dbfilename(self, dbname=None, dtype=None):
         '''
         Get the path to a database file.
 
@@ -106,7 +106,7 @@ class Freezable(object):
         ----------
         dbname : str, default=None
             The frozen object name
-        type : str, default=None
+        dtype : str, default=None
             The datatype of the frozen object
 
         Returns
@@ -117,7 +117,7 @@ class Freezable(object):
         '''
         if dbname is None:
             dbname = self._m80_name
-        if type is None:
+        if dtype is None:
             dtype = self._m80_type
         return os.path.expanduser(
             os.path.join(
@@ -127,13 +127,13 @@ class Freezable(object):
             )
         )
 
-    def _open_db(self, dbname=None, type=None):
+    def _open_db(self, dbname=None, dtype=None):
         '''
             This is the access point to the sqlite database
         '''
         # return a connection if exists
         return lite.Connection(
-            self._dbfilename(dbname, type)
+            self._dbfilename(dbname, dtype)
         )
 
     def _bcolz_array(self, name, array=None, m80name=None,
@@ -170,7 +170,7 @@ class Freezable(object):
         '''
         try:
             import blaze as blz
-        except FutureWarning as e:
+        except FutureWarning:
             pass
         import warnings
         # from flask.exthook import ExtDeprecationWarning
@@ -232,6 +232,7 @@ class Freezable(object):
                 del df
             return
 
+    @staticmethod
     def _tmpfile(self, *args, **kwargs):
         # returns a handle to a tmp file
         return tempfile.NamedTemporaryFile(
