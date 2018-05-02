@@ -233,7 +233,7 @@ class Freezable(object):
             return
 
     @staticmethod
-    def _tmpfile(self, *args, **kwargs):
+    def _tmpfile(*args, **kwargs):
         # returns a handle to a tmp file
         return tempfile.NamedTemporaryFile(
             'w',

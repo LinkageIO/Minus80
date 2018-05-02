@@ -154,10 +154,10 @@ def directory_search(directory, suffix='.fastq'):
     for root, _, files in os.walk(directory, followlinks=True):
         for f in files:
             if f.endswith(suffix):
-                id, *_ = f.split('_')
-                if id not in accessions:
-                    accessions[id] = Accession(id, files=[])
-                x = accessions[id]
+                fid, *_ = f.split('_')
+                if fid not in accessions:
+                    accessions[fid] = Accession(fid, files=[])
+                x = accessions[fid]
                 x.add_file(os.path.join(root, f))
 
 
