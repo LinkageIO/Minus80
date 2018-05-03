@@ -25,7 +25,6 @@ deploy:
   user: schae234
   password:
     secure: tTQy00Ulvf2BKN944ciausmSgvrb3OihBbcaDOGm6LJZUnFKO5OuCXMqSntFfnE4uwNqKteUHHT0mK72zvGh+/jSfeD78OsGZk9syJaxfqNTp9KRVbry6wxH6L6zjnBmXClOVPJ+IoU9DF4Naa53NWmo1+kA6os07i6CP7rc+pANaYbKaXOWvN75CLmpE5qc4RUZpYtJ3xB9JHegaNsEBQXYUlds8o131sJMvsqWWuzK42rPbTgLywT7AXr661JBWkPzwCM48EL2VFYCiTGsjLY2gEzXM+zI4uboRyHyTLLj6WXNj2P6IrdZhnng7+xteATKLRcSsbqtlOSP7/n00cM48BheHRyjqt/vDjsMJsb4h8S13GdGLz3yAtskk7TPctKnNSq+IxLb3v7F5ieEf16wgWNpVh6wVFkA+URWsP87PdTwDnLKE4SN9cVutaesO4emifDm85lh92ASoPdcw5XeyqE9naQV38QsoXpRBueQdUGuONXrZXjvAgqQLpBugkBqigDWyslhiUWHf415Cy9y1LPRfYyEhAeCgxR6q2uzg0T4VnYFeVOZ/f+qRP4/+GKqOb2MVnN9/ZNWEEVhLV1H3IPpW/rFLHbtGb3QASvCs6x94rvCfqfQN1vAyxZ/vGSIfuIuRju7oMON9VlpN9Ta8bQqwhbXZixnc6wHSf0=
-  distribution: sdist bdist_wheel
+  distributions: "sdist bdist_wheel"
   on:
     tags: true
-    python: 3.6
