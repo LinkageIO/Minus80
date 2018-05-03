@@ -1,27 +1,31 @@
 language: python
 python:
-  - "3.6"
-# command to install dependencies, e.g. pip install -r requirements.txt --use-mirrors
-
-# Install packages
+- '3.6'
 install:
-  - wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
-  - bash miniconda.sh -b -p $HOME/miniconda
-  - export PATH="$HOME/miniconda/bin:$PATH"
-  - hash -r
-  - conda config --set always_yes yes --set changeps1 no
-  - conda update -q conda
-  - conda info -a
-  - conda create -q -n testEnv python=3 Cython numpy pandas pytest pytest-cov
-  - source activate testEnv
-  - python setup.py develop
-  - pip install codecov
-# command to run tests, e.g. python setup.py test
-script:  
-  - source activate testEnv
-  - cd tests
-  - py.test -v --cov=minus80 
-
+- wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
+- bash miniconda.sh -b -p $HOME/miniconda
+- export PATH="$HOME/miniconda/bin:$PATH"
+- hash -r
+- conda config --set always_yes yes --set changeps1 no
+- conda update -q conda
+- conda info -a
+- conda create -q -n testEnv python=3 Cython numpy pandas pytest pytest-cov
+- source activate testEnv
+- python setup.py develop
+- pip install codecov
+script:
+- source activate testEnv
+- cd tests
+- py.test -v --cov=minus80
 after_success:
-  - coveralls
-  - codecov
+- coveralls
+- codecov
+deploy:
+  provider: pypi
+  user: schae234
+  password:
+    secure: tTQy00Ulvf2BKN944ciausmSgvrb3OihBbcaDOGm6LJZUnFKO5OuCXMqSntFfnE4uwNqKteUHHT0mK72zvGh+/jSfeD78OsGZk9syJaxfqNTp9KRVbry6wxH6L6zjnBmXClOVPJ+IoU9DF4Naa53NWmo1+kA6os07i6CP7rc+pANaYbKaXOWvN75CLmpE5qc4RUZpYtJ3xB9JHegaNsEBQXYUlds8o131sJMvsqWWuzK42rPbTgLywT7AXr661JBWkPzwCM48EL2VFYCiTGsjLY2gEzXM+zI4uboRyHyTLLj6WXNj2P6IrdZhnng7+xteATKLRcSsbqtlOSP7/n00cM48BheHRyjqt/vDjsMJsb4h8S13GdGLz3yAtskk7TPctKnNSq+IxLb3v7F5ieEf16wgWNpVh6wVFkA+URWsP87PdTwDnLKE4SN9cVutaesO4emifDm85lh92ASoPdcw5XeyqE9naQV38QsoXpRBueQdUGuONXrZXjvAgqQLpBugkBqigDWyslhiUWHf415Cy9y1LPRfYyEhAeCgxR6q2uzg0T4VnYFeVOZ/f+qRP4/+GKqOb2MVnN9/ZNWEEVhLV1H3IPpW/rFLHbtGb3QASvCs6x94rvCfqfQN1vAyxZ/vGSIfuIuRju7oMON9VlpN9Ta8bQqwhbXZixnc6wHSf0=
+  distribution: sdist bdist_wheel
+  on:
+    tags: true
+    python: 3.6
