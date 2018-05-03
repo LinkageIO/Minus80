@@ -20,6 +20,7 @@ script:
 after_success:
 - coveralls
 - codecov
+- cd ../
 deploy:
   provider: pypi
   user: schae234
