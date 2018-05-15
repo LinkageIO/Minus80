@@ -28,6 +28,8 @@ is sufficient. Accessions are objects that store experimental data. Accessions
 are collected into Cohorts, which are stored persistently. Read all the details
 :ref:`here <freezable>`.
 
+
+
 The back end is an abstract base class that can be extended
 to make other datasets :ref:`freezable`. It is easier to explain what minus80
 does with a use case. After mastering how Accession and Cohort behave, see the
@@ -47,6 +49,7 @@ Table Of Contents
    Freezing <freezable>
    config
    Cloud <cloud>
+   Tools <tools>
    api
 
 
