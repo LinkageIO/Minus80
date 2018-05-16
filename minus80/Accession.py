@@ -1,5 +1,7 @@
 import os
-
+import getpass
+import socket
+import urllib
 
 class Accession(object):
     '''
@@ -66,28 +68,66 @@ class Accession(object):
         '''
         self.metadata[key] = val
 
-    def add_file(self, path, skip_test=False):
+    def add_file(self, path, skip_check=False, scheme='ssh',
+                 username=None, hostname=None):
         '''
         Add a file that is associated with the accession.
+        This method will attempt to determine where the file
+        is actually stored based on its path. Currently it 
+        supports three different protocols: local, ssh and
+        s3. A local file will looks something like:
+        `/tmp/file1.fastq`.  
 
         Parameters
         ----------
-        path: string
-            The path the the file
-        skip_test : bool
+        path/URL: string
+            The path/URL the the file. The string is parsed
+            for default information (e.g. 
+        skip_check : bool
             If true, the method will not test if the file
             exists
+        scheme: string (default: ssh)
+            Specifies the scheme/protocol for accessing the file.
+            Defaults to ssh, also supports s3
+        username : string (default: None)
+            Defines a username that is authorized to access
+            `hostname` using `protocol`. Defaults to None 
+            in which case it will be determined by calling
+            `getpass.getuser()`.
+        hostname : sting (default: None)
+            Defines the hostname that the file is accessible
+            through. Defaults to None, where the hostname
+            will be determined 
+        port: int (default: 22)
+            Port to access the file through. Defaults to 22,
+            which is for ssh.
+
+        NOTE: any keyword arguments passed in will override
+              the values parsed out of the path. 
 
         Returns
         -------
         None
         '''
-        if not skip_test:
+        url = urllib.parse.urlparse(path)
+        # Override parsed url values with keywords
+        if scheme is not None:
+            url = url._replace(scheme=scheme)
+        # check if URL parameters were provided via path
+        if url.netloc == '':
+            if username is None:
+                username = getpass.getuser()
+            if hostname is None:
+                hostname = socket.gethostname()
+            netloc = f'{username}@{hostname}'
+            url = url._replace(netloc=netloc)
+        if not skip_check:
             # Get absolute path
             path = os.path.abspath(path)
-        if not os.path.exists(path) and not skip_test:
-            raise ValueError(f'{path} does not exist')
-        self.files.add(path)
+            if not os.path.exists(path):
+                raise ValueError(f'{path} does not exist')
+        url = urllib.parse.urlunparse(url)
+        self.files.add(url)
 
     def add_files(self, paths, skip_test=False):
         '''
@@ -113,3 +153,6 @@ class Accession(object):
         String representation of Accession
         '''
         return f'Accession({self.name}, files={self.files}, {self.metadata})'
+
+
+
