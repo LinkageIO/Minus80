@@ -2,6 +2,8 @@ import os
 import getpass
 import socket
 import urllib
+import asyncio
+import asyncssh
 
 class Accession(object):
     '''
@@ -95,7 +97,7 @@ class Accession(object):
             in which case it will be determined by calling
             `getpass.getuser()`.
         hostname : sting (default: None)
-            Defines the hostname that the file is accessible
+            Defines the ostname that the file is accessible
             through. Defaults to None, where the hostname
             will be determined 
         port: int (default: 22)
@@ -148,11 +150,59 @@ class Accession(object):
         for path in paths:
             self.add_file(path, skip_test=skip_test)
 
+    def __str__(self):
+        return '\n'.join(repr(self).split(','))
+
     def __repr__(self):  # pragma: no cover
         '''
         String representation of Accession
         '''
         return f'Accession({self.name}, files={self.files}, {self.metadata})'
 
+
+
+    @staticmethod
+    async def _check_file(url):
+        '''
+        asyncronously checks a URL
+        based in its scheme
+        '''
+        # Parse the URL and connect
+        url = urllib.parse.urlparse(url)
+        async with asyncssh.connect(
+                url.hostname,
+                username=url.username) as conn:
+            return await conn.run(
+                f'[[ -f {url.path} ]] && echo "Y" || echo "N"'
+            )
+
+    @staticmethod
+    async def _pipe_file(url):
+        '''
+
+
+    def _check_files(self):
+        '''
+        Check to see if files attached to an accession are 
+        accessible through ssh
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        True if all files are accessible. 
+        '''
+        # Set us up the loop
+        tasks = [] 
+        loop = asyncio.get_event_loop() 
+        # loop through the files and create tasks
+        for url in self.files:
+            tasks.append(self._check_file(url))
+        results = asyncio.gather(*tasks)
+        loop.run_until_complete(results)
+        
+        return results
 
 
