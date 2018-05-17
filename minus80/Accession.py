@@ -4,6 +4,29 @@ import socket
 import urllib
 import asyncio
 import asyncssh
+import os
+
+from contextlib import contextmanager
+
+from .Config import cf
+
+@contextmanager
+def named_pipe(url):
+    tp = os.path.expanduser(
+        os.path.join(
+            cf.options.basedir,
+            'tmp',
+            os.path.basename(url.path))
+    )
+    #fifo = os.mkfifo(tp) 
+    try:
+        yield tp
+    except Exception as e:
+        raise e
+    finally:
+        pass
+        #os.unlink(tp)
+
 
 class Accession(object):
     '''
@@ -179,7 +202,19 @@ class Accession(object):
     @staticmethod
     async def _pipe_file(url):
         '''
+        Pipes the content of a URL into a fifo
+        '''
+        url = urllib.parse.urlparse(url)
 
+        with named_pipe(url) as fifo:
+            async with asyncssh.connect(
+                    url.hostname,
+                    username=url.username
+                ) as conn: 
+                    await conn.run(
+                        f'head -n 100 {url.path}',
+                        stdout=fifo
+                    )
 
     def _check_files(self):
         '''
@@ -199,7 +234,7 @@ class Accession(object):
         loop = asyncio.get_event_loop() 
         # loop through the files and create tasks
         for url in self.files:
-            tasks.append(self._check_file(url))
+            tasks.append(self._pipe_file(url))
         results = asyncio.gather(*tasks)
         loop.run_until_complete(results)
         
