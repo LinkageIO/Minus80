@@ -22,13 +22,13 @@ def test_accession_setitem(simpleAccession):
 def test_accession_file_check(RNAAccession1):
     assert len(RNAAccession1.files) == 4
 
-def test_accession_add_file_skip_test(simpleAccession):
-    simpleAccession.add_file('ssh://test@examples.com/path/to/file.txt',skip_test=True)
+def test_accession_add_file_skip_check(simpleAccession):
+    simpleAccession.add_file('ssh://test@examples.com/path/to/file.txt',skip_check=True)
     assert 'ssh://test@examples.com/path/to/file.txt' in simpleAccession.files
 
 def test_accession_files_are_set(simpleAccession):
-    simpleAccession.add_file('/path/to/file.txt',skip_test=True)
+    simpleAccession.add_file('/path/to/file.txt',skip_check=True)
     len_files = len(simpleAccession.files)
-    simpleAccession.add_file('/path/to/file.txt',skip_test=True)
+    simpleAccession.add_file('/path/to/file.txt',skip_check=True)
     assert len(simpleAccession.files) == len_files
 
