@@ -46,8 +46,8 @@ def get_files(name, dtype=None, fullpath=False):
         files = [os.path.basename(x) for x in files]
     return files
 
-def available(name='*', dtype=''):
-    '''
+def available(name='*',  dtype=''):
+    ''' 
         Reports the available datasets **Frozen** in the minus80
         database.
 
@@ -94,20 +94,18 @@ def available(name='*', dtype=''):
         for i, name in enumerate(names, 1):
             print(f'\t{i}. {name}')
 
-def delete(name, dtype='', force=False):
-    '''
+def delete(name, dtype=None, force=False):
+    ''' 
         Deletes files associated with Minus80 datasets.
 
         Parameters
         ----------
+        name : str
+            The name of the dataset you want to delete
         dtype : str
             Each dataset has a datatype associated with it. E.g.:
             `Cohort`. If no dtype is specified, all available dtypes
             will be returned.
-        name : str
-            Defaults to '*'. The name of the dataset you want to check is
-            available.  The wildcard value, '*' which will return all available
-            datasets with the specified dtype.
         force : bool, default: False
             If False, the function will list off the files it wants to delete.
             If True, it will do what you tell it to do and just delete things
@@ -117,7 +115,6 @@ def delete(name, dtype='', force=False):
         -------
         int
             Returns the number of files deleted
-
 
         .. warning:: This is damaging. Deleted datasets cannot be (easily) recovered.
     '''
