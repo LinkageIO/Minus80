@@ -108,7 +108,8 @@ setup(
         'blaze >= 0.10.1',
         'termcolor >= 1.1.0',
         'pyyaml >= 3.12',
-        'click >= 6.7'
+        'click >= 6.7',
+        'asyncssh >= 1.12.2'
     ],
     include_package_data=True,
     entry_points='''
