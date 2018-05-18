@@ -13,13 +13,16 @@ def cli(debug):
        /  |/  (_)___  __  _______( __ )/ __ \\
       / /|_/ / / __ \/ / / / ___/ __  / / / /
      / /  / / / / / / /_/ (__  ) /_/ / /_/ /
-    /_/  /_/_/_/ /_/\__, _/____/\____/\____/
+    /_/  /_/_/_/ /_/\__,_/____/\____/\____/
 
 
     Minus80 is a library for storing biological data. See minus80.linkage.io
     for more details.
     '''
 
+#----------------------------
+#    Available Commands
+#----------------------------
 @click.command(short_help='List the available minus80 datasets',
     help='Reports the available datasets **Frozen** in the minus80 database.'
 )
@@ -34,6 +37,19 @@ def available(name, dtype):
 
 cli.add_command(available)
 
+#----------------------------
+#    delete Commands
+#----------------------------
+@click.command(help='Delete a minus80 dataset')
+@click.option('--name',help='The name of the dataset to delete')
+@click.option('--dtype',help='The dtype of the dataset to delete')
+def delete(name, dtype):
+    m80.Tools.delete(name,dtype)
+cli.add_command(delete)
+
+#----------------------------
+#    Cloud Commands
+#----------------------------
 @click.group()
 @click.option('--engine', default='s3', help='Cloud engine.')
 @click.option('--raw/--no-raw', default=False, help='Flag to list raw data')

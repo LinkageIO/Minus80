@@ -1,5 +1,14 @@
 import os
+import getpass
+import socket
+import urllib
+import asyncio
+import asyncssh
+import os
 
+from contextlib import contextmanager
+
+from .Config import cf
 
 class Accession(object):
     '''
@@ -66,28 +75,64 @@ class Accession(object):
         '''
         self.metadata[key] = val
 
-    def add_file(self, path, skip_test=False):
+    def add_file(self, path, skip_check=False, scheme='ssh',
+                 username=None, hostname=None):
         '''
         Add a file that is associated with the accession.
+        This method will attempt to determine where the file
+        is actually stored based on its path. Currently it 
+        supports three different protocols: local, ssh and
+        s3. A local file will looks something like:
+        `/tmp/file1.fastq`.  
 
         Parameters
         ----------
-        path: string
-            The path the the file
-        skip_test : bool
+        path/URL: string
+            The path/URL the the file. The string is parsed
+            for default information (e.g. 
+        skip_check : bool
             If true, the method will not test if the file
             exists
+        scheme: string (default: ssh)
+            Specifies the scheme/protocol for accessing the file.
+            Defaults to ssh, also supports s3
+        username : string (default: None)
+            Defines a username that is authorized to access
+            `hostname` using `protocol`. Defaults to None 
+            in which case it will be determined by calling
+            `getpass.getuser()`.
+        hostname : sting (default: None)
+            Defines the ostname that the file is accessible
+            through. Defaults to None, where the hostname
+            will be determined 
+        port: int (default: 22)
+            Port to access the file through. Defaults to 22,
+            which is for ssh.
+
+        NOTE: any keyword arguments passed in will override
+              the values parsed out of the path. 
 
         Returns
         -------
         None
         '''
-        if not skip_test:
+        url = urllib.parse.urlparse(path)
+        # Override parsed url values with keywords
+        if scheme is not None:
+            url = url._replace(scheme=scheme)
+        # check if URL parameters were provided via path
+        if url.netloc == '':
+            if username is None:
+                username = getpass.getuser()
+            if hostname is None:
+                hostname = socket.gethostname()
+            netloc = f'{username}@{hostname}'
+            url = url._replace(netloc=netloc)
+        if url.path.startswith('./') or url.path.startswith('../'):
             # Get absolute path
             path = os.path.abspath(path)
-        if not os.path.exists(path) and not skip_test:
-            raise ValueError(f'{path} does not exist')
-        self.files.add(path)
+        url = urllib.parse.urlunparse(url)
+        self.files.add(url)
 
     def add_files(self, paths, skip_test=False):
         '''
@@ -108,8 +153,58 @@ class Accession(object):
         for path in paths:
             self.add_file(path, skip_test=skip_test)
 
+    def __str__(self):
+        return '\n'.join(repr(self).split(','))
+
     def __repr__(self):  # pragma: no cover
         '''
         String representation of Accession
         '''
         return f'Accession({self.name}, files={self.files}, {self.metadata})'
+
+    @staticmethod
+    async def _check_file(url):
+        '''
+        asyncronously checks a URL
+        based in its scheme
+        '''
+        # Parse the URL and connect
+        url = urllib.parse.urlparse(url)
+        async with asyncssh.connect(
+                url.hostname,
+                username=url.username) as conn:
+            return await conn.run(
+                f'[[ -f {url.path} ]] && echo -n "Y" || echo -n "N"'
+            )
+
+
+    def _check_files(self):
+        '''
+        Check to see if files attached to an accession are 
+        accessible through ssh
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        Returns True if all files are accessible, otherwise 
+        returns a list of files that were unreachable.
+        '''
+        # Set us up the loop
+        tasks = [] 
+        loop = asyncio.get_event_loop() 
+        # loop through the files and create tasks
+        files = list(self.files)
+        for url in files:
+            tasks.append(self._check_file(url))
+        tasks = asyncio.gather(*tasks)
+        loop.run_until_complete(tasks)
+        unreachable = [i for i,r in enumerate(tasks.result()) if r.stdout!='Y']
+        if len(unreachable) == 0:
+            return True
+        else:
+            return [files[x] for x in unreachable]
+
+
