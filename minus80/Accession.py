@@ -10,24 +10,6 @@ from contextlib import contextmanager
 
 from .Config import cf
 
-@contextmanager
-def named_pipe(url):
-    tp = os.path.expanduser(
-        os.path.join(
-            cf.options.basedir,
-            'tmp',
-            os.path.basename(url.path))
-    )
-    #fifo = os.mkfifo(tp) 
-    try:
-        yield tp
-    except Exception as e:
-        raise e
-    finally:
-        pass
-        #os.unlink(tp)
-
-
 class Accession(object):
     '''
     From google: Definition (noun): a new item added to an existing collection
@@ -146,11 +128,9 @@ class Accession(object):
                 hostname = socket.gethostname()
             netloc = f'{username}@{hostname}'
             url = url._replace(netloc=netloc)
-        if not skip_check:
+        if url.path.startswith('./') or url.path.startswith('../'):
             # Get absolute path
             path = os.path.abspath(path)
-            if not os.path.exists(path):
-                raise ValueError(f'{path} does not exist')
         url = urllib.parse.urlunparse(url)
         self.files.add(url)
 
@@ -182,8 +162,6 @@ class Accession(object):
         '''
         return f'Accession({self.name}, files={self.files}, {self.metadata})'
 
-
-
     @staticmethod
     async def _check_file(url):
         '''
@@ -196,25 +174,9 @@ class Accession(object):
                 url.hostname,
                 username=url.username) as conn:
             return await conn.run(
-                f'[[ -f {url.path} ]] && echo "Y" || echo "N"'
+                f'[[ -f {url.path} ]] && echo -n "Y" || echo -n "N"'
             )
 
-    @staticmethod
-    async def _pipe_file(url):
-        '''
-        Pipes the content of a URL into a fifo
-        '''
-        url = urllib.parse.urlparse(url)
-
-        with named_pipe(url) as fifo:
-            async with asyncssh.connect(
-                    url.hostname,
-                    username=url.username
-                ) as conn: 
-                    await conn.run(
-                        f'head -n 100 {url.path}',
-                        stdout=fifo
-                    )
 
     def _check_files(self):
         '''
@@ -227,17 +189,22 @@ class Accession(object):
 
         Returns
         -------
-        True if all files are accessible. 
+        Returns True if all files are accessible, otherwise 
+        returns a list of files that were unreachable.
         '''
         # Set us up the loop
         tasks = [] 
         loop = asyncio.get_event_loop() 
         # loop through the files and create tasks
-        for url in self.files:
-            tasks.append(self._pipe_file(url))
-        results = asyncio.gather(*tasks)
-        loop.run_until_complete(results)
-        
-        return results
+        files = list(self.files)
+        for url in files:
+            tasks.append(self._check_file(url))
+        tasks = asyncio.gather(*tasks)
+        loop.run_until_complete(tasks)
+        unreachable = [i for i,r in enumerate(tasks.result()) if r.stdout!='Y']
+        if len(unreachable) == 0:
+            return True
+        else:
+            return [files[x] for x in unreachable]
 
 
