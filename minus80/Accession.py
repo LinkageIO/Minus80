@@ -128,8 +128,8 @@ class Accession(object):
                 hostname = socket.gethostname()
             netloc = f'{username}@{hostname}'
             url = url._replace(netloc=netloc)
+        # Convert to absolute path
         if url.path.startswith('./') or url.path.startswith('../'):
-            # Get absolute path
             path = os.path.abspath(path)
         url = urllib.parse.urlunparse(url)
         self.files.add(url)
