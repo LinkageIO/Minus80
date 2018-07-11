@@ -33,7 +33,7 @@ class PostDevelopCommand(develop):
             #print('Running post-installation for apsw')
             #check_call('pip install -r requirements.txt'.split())
             check_call('''\
-	    pip install --user https://github.com/rogerbinns/apsw/releases/download/3.22.0-r1/apsw-3.22.0-r1.zip \
+	    pip install https://github.com/rogerbinns/apsw/releases/download/3.22.0-r1/apsw-3.22.0-r1.zip \
 	    --global-option=fetch --global-option=--version --global-option=3.22.0 --global-option=--all \
 	    --global-option=build  \
             --global-option=--enable=fts3 \
@@ -55,7 +55,7 @@ class PostInstallCommand(install):
     def run(self):
         try:
             check_call('''\
-	    pip install --user https://github.com/rogerbinns/apsw/releases/download/3.22.0-r1/apsw-3.22.0-r1.zip \
+	    pip install https://github.com/rogerbinns/apsw/releases/download/3.22.0-r1/apsw-3.22.0-r1.zip \
 	    --global-option=fetch --global-option=--version --global-option=3.22.0 --global-option=--all \
 	    --global-option=build  \
             --global-option=--enable=fts3 \
