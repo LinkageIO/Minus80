@@ -3,7 +3,7 @@
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/de2595eaff5a47ab949616d5f12a2660)](https://www.codacy.com/app/schae234/Minus80?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=LinkageIO/Minus80&amp;utm_campaign=Badge_Grade)
 [![Coverage Status](https://coveralls.io/repos/github/LinkageIO/Minus80/badge.svg?branch=master)](https://coveralls.io/github/LinkageIO/Minus80?branch=master)
 
-This library is for freezing and integrating data. Modeled after how minus 80°C freezers work.
+This library is for freezing and integrating data. Modeled after how minus 80°C freezers work. 
 
 
 ## Installation
