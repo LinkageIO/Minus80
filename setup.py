@@ -35,7 +35,14 @@ class PostDevelopCommand(develop):
             check_call('''\
 	    pip install --user https://github.com/rogerbinns/apsw/releases/download/3.22.0-r1/apsw-3.22.0-r1.zip \
 	    --global-option=fetch --global-option=--version --global-option=3.22.0 --global-option=--all \
-	    --global-option=build --global-option=--enable-all-extensions'''.split())
+	    --global-option=build  \
+            --global-option=--enable=fts3 \
+            --global-option=--enable=fts4 \
+            --global-option=--enable=fts5 \
+            --global-option=--enable=rtree \
+            --global-option=--enable=json1 \
+            --global-option=--enable=rbu \
+            '''.split())
             develop.run(self)
         except CalledProcessError:
             pass
@@ -50,7 +57,14 @@ class PostInstallCommand(install):
             check_call('''\
 	    pip install --user https://github.com/rogerbinns/apsw/releases/download/3.22.0-r1/apsw-3.22.0-r1.zip \
 	    --global-option=fetch --global-option=--version --global-option=3.22.0 --global-option=--all \
-	    --global-option=build --global-option=--enable-all-extensions'''.split())
+	    --global-option=build  \
+            --global-option=--enable=fts3 \
+            --global-option=--enable=fts4 \
+            --global-option=--enable=fts5 \
+            --global-option=--enable=rtree \
+            --global-option=--enable=json1 \
+            --global-option=--enable=rbu \
+            '''.split())
             install.run(self)
         except CalledProcessError as e:
             print('a bad thing happened')
