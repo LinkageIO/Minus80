@@ -2,9 +2,6 @@
 
 from setuptools import setup, find_packages
 import os
-from setuptools.command.develop import develop
-from setuptools.command.install import install
-from subprocess import check_call,CalledProcessError
 
 import io
 import re
@@ -23,52 +20,6 @@ def find_version(*file_paths):
     if version_match:
         return version_match.group(1)
     raise RuntimeError("Unable to find version string.")
-
-class PostDevelopCommand(develop):
-    """
-        Post-installation for development mode.
-    """
-    def run(self):
-        try:
-            #print('Running post-installation for apsw')
-            #check_call('pip install -r requirements.txt'.split())
-            check_call('''\
-	    pip install https://github.com/rogerbinns/apsw/releases/download/3.22.0-r1/apsw-3.22.0-r1.zip \
-	    --global-option=fetch --global-option=--version --global-option=3.22.0 --global-option=--all \
-	    --global-option=build  \
-            --global-option=--enable=fts3 \
-            --global-option=--enable=fts4 \
-            --global-option=--enable=fts5 \
-            --global-option=--enable=rtree \
-            --global-option=--enable=json1 \
-            --global-option=--enable=rbu \
-            '''.split())
-            develop.run(self)
-        except CalledProcessError:
-            pass
-
-
-class PostInstallCommand(install):
-    """
-        Post-installation for installation mode.
-    """
-    def run(self):
-        try:
-            check_call('''\
-	    pip install https://github.com/rogerbinns/apsw/releases/download/3.22.0-r1/apsw-3.22.0-r1.zip \
-	    --global-option=fetch --global-option=--version --global-option=3.22.0 --global-option=--all \
-	    --global-option=build  \
-            --global-option=--enable=fts3 \
-            --global-option=--enable=fts4 \
-            --global-option=--enable=fts5 \
-            --global-option=--enable=rtree \
-            --global-option=--enable=json1 \
-            --global-option=--enable=rbu \
-            '''.split())
-            install.run(self)
-        except CalledProcessError as e:
-            print('a bad thing happened')
-            raise e
 
 setup(
     name = 'minus80',
@@ -109,8 +60,6 @@ setup(
     ],
     ext_modules = [],
     cmdclass = {
-        'develop': PostDevelopCommand,
-        'install': PostInstallCommand,
     },
 
     package_data = {
@@ -124,6 +73,9 @@ setup(
         'pyyaml >= 3.12',
         'click >= 6.7',
         'asyncssh >= 1.12.2'
+    ],
+    dependency_links = [
+        'https://github.com/rogerbinns/apsw/releases/download/3.24.0-r1/apsw-3.24.0-r1.zip'        
     ],
     include_package_data=True,
     entry_points='''
