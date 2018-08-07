@@ -72,10 +72,11 @@ setup(
         'termcolor >= 1.1.0',
         'pyyaml >= 3.12',
         'click >= 6.7',
-        'asyncssh >= 1.12.2'
+        'asyncssh >= 1.12.2',
+        'apsw'
     ],
     dependency_links = [
-        'https://github.com/rogerbinns/apsw/releases/download/3.24.0-r1/apsw-3.24.0-r1.zip'        
+        'git+https://github.com/rogerbinns/apsw'
     ],
     include_package_data=True,
     entry_points='''
