@@ -73,7 +73,7 @@ setup(
         'pyyaml >= 3.12',
         'click >= 6.7',
         'asyncssh >= 1.12.2',
-        'networkx == 1.11'
+        'networkx == 1.11',
         'apsw'
     ],
     dependency_links = [
