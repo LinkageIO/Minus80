@@ -98,7 +98,23 @@ class Freezable(object):
         finally:
             cur.execute('RELEASE SAVEPOINT bulk_transaction')
 
-    def _dbfilename(self, dbname=None, dtype=None):
+
+    def _get_dbpath(self, extension, dtype=None, dbname=None):
+        if dbname is None:
+            dbname = self._m80_name
+        if dtype is None:
+            dtype = self._m80_type
+        return os.path.expanduser(
+            os.path.join(
+                self._m80_basedir,
+                'databases',
+                f'{dtype}.{dbname}.{extension}'
+            )
+        )
+
+
+
+    def _dbfilename(self, dtype=None, dbname=None):
         '''
         Get the path to a database file.
 
@@ -109,23 +125,8 @@ class Freezable(object):
         dtype : str, default=None
             The datatype of the frozen object
 
-        Returns
-        -------
-
-
-
         '''
-        if dbname is None:
-            dbname = self._m80_name
-        if dtype is None:
-            dtype = self._m80_type
-        return os.path.expanduser(
-            os.path.join(
-                self._m80_basedir,
-                'databases',
-                '{}.{}.db'.format(dbname, dtype)
-            )
-        )
+        return self._get_dbpath('db')
 
     def _open_db(self, dbname=None, dtype=None):
         '''
@@ -147,13 +148,7 @@ class Freezable(object):
         if m80name is None:
             m80name = self._m80_name
         # function is a getter if df is provided
-        path = os.path.expanduser(
-            os.path.join(
-                self._m80_basedir,
-                'databases',
-                "{}.{}.bcz".format(m80name, m80type)
-            )
-        )
+        path = self._get_dbpath('bcz')
         os.makedirs(path, exist_ok=True)
         if array is None:
             # GETTER
@@ -182,13 +177,7 @@ class Freezable(object):
             m80type = self._m80_type
         if m80name is None:
             m80name = self._m80_name
-        path = os.path.expanduser(
-            os.path.join(
-                self._m80_basedir,
-                'databases',
-                "{}.{}.bcz".format(m80name, m80type)
-            )
-        )
+        path = self._get_dbpath('bcz')
         os.makedirs(path, exist_ok=True)
 
         # function is a getter if df is provided
