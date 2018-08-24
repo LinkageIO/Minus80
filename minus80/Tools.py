@@ -48,7 +48,7 @@ def get_files(name=None, dtype=None, extension=None, fullpath=False):
         files = [os.path.basename(x) for x in files]
     return files
 
-def available(name='*',  dtype=''):
+def available(dtype=None,name=None):
     ''' 
         Reports the available datasets **Frozen** in the minus80
         database.
@@ -71,7 +71,7 @@ def available(name='*',  dtype=''):
             indiciating if the dataset is available. Otherise a formatted
             table is printed and None is returned.
     '''
-    files = get_files(name, dtype)
+    files = get_files(dtype=dtype,name=name)
 
     bdir = os.path.expanduser(cf.options.basedir)
     print(f'Using basedir: {bdir}')
@@ -80,9 +80,9 @@ def available(name='*',  dtype=''):
     for f in files:
         if f.endswith('.db'):
             x, *_, y = f.replace('.db', '').split('.')
-            datasets[y].append(x)
+            datasets[x].append(y)
     # If both are specified, return a boolean
-    if dtype != '' and name != '*':
+    if dtype != None and name != None:
         if name in datasets[dtype]:
             return True
         else:
