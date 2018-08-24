@@ -53,6 +53,23 @@ class ProgressPercentage(object):
                     percentage))
             sys.stdout.flush()
 
+class ProgressDownloadPercentage(object):
+    def __init__(self,filename,total_bytes):
+        self._filename = filename
+        self._total_bytes = total_bytes
+        self._seen_so_far = 0
+        self._lock = threading.Lock()
+
+    def __call__(self, bytes_amount):
+        with self._lock:
+            self._seen_so_far += bytes_amount
+            percentage = (self._seen_so_far / self._total_bytes) * 100
+            sys.stdout.write(
+                "\r%s  %s / %s  (%.2f%%)" % (
+                    self._filename, self._seen_so_far, self._total_bytes,
+                    percentage)
+            )
+            sys.stdout.flush()
 
 class S3CloudData(BaseCloudData):
 
@@ -133,47 +150,37 @@ class S3CloudData(BaseCloudData):
                     callback=ProgressPercentage(filename)        
                 )
 
-    def pull(self, name, dtype, raw=False):
+    def pull(self, dtype, name, raw=False, output=None):
         '''
         Retrive a minus80 dataset in the cloud using its name and dtype (e.g. Cohort).
         the dtype is the name of the Freezable class or object. See :ref:`freezable`.
         Assume we are storing ``x = Cohort('experiment1')``
 
-        name : str
-            The name of the dataset (i.e. 'experiment1')
         dtype : str
             The type of freezable object (i.e. 'Cohort')
+        name : str
+            The name of the dataset (i.e. 'experiment1')
         raw : bool, default=False
             If True, raw files can be stored in the cloud. In this case, name changes
             to the file name and dtype changes to a string representing the future dtype
             or anything that describes the type of data that is being stored.
-        lzma : bool, default=False
-            If true, lzma compression will be performed (this is slower)
         '''
 
-        # Define a helper
-        def get_percent_done(current, total):
-            write, flush = sys.stdout.write, sys.stdout.flush
-            percent = int((current/total)*100)
-            write('\x08'*17)
-            write(f'Percent done: {percent}%')
-            flush()
-
-        key = os.path.basename(name)
+        from boto3.s3.transfer import S3Transfer
+        transfer = S3Transfer(self.s3)
         if raw == True:
-            # filename = name
-            bdir = os.path.expanduser(cf.options.basedir)
+            key = os.path.basename(name)
             # get the number of bytes in the object
             num_bytes = self.s3.list_objects(Bucket=self.bucket, Prefix=f'Raw/{dtype}/{key}')['Contents'][0]['Size']
+            if output is None:
+                output = name
             # download
-            os.makedirs(f'{bdir}/Raw/{dtype}')
-            with open(f'{bdir}/Raw/{dtype}/{key}', 'wb') as OUT:
-                self.s3.download_fileobj(
-                    self.bucket,
-                    f'Raw/{dtype}/{key}',
-                    OUT,
-                    Callback = lambda x: get_percent_done(x, num_bytes)
-                )
+            transfer.download_file(
+                self.bucket,
+                f'Raw/{dtype}/{key}',
+                output,
+                callback = ProgressDownloadPercentage(output,num_bytes)
+            )
         else:
             raise NotImplementedError('This functionality is currently only available for raw data')
 
