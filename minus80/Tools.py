@@ -8,7 +8,7 @@ from pprint import pprint
 
 __all__ = ['available', 'delete']
 
-def get_files(name, dtype=None, fullpath=False):
+def get_files(name=None, dtype=None, extension=None, fullpath=False):
     '''
         List the files in the minus80 directory
         associated with a dtype and a name.
@@ -30,11 +30,13 @@ def get_files(name, dtype=None, fullpath=False):
                   will be directories.
     '''
     bdir = os.path.expanduser(cf.options.basedir)
-    if dtype is not None:
-        name = f'{name}.*{dtype}.*'
-    else:
-        name = f'{name}.*'
-    data_dir = os.path.join(bdir, 'databases', name)
+    if name is None:
+        name = "*"
+    if dtype is None:
+        dtype = "*"
+    if extension is None:
+        extension = '*'
+    data_dir = os.path.join(bdir, 'databases', f'{dtype}.{name}.*{extension}')
     files = sorted(glob(data_dir))
     #if dtype is not None:
     #    files = [x for x in files if x.endswith(f'{dtype}.db')]
