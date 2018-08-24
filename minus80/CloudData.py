@@ -1,11 +1,12 @@
 from .Tools import get_files
 from .Config import cf
 
-from collections import defaultdict
 import os
 import lzma
 import sys
 import threading
+import tarfile
+from collections import defaultdict
 
 
 __all__ = ['CloudData']
@@ -144,11 +145,23 @@ class S3CloudData(BaseCloudData):
             files = get_files(name=name, dtype=dtype, fullpath=True)
             if len(files) == 0:
                 raise ValueError('There were no datasets with that name')
+            to_upload = []
             for filename in files:
-                filename = os.path.basename(filename)
-                transfer.upload_file(filename, self.bucket, f'databases/{dtype}/{key}',
+                key = os.path.basename(filename)
+                if os.path.isdir(filename):
+                    # Tar it up
+                    tar_flag = True
+                    tarpath = os.path.join(cf.options.basedir,'tmp',key+'.tar')
+                    tar = tarfile.open(tarpath,'w')
+                    tar.add(filename,recursive=True,arcname=key)
+                    filename = tarpath
+                    key = key + '.tar'
+                transfer.upload_file(filename, self.bucket, f'databases/{key}',
                     callback=ProgressPercentage(filename)        
                 )
+                if tar_flag:
+                    os.unlink(tarpath)
+                    tar_flag = False
 
     def pull(self, dtype, name, raw=False, output=None):
         '''
@@ -185,7 +198,7 @@ class S3CloudData(BaseCloudData):
             raise NotImplementedError('This functionality is currently only available for raw data')
 
     def list(self, name=None, dtype=None, raw=False):
-        items = defaultdict(list)
+        items = defaultdict(set)
         try:
             for item in self.s3.list_objects(Bucket=self.bucket)['Contents']:
                 key = item['Key']
@@ -193,14 +206,15 @@ class S3CloudData(BaseCloudData):
                     pass
                 elif not key.startswith('Raw') and raw == True:
                     pass
-                else:
-                    _, key_dtype, key_name = key.split('/')
+                elif key.startswith('databases/'):
+                    key = key.replace('databases/','')
+                    key_dtype, key_name, rest = key.split('.',maxsplit=2)
                     if dtype != None and key_dtype != dtype:
                         pass
                     elif name != None and not key_name.startswith(name):
                         pass
                     else:
-                        items[key_dtype].append(key_name)
+                        items[key_dtype].add(key_name)
             if len(items) == 0:
                 print('Nothing here yet!')
             else:
@@ -208,7 +222,8 @@ class S3CloudData(BaseCloudData):
                     print('######   Raw Data:   ######')
                 for key, vals in items.items():
                     print(f'-----{key}------')
-                    print('\n'.join(vals))
+                    for i,name in enumerate(vals,1):
+                        print(f'{i}. {name}')
         except KeyError:
             if len(items) == 0:
                 print('Nothing here yet!')

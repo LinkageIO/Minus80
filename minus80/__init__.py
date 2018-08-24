@@ -8,7 +8,7 @@ from .CloudData import CloudData
 
 
 # Initialize the Minus80 Freezer
-def _init():
+def _init(): # pragma: no cover
     import os
     from .Config import cf
  
