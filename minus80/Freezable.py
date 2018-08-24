@@ -235,6 +235,15 @@ class Freezable(object):
             **kwargs
         )
 
+    @property
+    def _tmpdir():
+        return os.path.expanduser(
+            os.path.join(
+                cf.options.basedir,
+                "tmp"
+            )
+        )
+
     def _dict(self, key, val=None):
         '''
             Stores global variables for the freezable object. The
