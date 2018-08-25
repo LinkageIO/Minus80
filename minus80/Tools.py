@@ -8,7 +8,7 @@ from pprint import pprint
 
 __all__ = ['available', 'delete']
 
-def get_files(name, dtype=None, fullpath=False):
+def get_files(name=None, dtype=None, extension=None, fullpath=False):
     '''
         List the files in the minus80 directory
         associated with a dtype and a name.
@@ -30,11 +30,13 @@ def get_files(name, dtype=None, fullpath=False):
                   will be directories.
     '''
     bdir = os.path.expanduser(cf.options.basedir)
-    if dtype is not None:
-        name = f'{name}.*{dtype}.*'
-    else:
-        name = f'{name}.*'
-    data_dir = os.path.join(bdir, 'databases', name)
+    if name is None:
+        name = "*"
+    if dtype is None:
+        dtype = "*"
+    if extension is None:
+        extension = '*'
+    data_dir = os.path.join(bdir, 'databases', f'{dtype}.{name}.*{extension}')
     files = sorted(glob(data_dir))
     #if dtype is not None:
     #    files = [x for x in files if x.endswith(f'{dtype}.db')]
@@ -46,7 +48,7 @@ def get_files(name, dtype=None, fullpath=False):
         files = [os.path.basename(x) for x in files]
     return files
 
-def available(name='*',  dtype=''):
+def available(dtype=None,name=None):
     ''' 
         Reports the available datasets **Frozen** in the minus80
         database.
@@ -69,7 +71,7 @@ def available(name='*',  dtype=''):
             indiciating if the dataset is available. Otherise a formatted
             table is printed and None is returned.
     '''
-    files = get_files(name, dtype)
+    files = get_files(dtype=dtype,name=name)
 
     bdir = os.path.expanduser(cf.options.basedir)
     print(f'Using basedir: {bdir}')
@@ -78,9 +80,9 @@ def available(name='*',  dtype=''):
     for f in files:
         if f.endswith('.db'):
             x, *_, y = f.replace('.db', '').split('.')
-            datasets[y].append(x)
+            datasets[x].append(y)
     # If both are specified, return a boolean
-    if dtype != '' and name != '*':
+    if dtype != None and name != None:
         if name in datasets[dtype]:
             return True
         else:

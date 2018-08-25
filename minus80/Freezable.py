@@ -98,7 +98,23 @@ class Freezable(object):
         finally:
             cur.execute('RELEASE SAVEPOINT bulk_transaction')
 
-    def _dbfilename(self, dbname=None, dtype=None):
+
+    def _get_dbpath(self, extension, dtype=None, dbname=None):
+        if dbname is None:
+            dbname = self._m80_name
+        if dtype is None:
+            dtype = self._m80_type
+        return os.path.expanduser(
+            os.path.join(
+                self._m80_basedir,
+                'databases',
+                f'{dtype}.{dbname}.{extension}'
+            )
+        )
+
+
+
+    def _dbfilename(self, dtype=None, dbname=None):
         '''
         Get the path to a database file.
 
@@ -109,23 +125,8 @@ class Freezable(object):
         dtype : str, default=None
             The datatype of the frozen object
 
-        Returns
-        -------
-
-
-
         '''
-        if dbname is None:
-            dbname = self._m80_name
-        if dtype is None:
-            dtype = self._m80_type
-        return os.path.expanduser(
-            os.path.join(
-                self._m80_basedir,
-                'databases',
-                '{}.{}.db'.format(dbname, dtype)
-            )
-        )
+        return self._get_dbpath('db')
 
     def _open_db(self, dbname=None, dtype=None):
         '''
@@ -147,13 +148,7 @@ class Freezable(object):
         if m80name is None:
             m80name = self._m80_name
         # function is a getter if df is provided
-        path = os.path.expanduser(
-            os.path.join(
-                self._m80_basedir,
-                'databases',
-                "{}.{}.bcz".format(m80name, m80type)
-            )
-        )
+        path = self._get_dbpath('bcz')
         os.makedirs(path, exist_ok=True)
         if array is None:
             # GETTER
@@ -182,13 +177,7 @@ class Freezable(object):
             m80type = self._m80_type
         if m80name is None:
             m80name = self._m80_name
-        path = os.path.expanduser(
-            os.path.join(
-                self._m80_basedir,
-                'databases',
-                "{}.{}.bcz".format(m80name, m80type)
-            )
-        )
+        path = self._get_dbpath('bcz')
         os.makedirs(path, exist_ok=True)
 
         # function is a getter if df is provided
@@ -246,6 +235,15 @@ class Freezable(object):
             **kwargs
         )
 
+    @property
+    def _tmpdir():
+        return os.path.expanduser(
+            os.path.join(
+                cf.options.basedir,
+                "tmp"
+            )
+        )
+
     def _dict(self, key, val=None):
         '''
             Stores global variables for the freezable object. The
@@ -285,26 +283,6 @@ class Freezable(object):
                     return str(value)
         except TypeError:
             raise ValueError('{} not in database'.format(key))
-
-    def _cassandra(self, name=None, dtype=None):
-        '''
-            Provides an interface to a cassandra NOSQL database. This is
-            experimental.
-        '''
-        try:
-            from cassandra.cluster import Cluster
-        except ImportError as e:
-            raise ImportError(
-                'Please install `cassandra-driver` to use this feature', e
-            )
-        if dtype is None:
-            dtype = self._m80_type
-        if name is None:
-            name = self._m80_name
-        cluster = Cluster()
-        # Connect to the keyspace dictated by the object
-        session = cluster.connect()  # f'{name}.{dtype}')
-        return session
 
     @staticmethod
     def guess_type(object):

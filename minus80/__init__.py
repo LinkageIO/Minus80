@@ -1,4 +1,4 @@
-__version__ = '0.1.3'
+__version__ = '0.1.5'
 
 
 from .Freezable import Freezable
@@ -8,7 +8,7 @@ from .CloudData import CloudData
 
 
 # Initialize the Minus80 Freezer
-def _init():
+def _init(): # pragma: no cover
     import os
     from .Config import cf
  

@@ -12,7 +12,7 @@ options:
     basedir: ~/.minus80/
 
 cloud:
-    endpoint: https://s3.msi.umn.edu
+    endpoint:   https://s3.msi.umn.edu
     access_key: None
     secret_key: None
 
