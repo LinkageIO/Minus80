@@ -31,7 +31,7 @@ class Freezable(object):
 
     '''
 
-    def __init__(self, name, dtype=None, basedir=None):
+    def __init__(self, name, dtype=None, parent=None):
         '''
         Initialize the Freezable Object.
 
@@ -43,24 +43,37 @@ class Freezable(object):
             The type of the frozen object (e.g. Cohort)
             If None, the type will be inferred from the
             object class.
-        basedir : str, default=None
-            The basedir to store the frozen object. If
-            None, the basedire in the config file will be
-            used.
-
         '''
-        # Set up our base directory
-        if basedir is None:
-            self._m80_basedir = cf.options.basedir
+        # Set the m80 name
         self._m80_name = name
-        #
+        # Set the m80 dtype
         if dtype is None:
             # Just use the class type as the type
-            self._m80_type = self.guess_type(self)
+            self._m80_dtype = self.guess_type(self)
         else:
-            self._m80_type = dtype
-        # A dataset already exists, return it
-        self._db = self._open_db(self._m80_name)
+            self._m80_dtype = dtype
+        # Keep track of children
+        self._children = []
+        
+        # Set up our base directory
+        if parent is None:
+            # set as the top level basedir as specified in the config file
+            self._basedir = os.path.join(
+                cf.options.basedir,
+                'databases',
+                f'{self._m80_dtype}.{self._m80_name}'
+            )
+            self._parent = None
+        else:
+            self._basedir = os.path.join(
+                parent._basedir,
+                f'{self._m80_dtype}.{self._m80_name}'
+            )
+            self._parent = parent
+        os.makedirs(self._basedir,exist_ok=True)
+
+        # Get a handle to the sql database
+        self._db = self._sqlite()
 
         try:
             cur = self._db.cursor()
@@ -106,9 +119,9 @@ class Freezable(object):
             dtype = self._m80_type
         return os.path.expanduser(
             os.path.join(
-                self._m80_basedir,
-                'databases',
-                f'{dtype}.{dbname}.{extension}'
+                self._basedir,
+                f'{dtype}.{dbname}',
+                f'{extension}'
             )
         )
 
@@ -128,14 +141,13 @@ class Freezable(object):
         '''
         return self._get_dbpath('db')
 
-    def _open_db(self, dbname=None, dtype=None):
+    def _sqlite(self):
         '''
             This is the access point to the sqlite database
         '''
         # return a connection if exists
-        return lite.Connection(
-            self._dbfilename(dbname, dtype)
-        )
+        filename = os.path.join(self._basedir,"db.sqlite")
+        return lite.Connection(filename)
 
     def _bcolz_array(self, name, array=None, m80name=None,
                      m80type=None):
@@ -228,20 +240,12 @@ class Freezable(object):
             'w',
             dir=os.path.expanduser(
                 os.path.join(
+                    # use the top level basedir
                     cf.options.basedir,
                     "tmp"
                 )
             ),
             **kwargs
-        )
-
-    @property
-    def _tmpdir():
-        return os.path.expanduser(
-            os.path.join(
-                cf.options.basedir,
-                "tmp"
-            )
         )
 
     def _dict(self, key, val=None):
