@@ -136,9 +136,9 @@ class S3CloudData(BaseCloudData):
             key = os.path.basename(filename)
             if compress:
                 with open(filename, 'rb') as OUT:
-                    self.s3.upload_fileobj(lzma.compress(OUT.read()), self.bucket, f'Raw/{dtype}/{key}.xz')
+                    self.s3.upload_fileobj(lzma.compress(OUT.read()), self.bucket, f'Raw/{dtype}.{key}.xz')
             else:
-                transfer.upload_file(filename, self.bucket, f'Raw/{dtype}/{key}',
+                transfer.upload_file(filename, self.bucket, f'Raw/{dtype}.{key}',
                     callback=ProgressPercentage(filename)
                 )
         else:
@@ -184,13 +184,16 @@ class S3CloudData(BaseCloudData):
         if raw == True:
             key = os.path.basename(name)
             # get the number of bytes in the object
-            num_bytes = self.s3.list_objects(Bucket=self.bucket, Prefix=f'Raw/{dtype}/{key}')['Contents'][0]['Size']
+            num_bytes = self.s3.list_objects(
+                    Bucket=self.bucket, 
+                    Prefix=f'Raw/{dtype}.{key}'
+            )['Contents'][0]['Size']
             if output is None:
                 output = name
             # download
             transfer.download_file(
                 self.bucket,
-                f'Raw/{dtype}/{key}',
+                f'Raw/{dtype}.{key}',
                 output,
                 callback = ProgressDownloadPercentage(output,num_bytes)
             )
@@ -206,9 +209,9 @@ class S3CloudData(BaseCloudData):
                     pass
                 elif not key.startswith('Raw') and raw == True:
                     pass
-                elif key.startswith('databases/'):
-                    key = key.replace('databases/','')
-                    key_dtype, key_name, rest = key.split('.',maxsplit=2)
+                else:
+                    bucket, key = key.split('/')
+                    key_dtype, key_name,rest = key.split('.',maxsplit=2)
                     if dtype != None and key_dtype != dtype:
                         pass
                     elif name != None and not key_name.startswith(name):

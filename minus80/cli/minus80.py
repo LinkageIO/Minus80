@@ -107,7 +107,8 @@ def push(dtype, name, raw):
 @click.argument('dtype', metavar='<dtype>')
 @click.argument('name', metavar='<name>')
 @click.option('--raw', is_flag=True, default=False, help='Flag to list raw data')
-def pull(dtype,name,raw):
+@click.option('--output',default=None,help="Output filename, defaults to <name>. Only valid with --raw")
+def pull(dtype,name,raw,output):
     '''
     Pull a minus80 dataset from the cloud.
     '''
@@ -115,7 +116,8 @@ def pull(dtype,name,raw):
     cloud.pull(
         dtype,
         name,
-        raw=raw
+        raw=raw,
+        output=output
     )
 
 cloud.add_command(list)
