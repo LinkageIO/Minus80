@@ -284,45 +284,6 @@ class Freezable(object):
             **kwargs
         )
 
-    def _dict(self, key, val=None):
-        '''
-            Stores global variables for the freezable object. The
-            method will automatically infer in the val type is in
-            [int, float, str]. If the value is not one of these, an
-            excpetion will be raised.
-
-            Parameters
-            ----------
-            key : str
-                the dictionary key
-            val : int, float, or str
-                the value corresponding to the key
-
-        '''
-        try:
-            if val is not None:
-                val_type = guess_type(val)
-                if val_type not in ('int', 'float', 'str'):
-                    raise TypeError(
-                        f'val must be in [int, float, str], not {val_type}'
-                    )
-                self._db.cursor().execute(
-                    '''
-                    INSERT OR REPLACE INTO globals
-                    (key, val, type)VALUES (?, ?, ?)''', (key, val, val_type)
-                )
-            else:
-                (valtype, value) = self._db.cursor().execute(
-                    '''SELECT type, val FROM globals WHERE key = ?''', (key, )
-                ).fetchone()
-                if valtype == 'int':
-                    return int(value)
-                elif valtype == 'float':
-                    return float(value)
-                elif valtype == 'str':
-                    return str(value)
-        except TypeError:
-            raise ValueError('{} not in database'.format(key))
 
 def guess_type(object):
     '''
