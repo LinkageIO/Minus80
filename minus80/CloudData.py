@@ -142,26 +142,21 @@ class S3CloudData(BaseCloudData):
                     callback=ProgressPercentage(filename)
                 )
         else:
-            files = get_files(name=name, dtype=dtype, fullpath=True)
-            if len(files) == 0:
+            key = f'{dtype}.{name}' 
+            data_path = os.path.join(
+                cf.options.basedir,
+                'databases', key
+            )
+            if not os.path.exists(data_path):
                 raise ValueError('There were no datasets with that name')
-            to_upload = []
-            for filename in files:
-                key = os.path.basename(filename)
-                if os.path.isdir(filename):
-                    # Tar it up
-                    tar_flag = True
-                    tarpath = os.path.join(cf.options.basedir,'tmp',key+'.tar')
-                    tar = tarfile.open(tarpath,'w')
-                    tar.add(filename,recursive=True,arcname=key)
-                    filename = tarpath
-                    key = key + '.tar'
-                transfer.upload_file(filename, self.bucket, f'databases/{key}',
-                    callback=ProgressPercentage(filename)        
-                )
-                if tar_flag:
-                    os.unlink(tarpath)
-                    tar_flag = False
+            # Tar it up
+            tarpath = os.path.join(cf.options.basedir,'tmp',key+'.tar')
+            tar = tarfile.open(tarpath,'w')
+            tar.add(data_path,recursive=True,arcname=key)
+            transfer.upload_file(tarpath, self.bucket, f'databases/{key}',
+                callback=ProgressPercentage(tarpath)        
+            )
+            os.unlink(tarpath)
 
     def pull(self, dtype, name, raw=False, output=None):
         '''
@@ -211,7 +206,7 @@ class S3CloudData(BaseCloudData):
                     pass
                 else:
                     bucket, key = key.split('/')
-                    key_dtype, key_name,rest = key.split('.',maxsplit=2)
+                    key_dtype, key_name = key.split('.',maxsplit=1)
                     if dtype != None and key_dtype != dtype:
                         pass
                     elif name != None and not key_name.startswith(name):
@@ -230,3 +225,10 @@ class S3CloudData(BaseCloudData):
         except KeyError:
             if len(items) == 0:
                 print('Nothing here yet!')
+
+    def remove(self, dtype, name, raw=False):
+        if raw:
+            key = f'Raw/{dtype}.{name}'
+        else:
+            key = f'databases/{dtype}.{name}'
+        self.s3.delete_object(Bucket=self.bucket,Key=key)
