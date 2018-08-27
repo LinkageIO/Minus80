@@ -12,6 +12,64 @@ import pandas as pd
 from .Config import cf
 from contextlib import contextmanager
 
+__all__ = ['Freezable']
+
+class sqlite_dict(object):
+    def __init__(self,con):
+        self._con = con
+        con.cursor().execute('''
+            CREATE TABLE IF NOT EXISTS globals (
+                key TEXT,
+                val TEXT,
+                type TEXT
+            );
+            CREATE UNIQUE INDEX IF NOT EXISTS uniqkey ON globals(key)
+        ''')
+
+    def __call__(self,key,val=None):
+        try:
+            if val is not None:
+                val_type = guess_type(val)
+                if val_type not in ('int', 'float', 'str'):
+                    raise TypeError(
+                        f'val must be in [int, float, str], not {val_type}'
+                    )
+                self._con.cursor().execute(
+                    '''
+                    INSERT OR REPLACE INTO globals
+                    (key, val, type)VALUES (?, ?, ?)''', (key, val, val_type)
+                )
+            else:
+                (valtype, value) = self._con.cursor().execute(
+                    '''SELECT type, val FROM globals WHERE key = ?''', (key, )
+                ).fetchone()
+                if valtype == 'int':
+                    return int(value)
+                elif valtype == 'float':
+                    return float(value)
+                elif valtype == 'str':
+                    return str(value)
+        except TypeError:
+            raise ValueError('{} not in database'.format(key))
+
+    def __contains__(self,key):
+        (num,) = self._con.cursor().execute(
+            'SELECT COUNT(key) FROM globals WHERE key = ?', (key,)
+        ).fetchone()
+        if num == 0:
+            return False
+        elif num == 1:
+            return True
+
+    def keys(self):
+        all_keys = self._con.cursor().execute('SELECT key from globals')
+        return [x for x, in all_keys ]
+
+    def __getitem__(self,key):
+        return self(key)
+    def __setitem__(self,key,val):
+        self(key,val=val)
+
 
 class Freezable(object):
 
@@ -25,13 +83,13 @@ class Freezable(object):
 
     The three main things that a Freezable object supplies are:
     * access to a sqlite database (relational records)
-    * access to a bcolz databsase (columnar data)
+    * access to a bcolz databsase (columnar/table data)
     * access to a key/val store
     * access to named temp files
 
     '''
 
-    def __init__(self, name, dtype=None, parent=None):
+    def __init__(self, name, parent=None):
         '''
         Initialize the Freezable Object.
 
@@ -47,11 +105,7 @@ class Freezable(object):
         # Set the m80 name
         self._m80_name = name
         # Set the m80 dtype
-        if dtype is None:
-            # Just use the class type as the type
-            self._m80_dtype = self.guess_type(self)
-        else:
-            self._m80_dtype = dtype
+        self._m80_dtype = guess_type(self)
         # Keep track of children
         self._children = []
         
@@ -74,19 +128,8 @@ class Freezable(object):
 
         # Get a handle to the sql database
         self._db = self._sqlite()
-
-        try:
-            cur = self._db.cursor()
-            cur.execute('''
-                CREATE TABLE IF NOT EXISTS globals (
-                    key TEXT,
-                    val TEXT,
-                    type TEXT
-                );
-                CREATE UNIQUE INDEX IF NOT EXISTS uniqkey ON globals(key)
-                ''')
-        except TypeError:
-            raise TypeError('{}.{} does not exist'.format(dtype, name))
+        # Set up a table
+        self._dict = sqlite_dict(self._db) 
 
     @contextmanager
     def bulk_transaction(self):
@@ -112,41 +155,30 @@ class Freezable(object):
             cur.execute('RELEASE SAVEPOINT bulk_transaction')
 
 
-    def _get_dbpath(self, extension, dtype=None, dbname=None):
-        if dbname is None:
-            dbname = self._m80_name
-        if dtype is None:
-            dtype = self._m80_type
-        return os.path.expanduser(
-            os.path.join(
-                self._basedir,
-                f'{dtype}.{dbname}',
-                f'{extension}'
-            )
-        )
-
-
-
-    def _dbfilename(self, dtype=None, dbname=None):
+    def _get_dbpath(self, extension, create=False):
         '''
-        Get the path to a database file.
+        Get the path to database files
 
         Parameters
         ----------
-        dbname : str, default=None
-            The frozen object name
-        dtype : str, default=None
-            The datatype of the frozen object
-
         '''
-        return self._get_dbpath('db')
+        path = os.path.expanduser(
+            os.path.join(
+                self._basedir,
+                f'{extension}'
+            )
+        )
+        if create:
+            os.makedirs(path,exist_ok=True)
+        return path
+
 
     def _sqlite(self):
         '''
             This is the access point to the sqlite database
         '''
         # return a connection if exists
-        filename = os.path.join(self._basedir,"db.sqlite")
+        filename = os.path.join(self._get_dbpath('db.sqlite'))
         return lite.Connection(filename)
 
     def _bcolz_array(self, name, array=None, m80name=None,
@@ -156,12 +188,11 @@ class Freezable(object):
         '''
         # Fill in the defaults if they were not provided
         if m80type is None:
-            m80type = self._m80_type
+            m80type = self._m80_dtype
         if m80name is None:
             m80name = self._m80_name
         # function is a getter if df is provided
-        path = self._get_dbpath('bcz')
-        os.makedirs(path, exist_ok=True)
+        path = self._get_dbpath('bcz', create=True)
         if array is None:
             # GETTER
             arr = bcz.open(os.path.join(path, name))
@@ -177,7 +208,7 @@ class Freezable(object):
         '''
         try:
             import blaze as blz
-        except FutureWarning:
+        except FutureWarning: # pragma: no cover
             pass
         import warnings
         # from flask.exthook import ExtDeprecationWarning
@@ -186,11 +217,10 @@ class Freezable(object):
 
         # Fill in the defaults if they were not provided
         if m80type is None:
-            m80type = self._m80_type
+            m80type = self._m80_dtype
         if m80name is None:
             m80name = self._m80_name
-        path = self._get_dbpath('bcz')
-        os.makedirs(path, exist_ok=True)
+        path = self._get_dbpath('bcz',create=True)
 
         # function is a getter if df is provided
         if df is None:
@@ -217,20 +247,18 @@ class Freezable(object):
                 return df
         # If df is set, then store the table
         else:
-            if not(df.index.dtype_str == 'int64') and not (df.empty):
-                df = df.copy()
-                df['idx'] = df.index
-            if isinstance(df, pd.DataFrame):
-                path = os.path.join(path, tblname)
-                if df.empty:
-                    bcz.fromiter(
-                        (), dtype=np.int32, mode='w',
-                        count=0, rootdir=path
-                    )
-                else:
-                    bcz.ctable.fromdataframe(df, mode='w', rootdir=path)
-            if 'idx' in df.columns.values:
-                del df
+            if df.index.name is not None:
+                # We need to remember to index
+                self._dict(tblname+'_index',df.index.name)
+                df.reset_index(inplace=True)
+            path = os.path.join(path, tblname)
+            if df.empty:
+                bcz.fromiter(
+                    (), dtype=np.int32, mode='w',
+                    count=0, rootdir=path
+                )
+            else:
+                bcz.ctable.fromdataframe(df, mode='w', rootdir=path)
             return
 
     @staticmethod
@@ -265,7 +293,7 @@ class Freezable(object):
         '''
         try:
             if val is not None:
-                val_type = self.guess_type(val)
+                val_type = guess_type(val)
                 if val_type not in ('int', 'float', 'str'):
                     raise TypeError(
                         f'val must be in [int, float, str], not {val_type}'
@@ -288,15 +316,14 @@ class Freezable(object):
         except TypeError:
             raise ValueError('{} not in database'.format(key))
 
-    @staticmethod
-    def guess_type(object):
-        '''
-            Guess the type of object from the class attribute
-        '''
-        # retrieve a list of classes
-        classes = re.match(
-            "<class '(.+)'>",
-            str(object.__class__)
-        ).groups()[0].split('.')
-        # Return the most specific one
-        return classes[-1]
+def guess_type(object):
+    '''
+        Guess the type of object from the class attribute
+    '''
+    # retrieve a list of classes
+    classes = re.match(
+        "<class '(.+)'>",
+        str(object.__class__)
+    ).groups()[0].split('.')
+    # Return the most specific one
+    return classes[-1]
