@@ -4,7 +4,7 @@ import click
 import minus80 as m80
 
 
-@click.group(epilog=f'Made with Love in St Paul -- Version {m80.__version__}\n{m80.__file__}')
+@click.group(epilog=f'Made with Love in Denver -- Version {m80.__version__}\n{m80.__file__}')
 def cli():
     '''
     \b
@@ -76,9 +76,9 @@ def list(dtype,name,raw):
     '''List available datasets'''
     cloud = m80.CloudData()
     cloud.list(
-        dtype,
-        name,
-        raw
+        dtype=dtype,
+        name=name,
+        raw=raw
     )
 
 
