@@ -60,3 +60,4 @@ def simpleCohort():
     for acc in [a,b,c,d]:
         x.add_accession(acc)
     return x
+
