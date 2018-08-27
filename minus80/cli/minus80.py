@@ -120,6 +120,23 @@ def pull(dtype,name,raw,output):
         output=output
     )
 
+@click.command()
+@click.argument('dtype', metavar='<dtype>')
+@click.argument('name', metavar='<name>')
+@click.option('--raw', is_flag=True, default=False, help='Flag to list raw data')
+def remove(dtype,name,raw):
+    '''
+    Delete a minus80 dataset from the cloud.
+    '''
+    cloud = m80.CloudData()
+    cloud.remove(
+        dtype,
+        name,
+        raw
+    )
+
+
 cloud.add_command(list)
 cloud.add_command(push)
 cloud.add_command(pull)
+cloud.add_command(remove)
