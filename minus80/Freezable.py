@@ -67,8 +67,14 @@ class sqlite_dict(object):
 
     def __getitem__(self,key):
         return self(key)
+
     def __setitem__(self,key,val):
         self(key,val=val)
+
+    def __delitem__(self,key):
+        self._con.cursor().execute(
+            'DELETE FROM globals WHERE key = ?',(key,)
+        )
 
 
 class Freezable(object):
@@ -241,15 +247,17 @@ class Freezable(object):
                         df = blz.data(df)
                     else:
                         df = df.todataframe()
-                if not blaze and 'idx' in df.columns.values:
-                    df.set_index('idx', drop=True, inplace=True)
-                    df.index.name = None
+                if not blaze and f'{tblname}_index' in self._dict:
+                    df.set_index(
+                        self._dict[f'{tblname}_index'], 
+                        inplace=True)
                 return df
         # If df is set, then store the table
         else:
+            df = df.copy()
             if df.index.name is not None:
                 # We need to remember to index
-                self._dict(tblname+'_index',df.index.name)
+                self._dict[tblname+'_index'] = df.index.name
                 df.reset_index(inplace=True)
             path = os.path.join(path, tblname)
             if df.empty:
