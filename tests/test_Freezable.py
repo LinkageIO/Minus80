@@ -73,23 +73,6 @@ def test_tmpfile(simpleCohort):
     b = open(tmpfile.name,'r')
     assert b.readline().strip() == 'test'
 
-def test_dict(simpleCohort):
-    simpleCohort._dict('test','TEST')
-    assert simpleCohort._dict('test') == 'TEST'
-    try:
-        simpleCohort._dict('TEST')
-    except ValueError:
-        pass
-    assert True
-
-def test_dict_float(simpleCohort):
-    simpleCohort._dict('test_float',12.5)
-    assert simpleCohort._dict('test_float') == 12.5
-
-def test_dict_bad_val_type(simpleCohort):
-    with pytest.raises(Exception) as e_info:
-        simpleCohort._dict('test',[])
-
 def test_m80_name(simpleCohort):
     assert simpleCohort._m80_name == 'TestCohort'
 
@@ -119,3 +102,36 @@ def test_bulk_transaction_rollback(simpleCohort):
             cur.execute('''INSERT OR REPLACE INTO ERROR                                               
                 (key, val, type) VALUES (?, ?, ?)''',
                 ('test_bulk', 2, 'int'))
+
+
+# ---------------------------------------------
+#       Test SQLDict
+# ---------------------------------------------
+
+
+def test_dict(simpleCohort):
+    simpleCohort._dict('test','TEST')
+    assert simpleCohort._dict('test') == 'TEST'
+    try:
+        simpleCohort._dict('TEST')
+    except ValueError:
+        pass
+    assert True
+
+def test_dict_del(simpleCohort):
+    sc = simpleCohort
+    sc._dict['delete_me'] = 100
+    assert 'delete_me' in sc._dict
+    del sc._dict['delete_me']
+    assert 'delete_me' not in sc._dict
+
+def test_dict_float(simpleCohort):
+    simpleCohort._dict('test_float',12.5)
+    assert simpleCohort._dict('test_float') == 12.5
+
+def test_dict_bad_val_type(simpleCohort):
+    with pytest.raises(Exception) as e_info:
+        simpleCohort._dict('test',[])
+
+def test_dict_keys(simpleCohort):
+    assert len(simpleCohort._dict.keys()) > 0
