@@ -8,7 +8,7 @@ from pprint import pprint
 
 __all__ = ['available', 'delete']
 
-def get_files(name=None, dtype=None, extension=None, fullpath=False):
+def get_files(dtype=None, name=None, fullpath=False):
     '''
         List the files in the minus80 directory
         associated with a dtype and a name.
@@ -34,14 +34,8 @@ def get_files(name=None, dtype=None, extension=None, fullpath=False):
         name = "*"
     if dtype is None:
         dtype = "*"
-    if extension is None:
-        extension = '*'
-    data_dir = os.path.join(bdir, 'databases', f'{dtype}.{name}.*{extension}')
+    data_dir = os.path.join(bdir, 'databases', f'{dtype}.{name}')
     files = sorted(glob(data_dir))
-    #if dtype is not None:
-    #    files = [x for x in files if x.endswith(f'{dtype}.db')]
-    #if name is not None:
-    #    files = [x for x in files if x.startswith(f'{name}.')]
     if fullpath:
         files = files
     else:
@@ -122,7 +116,7 @@ def delete(name, dtype=None, force=False):
     '''
     # Get a filecard for all the minus80 filenames that match the
     # type and the name
-    files = get_files(name, dtype=dtype)
+    files = get_files(name=name, dtype=dtype)
     if force != True:
         print(f'Are you sure you want to delete {len(files)} files?:\n')
         pprint(f'{files}')
