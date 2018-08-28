@@ -19,7 +19,7 @@ def CloudData(engine='s3'):
         raise ValueError(f'Cannot use {engine} as a cloud engine.')
 
 
-class BaseCloudData(object):
+class BaseCloudData(object): #pragma: no cover
     def __init__(self):
         pass
 
@@ -85,22 +85,24 @@ class S3CloudData(BaseCloudData):
         Create a CloudData object. Once proper S3 credentials are stored in the
         config file (~/.minus80.conf) initialization takes no arguments.
         '''
-        try:
-            import boto3
-            from botocore.client import Config
-        except ModuleNotFoundError:
-            raise ModuleNotFoundError(
-                'boto3 must be installed to use this feature'
-            )
+        import boto3
+        from botocore.client import Config
 
-        if cf.cloud.access_key == 'None' or cf.cloud.secret_key == 'None':
-            raise ValueError('Fill in your S3 Credentials in ~/.minus80.conf')
+        # handle credentials    
+        if 'CLOUD_ACCESS_KEY' in os.environ and 'CLOUD_SECRET_KEY' in os.environ: #pragma: no cover
+            aws_access_key = os.environ['CLOUD_ACCESS_KEY']
+            aws_secret_key = os.environ['CLOUD_SECRET_KEY']
+        else: #pragma: no cover
+            if cf.cloud.access_key == 'None' or cf.cloud.secret_key == 'None': 
+                raise ValueError('Fill in your S3 Credentials in ~/.minus80.conf') 
+            aws_access_key = cf.cloud.access_key
+            aws_secret_key = cf.cloud.secret_key
 
         self.s3 = boto3.client(
             service_name='s3',
             endpoint_url=cf.cloud.endpoint,
-            aws_access_key_id=cf.cloud.access_key,
-            aws_secret_access_key=cf.cloud.secret_key,
+            aws_access_key_id=aws_access_key,
+            aws_secret_access_key=aws_secret_key,
             config=Config(s3={'addressing_style': 'path'})
         )
         self.bucket = f'minus80_{cf.cloud.access_key}'
@@ -111,7 +113,7 @@ class S3CloudData(BaseCloudData):
             self.s3.create_bucket(Bucket=self.bucket)
 
 
-    def push(self, dtype, name, raw=False, compress=False):
+    def push(self, dtype, name, raw=False):
         '''
         Store a minus80 dataset in the cloud using its name and dtype (e.g. Cohort).
         the dtype is the name of the Freezable class or object. See :ref:`freezable`.
@@ -134,13 +136,9 @@ class S3CloudData(BaseCloudData):
             # The name is a FILENAME
             filename = name
             key = os.path.basename(filename)
-            if compress:
-                with open(filename, 'rb') as OUT:
-                    self.s3.upload_fileobj(lzma.compress(OUT.read()), self.bucket, f'Raw/{dtype}.{key}.xz')
-            else:
-                transfer.upload_file(filename, self.bucket, f'Raw/{dtype}.{key}',
-                    callback=ProgressPercentage(filename)
-                )
+            transfer.upload_file(filename, self.bucket, f'Raw/{dtype}.{key}',
+                callback=ProgressPercentage(filename)
+            )
         else:
             key = f'{dtype}.{name}' 
             data_path = os.path.join(
@@ -210,6 +208,19 @@ class S3CloudData(BaseCloudData):
             
 
     def list(self, name=None, dtype=None, raw=False):
+        '''
+            List datasets that are in the cloud
+
+            Parameters
+            ----------
+            dtype : str
+                The type of freezable object (i.e. 'Cohort')
+            name : str
+                The name of the dataset (i.e. 'experiment1')
+            raw : bool, default=False
+                If true, list raw datasets instead of frozen ones.
+
+        '''
         items = defaultdict(set)
         try:
             for item in self.s3.list_objects(Bucket=self.bucket)['Contents']:
@@ -241,8 +252,18 @@ class S3CloudData(BaseCloudData):
                 print('Nothing here yet!')
 
     def remove(self, dtype, name, raw=False):
+        '''
+            Remove a dataset from the cloud
+        '''
         if raw:
             key = f'Raw/{dtype}.{name}'
         else:
             key = f'databases/{dtype}.{name}'
         self.s3.delete_object(Bucket=self.bucket,Key=key)
+
+    def nuke(self):
+        '''
+            Nuke all the datasets in the cloud 
+        '''
+        for obj in self.s3.list_objects(Bucket=self.bucket)['Contents']:
+            self.s3.delete_object(Bucket=self.bucket,Key=obj['Key'])
