@@ -1,8 +1,8 @@
-import gzip
-import bz2 
-import lzma
+import gzip   #pragma: no cover
+import bz2    #pragma: no cover
+import lzma   #pragma: no cover
 
-class RawFile(object):
+class RawFile(object):#pragma: no cover
     def __init__(self,filename): 
         self.filename = filename
         if filename.endswith('.gz'): 
