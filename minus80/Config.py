@@ -65,7 +65,7 @@ class Config(object):
 cf_file = os.path.expanduser('~/.minus80.conf')
 
 # Check to see if there is a config file available
-if not os.path.isfile(cf_file):
+if not os.path.isfile(cf_file): # pragma: no cover
     with open(cf_file, 'w') as CF:
         print(default_config, file=CF)
 

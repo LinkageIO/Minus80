@@ -193,7 +193,21 @@ class S3CloudData(BaseCloudData):
                 callback = ProgressDownloadPercentage(output,num_bytes)
             )
         else:
-            raise NotImplementedError('This functionality is currently only available for raw data')
+            key = f'{dtype}.{name}'
+            tarpath = os.path.join(cf.options.basedir,'tmp',key+'.tar')
+            num_bytes = self.s3.list_objects(
+                Bucket=self.bucket,
+                Prefix=f'databases/{key}'
+            )['Contents'][0]['Size']
+            transfer.download_file(
+                self.bucket,
+                f'databases/{key}',
+                tarpath,
+                callback = ProgressDownloadPercentage(key,num_bytes)
+            )
+            tar = tarfile.open(tarpath,'r')
+            tar.extractall(path=os.path.join(cf.options.basedir,'databases'))
+            
 
     def list(self, name=None, dtype=None, raw=False):
         items = defaultdict(set)
