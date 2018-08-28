@@ -77,6 +77,9 @@ setup(
         'boto3>=1.7.84',
         'apsw'
     ],
+    extras_require={
+        'docs' : ['ipython>=6.5.0']
+    }
     dependency_links = [
         'git+https://github.com/rogerbinns/apsw'
     ],
