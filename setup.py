@@ -78,7 +78,7 @@ setup(
         'apsw'
     ],
     extras_require={
-        'docs' : ['ipython>=6.5.0']
+        'docs' : ['ipython>=6.5.0','matplotlib>=2.2.3']
     },
     dependency_links = [
         'git+https://github.com/rogerbinns/apsw'
@@ -88,6 +88,5 @@ setup(
         [console_scripts]
         minus80=minus80.cli.minus80:cli
     ''',
-
     author_email = 'rob@linkage.io',
 )
