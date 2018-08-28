@@ -77,7 +77,7 @@ def available(dtype=None,name=None):
             return False
     else:
         # Print message if nothing is here
-        if len(files) == 0:
+        if len(files) == 0: # pragma: no cover
             print("--- Nothing here yet ---")
             return None
         # group by dtype and print
@@ -91,7 +91,7 @@ def available(dtype=None,name=None):
             for i, name in enumerate(names, 1):
                 print(f'\t{i}. {name}')
 
-def delete(name, dtype=None, force=False):
+def delete(name=None, dtype=None, force=False):
     ''' 
         Deletes files associated with Minus80 datasets.
 
@@ -118,7 +118,7 @@ def delete(name, dtype=None, force=False):
     # Get a filecard for all the minus80 filenames that match the
     # type and the name
     files = get_files(name=name, dtype=dtype)
-    if force != True:
+    if force != True: # pragma: no cover
         print(f'Are you sure you want to delete {dtype}.{name}?:\n')
         if input('[y/n]: ').upper() != 'Y':
             print('Nothing deleted.')
@@ -129,32 +129,11 @@ def delete(name, dtype=None, force=False):
         bdir = os.path.expanduser(cf.options.basedir)
         data_dir = os.path.join(bdir, 'databases')
         filename = os.path.join(data_dir, filename)
-        if os.path.isfile(filename):
-            os.remove(filename)
-        elif os.path.isdir(filename):
-            shutil.rmtree(filename)
+        # delete it
+        shutil.rmtree(filename)
         num_deleted += 1
     return num_deleted
 
-
-def directory_search(directory, suffix='.fastq'):
-    '''
-        Search a directory and create Accessions from the files found there.
-    '''
-    from minus80 import Accession
-
-    accessions = dict()
-    for root, _, files in os.walk(directory, followlinks=True):
-        for f in files:
-            if f.endswith(suffix):
-                fid, *_ = f.split('_')
-                if fid not in accessions:
-                    accessions[fid] = Accession(fid, files=[])
-                x = accessions[fid]
-                x.add_file(os.path.join(root, f))
-
-
-    return accessions
 
 
 
