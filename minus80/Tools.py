@@ -119,8 +119,7 @@ def delete(name, dtype=None, force=False):
     # type and the name
     files = get_files(name=name, dtype=dtype)
     if force != True:
-        print(f'Are you sure you want to delete {len(files)} files?:\n')
-        pprint(f'{files}')
+        print(f'Are you sure you want to delete {dtype}.{name}?:\n')
         if input('[y/n]: ').upper() != 'Y':
             print('Nothing deleted.')
             return 0
