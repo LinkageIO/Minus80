@@ -10,8 +10,8 @@ class Cohort(Freezable):
         disk by minus80.
     '''
 
-    def __init__(self, name):
-        super().__init__(name)
+    def __init__(self, name, parent=None):
+        super().__init__(name,parent=parent)
         self.name = name
         self._initialize_tables()
 
