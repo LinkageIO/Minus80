@@ -3,6 +3,7 @@ import numpy as np
 import pytest
 import pandas as pd
 
+import minus80 as m80
 from minus80.Config import cf
 from minus80 import Cohort
 from minus80.Freezable import guess_type
@@ -103,6 +104,11 @@ def test_bulk_transaction_rollback(simpleCohort):
                 (key, val, type) VALUES (?, ?, ?)''',
                 ('test_bulk', 2, 'int'))
 
+
+def test_child_dataset(simpleCohort):
+    y = m80.Cohort("ChildCohort",parent=simpleCohort)
+    assert y._parent == simpleCohort
+    assert y in simpleCohort._children
 
 # ---------------------------------------------
 #       Test SQLDict
