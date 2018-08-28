@@ -156,7 +156,7 @@ class Cohort(Freezable):
     #------------------------------------------------------#
 
     @classmethod
-    def from_yaml(cls, name, yaml_file):
+    def from_yaml(cls, name, yaml_file): #pragma: no cover
         '''
         Create a Cohort from a YAML file. Note: this yaml file
         must be created from
@@ -243,7 +243,7 @@ class Cohort(Freezable):
                 ''', (n, ))
             )
         else:
-            return (self.get_random_accession() for _ in range(n))
+            return (self.random_accession() for _ in range(n))
 
     def add_accessions(self, accessions):
         '''
