@@ -31,17 +31,17 @@ def cli():
 @click.option('--dtype', default=None,
     help='Each dataset has a datatype associated with it. E.g.: `Cohort`. If no dtype is specified, all available dtypes  will be returned.'
 )
-def list(name, dtype):
+def local_list(name, dtype):
     m80.Tools.available(dtype=dtype,name=name)
 
-cli.add_command(list)
+cli.add_command(local_list)
 
 #----------------------------
 #    delete Commands
 #----------------------------
 @click.command(help='Delete a minus80 dataset')
-@click.option('--name',help='The name of the dataset to delete')
-@click.option('--dtype',help='The dtype of the dataset to delete')
+@click.argument('dtype',metavar='<dtype>')
+@click.argument('name',metavar='<name>')
 def delete(name, dtype):
     m80.Tools.delete(name,dtype)
 
@@ -51,20 +51,10 @@ cli.add_command(delete)
 #    Cloud Commands
 #----------------------------
 @click.group()
-@click.option('--engine', default='s3', help='Cloud engine.')
-@click.option('--raw/--no-raw', default=False, help='Flag to list raw data')
-@click.option('--name', default=None, help='Name of m80 dataset')
-@click.option('--dtype', default=None, help='Type of m80 dataset')
-@click.pass_context
 def cloud(ctx, engine, raw, name, dtype):
     '''
     Manage your minus80 datasets in the cloud.
     '''
-    ctx.obj = {}
-    ctx.obj['engine'] = engine
-    ctx.obj['RAW'] = raw
-    ctx.obj['NAME'] = name
-    ctx.obj['DTYPE'] = dtype
 
 cli.add_command(cloud)
 
@@ -72,7 +62,7 @@ cli.add_command(cloud)
 @click.option('--dtype', metavar='<dtype>',default=None)
 @click.option('--name', metavar='<name>',default=None)
 @click.option('--raw', is_flag=True, default=False, help='Flag to list raw data')
-def list(dtype,name,raw):
+def cloud_list(dtype,name,raw):
     '''List available datasets'''
     cloud = m80.CloudData()
     cloud.list(
@@ -136,7 +126,7 @@ def remove(dtype,name,raw):
     )
 
 
-cloud.add_command(list)
+cloud.add_command(cloud_list)
 cloud.add_command(push)
 cloud.add_command(pull)
 cloud.add_command(remove)
