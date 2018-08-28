@@ -75,7 +75,7 @@ class Accession(object):
         '''
         self.metadata[key] = val
 
-    def add_file(self, path, skip_check=False, scheme='ssh',
+    def add_file(self, path, scheme='ssh',
                  username=None, hostname=None):
         '''
         Add a file that is associated with the accession.
@@ -90,9 +90,6 @@ class Accession(object):
         path/URL: string
             The path/URL the the file. The string is parsed
             for default information (e.g. 
-        skip_check : bool
-            If true, the method will not test if the file
-            exists
         scheme: string (default: ssh)
             Specifies the scheme/protocol for accessing the file.
             Defaults to ssh, also supports s3
@@ -151,7 +148,7 @@ class Accession(object):
         None
         '''
         for path in paths:
-            self.add_file(path, skip_test=skip_test)
+            self.add_file(path)
 
     def __str__(self):
         return '\n'.join(repr(self).split(','))
@@ -163,7 +160,7 @@ class Accession(object):
         return f'Accession({self.name}, files={self.files}, {self.metadata})'
 
     @staticmethod
-    async def _check_file(url):
+    async def _check_file(url): #pragma: no cover
         '''
         asyncronously checks a URL
         based in its scheme
@@ -178,7 +175,7 @@ class Accession(object):
             )
 
 
-    def _check_files(self):
+    def _check_files(self): #pragma: no cover
         '''
         Check to see if files attached to an accession are 
         accessible through ssh
