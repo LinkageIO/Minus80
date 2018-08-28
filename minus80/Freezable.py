@@ -90,7 +90,7 @@ class Freezable(object):
     The three main things that a Freezable object supplies are:
     * access to a sqlite database (relational records)
     * access to a bcolz databsase (columnar/table data)
-    * access to a key/val store
+    * access to a persistant key/val store
     * access to named temp files
 
     '''
@@ -130,12 +130,20 @@ class Freezable(object):
                 f'{self._m80_dtype}.{self._m80_name}'
             )
             self._parent = parent
+            parent._add_child(self)
         os.makedirs(self._basedir,exist_ok=True)
 
         # Get a handle to the sql database
         self._db = self._sqlite()
         # Set up a table
         self._dict = sqlite_dict(self._db) 
+
+
+    def _add_child(self,child):
+        '''
+            Register a child dataset
+        '''
+        self._children.append(child)
 
     @contextmanager
     def bulk_transaction(self):
