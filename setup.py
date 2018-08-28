@@ -79,7 +79,7 @@ setup(
     ],
     extras_require={
         'docs' : ['ipython>=6.5.0']
-    }
+    },
     dependency_links = [
         'git+https://github.com/rogerbinns/apsw'
     ],
