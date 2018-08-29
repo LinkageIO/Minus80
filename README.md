@@ -23,5 +23,5 @@ python setup.py develop
 **Note:** Both options require that you have `Python.h` on your system. [More info here](https://stackoverflow.com/questions/8282231/i-have-python-on-my-ubuntu-system-but-gcc-cant-find-python-h). On Ubuntu systems, you can run: `sudo apt-get install python-dev`.
 
 ## Documentation
-http://minus80.readthedocs.io
+Read our documentation at Read The Docs: http://minus80.readthedocs.io
 
