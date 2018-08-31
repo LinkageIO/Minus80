@@ -6,7 +6,7 @@ import minus80.cli.minus80 as cli
 def test_cli_list(simpleCohort):
     runner=CliRunner()
     result = runner.invoke(
-        cli.local_list,
+        cli.list,
         ['--dtype','Cohort','--name','TestCohort']
     )
     assert result.exit_code == 0
@@ -26,14 +26,14 @@ def test_cli_delete():
 def test_cli_cloud_list():
     runner=CliRunner()
     result = runner.invoke(
-        cli.cloud_list
+        cli.cloud.commands['list']
     )
     assert result.exit_code == 0
 
 def test_cli_cloud_push(simpleCohort):
     runner=CliRunner()
     result = runner.invoke(
-        cli.push,
+        cli.cloud.commands['push'],
         ['Cohort','TestCohort']
     )
     assert result.exit_code == 0
@@ -41,7 +41,7 @@ def test_cli_cloud_push(simpleCohort):
 def test_cli_cloud_pull(simpleCohort):
     runner=CliRunner()
     result = runner.invoke(
-        cli.pull,
+        cli.cloud.commands['pull'],
         ['Cohort','TestCohort']
     )
     assert result.exit_code == 0
@@ -49,7 +49,7 @@ def test_cli_cloud_pull(simpleCohort):
 def test_cli_cloud_delete(simpleCohort):
     runner=CliRunner()
     result = runner.invoke(
-        cli.remove,
+        cli.cloud.commands['remove'],
         ['Cohort','TestCohort']
     )
     assert result.exit_code == 0
