@@ -95,7 +95,7 @@ class Freezable(object):
 
     '''
 
-    def __init__(self, name, parent=None):
+    def __init__(self, name, parent=None, basedir=None):
         '''
         Initialize the Freezable Object.
 
@@ -114,12 +114,15 @@ class Freezable(object):
         self._m80_dtype = guess_type(self)
         # Keep track of children
         self._children = []
-        
+       
+        if basedir is None:
+            basedir = cf.options.basedir
+
         # Set up our base directory
         if parent is None:
             # set as the top level basedir as specified in the config file
             self._basedir = os.path.join(
-                cf.options.basedir,
+                basedir,
                 'databases',
                 f'{self._m80_dtype}.{self._m80_name}'
             )
