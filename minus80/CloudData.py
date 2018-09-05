@@ -151,6 +151,7 @@ class S3CloudData(BaseCloudData):
             tarpath = os.path.join(cf.options.basedir,'tmp',key+'.tar')
             tar = tarfile.open(tarpath,'w')
             tar.add(data_path,recursive=True,arcname=key)
+            tar.close()
             transfer.upload_file(tarpath, self.bucket, f'databases/{key}',
                 callback=ProgressPercentage(tarpath)        
             )
@@ -265,5 +266,8 @@ class S3CloudData(BaseCloudData):
         '''
             Nuke all the datasets in the cloud 
         '''
-        for obj in self.s3.list_objects(Bucket=self.bucket)['Contents']:
-            self.s3.delete_object(Bucket=self.bucket,Key=obj['Key'])
+        try:
+            for obj in self.s3.list_objects(Bucket=self.bucket)['Contents']:
+                self.s3.delete_object(Bucket=self.bucket,Key=obj['Key'])
+        except KeyError as e:
+            return

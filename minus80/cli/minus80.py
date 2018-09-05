@@ -31,10 +31,10 @@ def cli():
 @click.option('--dtype', default=None,
     help='Each dataset has a datatype associated with it. E.g.: `Cohort`. If no dtype is specified, all available dtypes  will be returned.'
 )
-def local_list(name, dtype):
+def list(name, dtype):
     m80.Tools.available(dtype=dtype,name=name)
 
-cli.add_command(local_list)
+cli.add_command(list)
 
 #----------------------------
 #    delete Commands
@@ -51,7 +51,7 @@ cli.add_command(delete)
 #    Cloud Commands
 #----------------------------
 @click.group()
-def cloud(ctx, engine, raw, name, dtype):
+def cloud():
     '''
     Manage your minus80 datasets in the cloud.
     '''
@@ -62,7 +62,7 @@ cli.add_command(cloud)
 @click.option('--dtype', metavar='<dtype>',default=None)
 @click.option('--name', metavar='<name>',default=None)
 @click.option('--raw', is_flag=True, default=False, help='Flag to list raw data')
-def cloud_list(dtype,name,raw):
+def list(dtype,name,raw):
     '''List available datasets'''
     cloud = m80.CloudData()
     cloud.list(
@@ -126,7 +126,7 @@ def remove(dtype,name,raw):
     )
 
 
-cloud.add_command(cloud_list)
+cloud.add_command(list)
 cloud.add_command(push)
 cloud.add_command(pull)
 cloud.add_command(remove)

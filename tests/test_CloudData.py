@@ -2,6 +2,9 @@ import pytest
 import minus80 as m80
 
 
+def test_start_nuked(simpleCloudData):
+    simpleCloudData.nuke()
+
 def test_init(simpleCloudData):
     assert simpleCloudData
 
