@@ -103,10 +103,8 @@ class Freezable(object):
         ----------
         name : str
             The name of the frozen object.
-        dtype : str, default=None
-            The type of the frozen object (e.g. Cohort)
-            If None, the type will be inferred from the
-            object class.
+        parent: Freezable object or None
+            The parent object
         '''
         # Set the m80 name
         self._m80_name = name
