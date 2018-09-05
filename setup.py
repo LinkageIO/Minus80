@@ -27,7 +27,8 @@ setup(
     description = 'A library for freezing, unfreezing and storing biological data.',
     url = 'http://linkage.io',
     author = 'Rob Schaefer',
-    license = "Copyright Linkage Analytics 2016. Available under the MIT License",
+    author_email = 'rob@linkage.io',
+    license = "Copyright Linkage Analytics 2016-2018. Available under the MIT License",
 
     classifiers=[
 	# How mature is this project? Common values are
@@ -50,7 +51,7 @@ setup(
     ],
     keywords='data storage biology freeze', 
     project_urls={
-        'Documentation' : 'http://linkage.io/docs/minus80',
+        'Documentation' : 'https://minus80.readthedocs.io/en/latest/',
         'Source' : 'https://github.com/LinkageIO/Minus80',
         'Tracker' : 'https://github.com/LinkageIO/Minus80/issues'
     },
@@ -88,5 +89,4 @@ setup(
         [console_scripts]
         minus80=minus80.cli.minus80:cli
     ''',
-    author_email = 'rob@linkage.io',
 )
