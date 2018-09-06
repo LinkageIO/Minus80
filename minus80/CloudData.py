@@ -114,7 +114,7 @@ class S3CloudData(BaseCloudData):
             aws_secret_access_key=aws_secret_key,
             config=Config(s3={'addressing_style': 'path'})
         )
-        self.bucket = f'minus80-{cf.cloud.access_key.lower()}'
+        self.bucket = f'minus80-{aws_access_key.lower()}'
 
         # make sure the minus80 bucket exists
         if self.bucket not in [x['Name'] for x in self.s3.list_buckets()['Buckets']]:
