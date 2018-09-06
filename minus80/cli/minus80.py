@@ -42,8 +42,8 @@ cli.add_command(list)
 @click.command(help='Delete a minus80 dataset')
 @click.argument('dtype',metavar='<dtype>')
 @click.argument('name',metavar='<name>')
-def delete(name, dtype):
-    m80.Tools.delete(name,dtype)
+def delete(dtype,name):
+    m80.Tools.delete(dtype,name)
 
 cli.add_command(delete)
 
