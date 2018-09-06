@@ -86,7 +86,7 @@ def test_delete_m80():
     c = Cohort('DeleteMe')
     dbFile = c._get_dbpath('db.sqlite')
     assert os.path.exists(dbFile) == True
-    delete('DeleteMe',force=True)
+    delete('Cohort','DeleteMe',force=True)
     assert os.path.exists(dbFile) == False
 
 
