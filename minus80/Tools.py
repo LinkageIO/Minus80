@@ -115,6 +115,9 @@ def delete(name=None, dtype=None, force=False):
 
         .. warning:: This is damaging. Deleted datasets cannot be (easily) recovered.
     '''
+    if not available(dtype,name):
+        print(f'{dtype}.{name} does not exist -- nothing deleted')
+        return
     # Get a filecard for all the minus80 filenames that match the
     # type and the name
     files = get_files(name=name, dtype=dtype)
