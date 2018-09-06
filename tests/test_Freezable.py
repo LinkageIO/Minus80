@@ -89,7 +89,7 @@ def test_delete_m80():
     delete('Cohort','DeleteMe',force=True)
     assert os.path.exists(dbFile) == False
 
-def test_delete_missing()
+def test_delete_missing():
     import os
     from minus80.Tools import delete
     c = Cohort('DeleteMe')
