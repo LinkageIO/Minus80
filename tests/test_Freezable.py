@@ -89,6 +89,18 @@ def test_delete_m80():
     delete('Cohort','DeleteMe',force=True)
     assert os.path.exists(dbFile) == False
 
+def test_delete_missing()
+    import os
+    from minus80.Tools import delete
+    c = Cohort('DeleteMe')
+    dbFile = c._get_dbpath('db.sqlite')
+    assert os.path.exists(dbFile) == True
+    # Giving the wrong information shouldnt do anything
+    delete('Cohort','DeleteMeee',force=True)
+    assert os.path.exists(dbFile) == True
+    delete('Cohort','DeleteMe',force=True)
+    assert os.path.exists(dbFile) == False
+
 
 def test_bulk_transaction(simpleCohort):
     with simpleCohort.bulk_transaction() as cur:
