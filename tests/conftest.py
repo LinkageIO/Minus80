@@ -47,7 +47,7 @@ def RNAAccession2():
 
 @pytest.fixture(scope='module')
 def RNACohort(RNAAccession1,RNAAccession2):
-    delete('RNACohort','Cohort',force=True)
+    delete('Cohort','RNACohort',force=True)
     x = Cohort('RNACohort')
     x.add_accession(RNAAccession1)
     x.add_accession(RNAAccession2)
@@ -55,7 +55,7 @@ def RNACohort(RNAAccession1,RNAAccession2):
 
 @pytest.fixture(scope='module')
 def simpleCohort():
-    delete('TestCohort','Cohort',force=True)
+    delete('Cohort','TestCohort',force=True)
     # Create the simple cohort
     a = Accession('Sample1',files=['file1.txt','file2.txt'],type='WGS')
     b = Accession('Sample2',files=['file1.txt','file2.txt'],type='WGS')
