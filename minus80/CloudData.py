@@ -88,19 +88,24 @@ class S3CloudData(BaseCloudData):
         import boto3
         from botocore.client import Config
 
-        # handle credentials    
-        if 'CLOUD_ACCESS_KEY' in os.environ \
-            and 'CLOUD_SECRET_KEY' in os.environ \
-            and 'CLOUD_ENDPOINT' in os.environ: #pragma: no cover
-            aws_endpoint   = os.environ['CLOUD_ENDPOINT']
+        # Fetch creds from config file
+        aws_endpoint   = cf.cloud.endpoint
+        aws_access_key = cf.cloud.access_key
+        aws_secret_key = cf.cloud.secret_key
+
+        # override config with ENV variables 
+        if 'CLOUD_ENDPOINT' in os.environ:
+            aws_endpoint   = os.environ['CLOUD_ENDPOINT'] 
+        if 'CLOUD_ACCESS_KEY' in os.environ:
             aws_access_key = os.environ['CLOUD_ACCESS_KEY']
+        if 'CLOUD_SECRET_KEY' in os.environ:
             aws_secret_key = os.environ['CLOUD_SECRET_KEY']
-        else: #pragma: no cover
-            if cf.cloud.access_key == 'None' or cf.cloud.secret_key == 'None': 
-                raise ValueError('Fill in your S3 Credentials in ~/.minus80.conf') 
-            aws_endpoint   = cf.cloud.endpoint
-            aws_access_key = cf.cloud.access_key
-            aws_secret_key = cf.cloud.secret_key
+
+        if aws_access_key is None or aws_secret_key is None: 
+                raise ValueError(
+                    'Fill in your S3 Credentials in ~/.minus80.conf or '
+                    'set ENV variables'
+                ) 
 
         self.s3 = boto3.client(
             service_name='s3',
