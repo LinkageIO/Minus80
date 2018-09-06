@@ -91,7 +91,7 @@ def available(dtype=None,name=None):
             for i, name in enumerate(names, 1):
                 print(f'\t{i}. {name}')
 
-def delete(name=None, dtype=None, force=False):
+def delete(dtype=None, name=None, force=False):
     ''' 
         Deletes files associated with Minus80 datasets.
 
