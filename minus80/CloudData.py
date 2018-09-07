@@ -159,7 +159,7 @@ class S3CloudData(BaseCloudData):
             # Tar it up
             tarpath = os.path.join(cf.options.basedir,'tmp',key+'.tar')
             tar = tarfile.open(tarpath,'w')
-            tar.add(data_path,recursive=True,arcname=key)
+            tar.add(data_path,recursive=True,arcname=key,defererence=True)
             tar.close()
             transfer.upload_file(tarpath, self.bucket, f'databases/{key}',
                 callback=ProgressPercentage(tarpath)        
