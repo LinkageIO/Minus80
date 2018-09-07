@@ -11,10 +11,12 @@ default_config = '''--- # YAML Camoco Configuration File
 options:
     basedir: ~/.minus80/
 
+# AWS S3 Read Only
 cloud:
-    endpoint:   https://s3.msi.umn.edu
-    access_key: None
-    secret_key: None
+    endpoint: https://s3.amazonaws.com
+    bucket: minus80
+    access_key: AKIAIPDHRLIHE3JRRYZA
+    secret_key: 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
 
 '''.format(**{'user':getpass.getuser()})
 
