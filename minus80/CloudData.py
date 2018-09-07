@@ -90,36 +90,40 @@ class S3CloudData(BaseCloudData):
 
         # Fetch creds from config file
         aws_endpoint   = cf.cloud.endpoint
+        aws_bucket     = cf.cloud.bucket
         aws_access_key = cf.cloud.access_key
         aws_secret_key = cf.cloud.secret_key
 
         # override config with ENV variables 
         if 'CLOUD_ENDPOINT' in os.environ:
-            aws_endpoint   = os.environ['CLOUD_ENDPOINT'] 
+            aws_endpoint = os.environ['CLOUD_ENDPOINT'] 
+        if 'CLOUD_BUCKET' in os.environ:
+            aws_bucket = os.environ['CLOUD_BUCKET'] 
         if 'CLOUD_ACCESS_KEY' in os.environ:
             aws_access_key = os.environ['CLOUD_ACCESS_KEY']
         if 'CLOUD_SECRET_KEY' in os.environ:
             aws_secret_key = os.environ['CLOUD_SECRET_KEY']
 
-        if aws_access_key is None or aws_secret_key is None: 
-                raise ValueError(
-                    'Fill in your S3 Credentials in ~/.minus80.conf or '
-                    'set ENV variables'
-                ) 
-
-        self.s3 = boto3.client(
-            service_name='s3',
-            endpoint_url=aws_endpoint,
-            aws_access_key_id=aws_access_key,
-            aws_secret_access_key=aws_secret_key,
-            config=Config(s3={'addressing_style': 'path'})
-        )
-        self.bucket = f'minus80-{aws_access_key.lower()}'
-
-        # make sure the minus80 bucket exists
-        if self.bucket not in [x['Name'] for x in self.s3.list_buckets()['Buckets']]:
-            # Append access key to bucket name so multiple users can use host
-            self.s3.create_bucket(Bucket=self.bucket)
+        try:
+            self.s3 = boto3.client(
+                service_name='s3',
+                endpoint_url=aws_endpoint,
+                aws_access_key_id=aws_access_key,
+                aws_secret_access_key=aws_secret_key,
+                config=Config(s3={'addressing_style': 'path'})
+            )
+            #self.bucket = f'minus80-{aws_access_key.lower()}'
+            self.bucket = aws_bucket
+    
+            # make sure the minus80 bucket exists
+            if self.bucket not in [x['Name'] for x in self.s3.list_buckets()['Buckets']]:
+                # Append access key to bucket name so multiple users can use host
+                self.s3.create_bucket(Bucket=self.bucket)
+        except Exception as e:
+            raise ValueError(
+                'Fill in your S3 Credentials in ~/.minus80.conf or '
+                'set ENV variables'
+            ) 
 
 
     def push(self, dtype, name, raw=False):
