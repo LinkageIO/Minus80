@@ -158,8 +158,8 @@ class S3CloudData(BaseCloudData):
                 raise ValueError('There were no datasets with that name')
             # Tar it up
             tarpath = os.path.join(cf.options.basedir,'tmp',key+'.tar')
-            tar = tarfile.open(tarpath,'w')
-            tar.add(data_path,recursive=True,arcname=key,defererence=True)
+            tar = tarfile.open(tarpath,'w',dereference=True)
+            tar.add(data_path,recursive=True,arcname=key)
             tar.close()
             transfer.upload_file(tarpath, self.bucket, f'databases/{key}',
                 callback=ProgressPercentage(tarpath)        
