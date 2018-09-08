@@ -15,8 +15,8 @@ options:
 cloud:
     endpoint: https://s3.amazonaws.com
     bucket: minus80
-    access_key: AKIAIPDHRLIHE3JRRYZA
-    secret_key: 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
+    access_key: None
+    secret_key: None
 
 '''.format(**{'user':getpass.getuser()})
 
