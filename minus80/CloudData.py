@@ -121,8 +121,8 @@ class S3CloudData(BaseCloudData):
                 self.s3.create_bucket(Bucket=self.bucket)
         except Exception as e:
             raise ValueError(
-                'Fill in your S3 Credentials in ~/.minus80.conf or '
-                'set ENV variables'
+                'Accessing the cloud requires either setting up AWS credentials in ~/.minus80.conf '
+                'contact help@linkage.io for assistance'
             ) 
 
 
