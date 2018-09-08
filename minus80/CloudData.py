@@ -116,13 +116,16 @@ class S3CloudData(BaseCloudData):
             self.bucket = aws_bucket
     
             # make sure the minus80 bucket exists
-            if self.bucket not in [x['Name'] for x in self.s3.list_buckets()['Buckets']]:
+            #if self.bucket not in [x['Name'] for x in self.s3.list_buckets()['Buckets']]:
                 # Append access key to bucket name so multiple users can use host
+            try:
                 self.s3.create_bucket(Bucket=self.bucket)
+            except self.s3.exceptions.BucketAlreadyOwnedByYou as e:
+                pass
         except Exception as e:
             raise ValueError(
                 'Accessing the cloud requires either setting up AWS credentials in ~/.minus80.conf '
-                'contact help@linkage.io for assistance'
+                'contact help@linkage.io for assistance',e
             ) 
 
 
