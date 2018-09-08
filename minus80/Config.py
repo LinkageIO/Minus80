@@ -7,7 +7,7 @@ import getpass
 
 global cf
 
-default_config = '''--- # YAML Camoco Configuration File
+default_config = '''--- # YAML Minus80 Configuration File
 options:
     basedir: ~/.minus80/
 
@@ -18,7 +18,7 @@ cloud:
     access_key: None
     secret_key: None
 
-'''.format(**{'user':getpass.getuser()})
+'''
 
 class Level(dict):
     '''
