@@ -75,7 +75,8 @@ setup(
         'click >= 6.7',
         'asyncssh >= 1.12.2',
         'networkx == 1.11',
-        'boto3>=1.7.84',
+        'boto3 >= 1.7.84',
+        'requests >= 2.19.1',
         'apsw'
     ],
     extras_require={
