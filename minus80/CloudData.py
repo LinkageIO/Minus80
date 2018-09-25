@@ -6,6 +6,7 @@ import lzma
 import sys
 import threading
 import tarfile
+import requests
 from collections import defaultdict
 
 
@@ -31,6 +32,45 @@ class BaseCloudData(object): #pragma: no cover
 
     def list(self, name=None, dtype=None, raw=None):
         pass
+
+
+class publics3CloudData(BaseCloudData):
+    def __init__(self):
+        import xml.etree.ElementTree as ET
+        # get the URL for the endpoint
+        r = requests.get(f'{cf.cloud.endpoint}/{cf.cloud.bucket}')
+        # Get the XML from the string
+        x = ET.fromstring(r.content.decode('utf-8'))
+        self.endpoint = x.find('Endpoint').text
+
+    def push(self, dtype, name, raw=False):
+        raise NotImplementedError('Cannot push to public repos')
+
+    def pull(self, dtype, name, raw=False):
+        # https://s3.amazonaws.com/minus80/databases/Cohort.RNACohort
+        if raw == True:
+            dir_prefix = 'Raw'
+            name = os.path.basename(name)
+        else:
+            dir_prefix = 'databases'
+            output = os.path.join(cf.options.basedir,'tmp',f'{dtype}.{name}.tar')
+        r = requests.get(f'https://{self.endpoint}/{dir_prefix}/{dtype}.{name}',stream=True)
+        if r.status_code != 200:
+            raise ValueError(f"An error occured, HTTP code:{r.status_code}")
+        num_bytes = int(r.headers.get('content-length',0))
+        progress = ProgressDownloadPercentage(output,num_bytes)
+        with open(output,'wb') as OUT:
+            for chunk in r.iter_content(1024):
+                OUT.write(chunk)
+                progress(1024)
+        if output.endswith('.tar'):
+            tar = tarfile.open(output,'r')
+            tar.extractall(path=os.path.join(cf.options.basedir,'databases'))
+
+
+    def list(self, dtype=None, name=None, raw=None):
+        pass
+
 
 class ProgressPercentage(object):
     '''
@@ -71,6 +111,8 @@ class ProgressDownloadPercentage(object):
                     percentage)
             )
             sys.stdout.flush()
+
+
 
 class S3CloudData(BaseCloudData):
 
@@ -143,8 +185,6 @@ class S3CloudData(BaseCloudData):
             If True, raw files can be stored in the cloud. In this case, name changes
             to the file name and dtype changes to a string representing the future dtype
             or anything that describes the type of data that is being stored.
-        compress : bool, default=False
-            If true, lzma compression will be performed (this is slower)
         '''
         from boto3.s3.transfer import S3Transfer
         transfer = S3Transfer(self.s3)
