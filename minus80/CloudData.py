@@ -37,8 +37,16 @@ class BaseCloudData(object): #pragma: no cover
 class publics3CloudData(BaseCloudData):
     def __init__(self):
         import xml.etree.ElementTree as ET
+        # Fetch creds from config file
+        aws_endpoint   = cf.cloud.endpoint
+        aws_bucket     = cf.cloud.bucket
+        # override config with ENV variables 
+        if 'CLOUD_ENDPOINT' in os.environ:
+            aws_endpoint = os.environ['CLOUD_ENDPOINT'] 
+        if 'CLOUD_BUCKET' in os.environ:
+            aws_bucket = os.environ['CLOUD_BUCKET'] 
         # get the URL for the endpoint
-        r = requests.get(f'{cf.cloud.endpoint}/{cf.cloud.bucket}')
+        r = requests.get(f'{aws_endpoint}/{aws_bucket}')
         # Get the XML from the string
         x = ET.fromstring(r.content.decode('utf-8'))
         self.endpoint = x.find('Endpoint').text
