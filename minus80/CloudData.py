@@ -228,39 +228,31 @@ class S3CloudData(BaseCloudData):
             to the file name and dtype changes to a string representing the future dtype
             or anything that describes the type of data that is being stored.
         '''
-
         from boto3.s3.transfer import S3Transfer
         transfer = S3Transfer(self.s3)
         if raw == True:
-            key = os.path.basename(name)
-            # get the number of bytes in the object
-            num_bytes = self.s3.list_objects(
-                    Bucket=self.bucket, 
-                    Prefix=f'Raw/{dtype}.{key}'
-            )['Contents'][0]['Size']
+            prefix_dir = 'Raw'
+            name = os.path.basename(name)
             if output is None:
                 output = name
-            # download
-            transfer.download_file(
-                self.bucket,
-                f'Raw/{dtype}.{key}',
-                output,
-                callback = ProgressDownloadPercentage(output,num_bytes)
-            )
         else:
-            key = f'{dtype}.{name}'
-            tarpath = os.path.join(cf.options.basedir,'tmp',key+'.tar')
-            num_bytes = self.s3.list_objects(
-                Bucket=self.bucket,
-                Prefix=f'databases/{key}'
-            )['Contents'][0]['Size']
-            transfer.download_file(
-                self.bucket,
-                f'databases/{key}',
-                tarpath,
-                callback = ProgressDownloadPercentage(key,num_bytes)
-            )
-            tar = tarfile.open(tarpath,'r')
+            prefix_dir = 'databases'
+            output = os.path.join(cf.options.basedir,'tmp',f'{dtype}.{name}.tar')
+        # get the number of bytes in the object
+        num_bytes = self.s3.list_objects(
+                Bucket=self.bucket, 
+                Prefix=f'{prefix_dir}/{dtype}.{name}'
+        )['Contents'][0]['Size']
+        # download the object
+        transfer.download_file(
+            self.bucket,
+            f'{prefix_dir}/{dtype}.{name}',
+            output,
+            callback = ProgressDownloadPercentage(output,num_bytes)
+        )
+        # Extract if its a tar file
+        if output.endswith('.tar'):
+            tar = tarfile.open(output,'r')
             tar.extractall(path=os.path.join(cf.options.basedir,'databases'))
             
 
