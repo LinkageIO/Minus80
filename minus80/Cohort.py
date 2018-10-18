@@ -1,6 +1,8 @@
 from functools import lru_cache
 
 from minus80 import Accession, Freezable
+import numbers
+import math
 
 
 class Cohort(Freezable):
@@ -52,7 +54,7 @@ class Cohort(Freezable):
     #------------------------------------------------------#
 
     def __repr__(self):
-        return f'Cohort("{self.name}") -- contains {len(self)}'
+        return f'Cohort("{self.name}") -- contains {len(self)} Accessions'
 
     def __delitem__(self, name):
         '''
@@ -299,5 +301,32 @@ class Cohort(Freezable):
             )
         return self[accession]
 
+
+    def add_accessions_from_data_frame(self,df,name_col):
+        '''
+            Add accessions from data frame
+
+            Parameters
+            ----------
+            df : pandas.DataFrame
+                The pandas data frame containing one accession
+                per row
+            name_col : string
+                The column containing the accession names
+        '''
+        if name_col not in df.columns:
+            raise ValueError(f'{name_col} not a valid column name')
+        accessions = []
+        for i,row in df.iterrows():
+            d = dict(row)  
+            name = d[name_col]
+            del d[name_col]
+            # Get rid of missing data
+            for k,v in list(d.items()):
+                if isinstance(v,numbers.Number) and math.isnan(v): 
+                    del d[k]
+                d[k] = str(v)
+            accessions.append(Accession(name, files=None, **d))
+        self.add_accessions(accessions)
 
 
