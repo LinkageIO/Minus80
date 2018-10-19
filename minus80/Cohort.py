@@ -267,7 +267,7 @@ class Cohort(Freezable):
                 INSERT OR IGNORE INTO accessions (name) VALUES (?)
             ''', [(x.name, ) for x in accessions])
             # Fetch that ID
-            AID_map = self.AID_mapping
+            AID_map = self._AID_mapping
             # Populate the metadata and files tables
             cur.executemany('''
                 INSERT OR REPLACE INTO metadata (AID, key, val)
@@ -314,7 +314,9 @@ class Cohort(Freezable):
 
     def add_accessions_from_data_frame(self,df,name_col):
         '''
-            Add accessions from data frame
+            Add accessions from data frame. This assumes
+            each row is an Accession and that the properties
+            of the accession are stored in the columns. 
 
             Parameters
             ----------
@@ -323,10 +325,25 @@ class Cohort(Freezable):
                 per row
             name_col : string
                 The column containing the accession names
+
+            Example
+            -------
+
+            >>> df = pd.DataFrame( 
+                  [['S1'    23    'O'],
+                   ['S2'    30    'O+']],
+                   columns =  ['Name','Age','Type']
+                )
+            >>> x = m80.add_accessions_from_data_frame(df,'Name')
+
+            Would yield two Accessions: S1 and S2 with Age and Type
+            properties.
+
         '''
         if name_col not in df.columns:
             raise ValueError(f'{name_col} not a valid column name')
         accessions = []
+        # Iterate over the rows and create and accessions from each one
         for i,row in df.iterrows():
             d = dict(row)  
             name = d[name_col]
@@ -335,7 +352,8 @@ class Cohort(Freezable):
             for k,v in list(d.items()):
                 if isinstance(v,numbers.Number) and math.isnan(v): 
                     del d[k]
-                d[k] = str(v)
+                else:
+                    d[k] = str(v)
             accessions.append(Accession(name, files=None, **d))
         self.add_accessions(accessions)
 
