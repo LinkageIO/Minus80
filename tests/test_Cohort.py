@@ -14,7 +14,7 @@ def test_get_AID_from_name(simpleCohort):
     assert simpleCohort._get_AID('Sample1') == 1
 
 def test_get_AID(simpleCohort):
-    aid_map = simpleCohort.AID_mapping['Sample1'] == 1 
+    aid_map = simpleCohort._AID_mapping['Sample1'] == 1 
 
 def test_add_accession(simpleCohort):
     a = Accession('Sample4',files=['file1.txt','file2.txt'],type='CHIP')
