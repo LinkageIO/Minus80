@@ -147,7 +147,7 @@ class Freezable(object):
         self._children.append(child)
 
     @contextmanager
-    def bulk_transaction(self):
+    def _bulk_transaction(self):
         '''
             This is a context manager that handles bulk transaction.
             i.e. this context will handle the BEGIN, END and appropriate
