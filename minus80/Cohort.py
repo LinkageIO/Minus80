@@ -120,11 +120,21 @@ class Cohort(Freezable):
             return True
 
     @property
-    def AID_mapping(self):
+    def _AID_mapping(self):
         return {
             x.name: x['AID']
             for x in self
         }
+
+    def columns(self):
+        '''
+            Return a list of all the available metadata stored
+            for available Accessions
+        '''
+        return [ x[0] for x in self._db.cursor().execute('''
+            SELECT DISTINCT(key) FROM metadata;
+        ''').fetchall() ]
+
 
     #------------------------------------------------------#
     #               Internal Methods                       #
