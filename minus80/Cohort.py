@@ -18,6 +18,20 @@ class Cohort(Freezable):
         self._initialize_tables()
 
     #------------------------------------------------------#
+    #                 Properties                           #
+    #------------------------------------------------------#
+
+    @property
+    def columns(self):
+        '''
+            Return a list of all the available metadata stored
+            for available Accessions
+        '''
+        return [ x[0] for x in self._db.cursor().execute('''
+            SELECT DISTINCT(key) FROM metadata;
+        ''').fetchall() ]
+
+    #------------------------------------------------------#
     #                   Methods                            #
     #------------------------------------------------------#
 
@@ -165,15 +179,22 @@ class Cohort(Freezable):
             accessions.append(Accession(name, files=None, **d))
         self.add_accessions(accessions)
 
+    
+    def alias_column(self, colname):
+        '''
+            Assign an accession column as aliases
+        '''
+        if colname not in self.columns:
+            raise ValueError(f'{colname} not in columns')
+        with self._bulk_transaction() as cur: 
+            aliases = cur.execute('''
+                SELECT val,AID FROM metadata 
+                WHERE key = ?
+            ''',(colname,)).fetchall()
+            cur.executemany('''
+                INSERT INTO aliases (alias,AID) VALUES (?,?)      
+            ''',aliases)
 
-    def columns(self):
-        '''
-            Return a list of all the available metadata stored
-            for available Accessions
-        '''
-        return [ x[0] for x in self._db.cursor().execute('''
-            SELECT DISTINCT(key) FROM metadata;
-        ''').fetchall() ]
 
     def assimilate_files(self,files):
         '''
@@ -186,7 +207,15 @@ class Cohort(Freezable):
         '''
             Performs a search of names in the 
         '''
-        pass
+        cur = self._db.cursor()
+        name = f'%{name}%'
+        names = cur.execute(
+            'SELECT name FROM accessions WHERE name LIKE ?',(name,)
+        ).fetchall()
+        aliases = cur.execute(
+            'SELECT alias FROM aliases WHERE alias LIKE ?',(name,)
+        ).fetchall()
+        return [x[0] for x in names + aliases]
         
 
 
@@ -223,6 +252,7 @@ class Cohort(Freezable):
         '''
         AID = self._get_AID(name)
         cur = self._db.cursor()
+        # Get the name based on AID
         name, = cur.execute('SELECT name FROM accessions WHERE AID = ?',(AID,)).fetchone() 
         metadata = {
             k: v for k, v in cur.execute('''
