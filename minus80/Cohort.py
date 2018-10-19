@@ -1,8 +1,10 @@
 from functools import lru_cache
+from collections import Counter
 
 from minus80 import Accession, Freezable
 import numbers
 import math
+import warnings
 
 
 class Cohort(Freezable):
@@ -30,6 +32,13 @@ class Cohort(Freezable):
         return [ x[0] for x in self._db.cursor().execute('''
             SELECT DISTINCT(key) FROM metadata;
         ''').fetchall() ]
+
+    @property
+    def names(self):
+        '''
+            Return a list of all available names and aliases
+        '''
+        return self.search_names('%')
 
     #------------------------------------------------------#
     #                   Methods                            #
@@ -163,7 +172,7 @@ class Cohort(Freezable):
 
         '''
         if name_col not in df.columns:
-            raise ValueError(f'{name_col} not a valid column name')
+            raise ValueError(f'{name_col}S not a valid column name')
         accessions = []
         # Iterate over the rows and create and accessions from each one
         for i,row in df.iterrows():
@@ -184,23 +193,38 @@ class Cohort(Freezable):
         '''
             Assign an accession column as aliases
         '''
-        if colname not in self.columns:
-            raise ValueError(f'{colname} not in columns')
+        cur_names = set(self.names)
         with self._bulk_transaction() as cur: 
-            aliases = cur.execute('''
+            alias_dict = {a:aid for a,aid in cur.execute('''
                 SELECT val,AID FROM metadata 
                 WHERE key = ?
-            ''',(colname,)).fetchall()
+            ''',(colname,)).fetchall()}
+            # We only want unique aliases
+            unique_aliases = []
+            alias_counts = Counter([x for x in alias_dict.keys()]) 
+            for alias,count in alias_counts.items():
+                if count > 1 or alias in cur_names:
+                    warnings.warn(f"Cannot use {alias} as it is not unique",stacklevel=0)
+                else:
+                    unique_aliases.append((alias,alias_dict[alias]))
+
             cur.executemany('''
                 INSERT INTO aliases (alias,AID) VALUES (?,?)      
-            ''',aliases)
+            ''',unique_aliases)
+
+    def drop_aliases(self):
+        '''
+            Clear the aliases from the database
+        '''
+        self._db.cursor().execute('DELETE FROM aliases')
 
 
     def assimilate_files(self,files):
         '''
             Take a list of files and assign them to Accessions
         '''
-        pass
+        for f in files:
+            base = os.path.basename(f)
 
 
     def search_names(self,name):
@@ -217,7 +241,6 @@ class Cohort(Freezable):
         ).fetchall()
         return [x[0] for x in names + aliases]
         
-
 
     #------------------------------------------------------#
     #               Magic Methods                          #
@@ -313,7 +336,7 @@ class Cohort(Freezable):
         ''')
         cur.execute('''
             CREATE TABLE IF NOT EXISTS aliases (
-                alias TEXT,
+                alias TEXT UNIQUE,
                 AID INTEGER,
                 FOREIGN KEY(AID) REFERENCES accessions(AID)
             );
