@@ -103,7 +103,7 @@ def test_delete_missing():
 
 
 def test_bulk_transaction(simpleCohort):
-    with simpleCohort.bulk_transaction() as cur:
+    with simpleCohort._bulk_transaction() as cur:
         cur.execute('''INSERT OR REPLACE INTO globals                                               
             (key, val, type) VALUES (?, ?, ?)''',
             ('test_bulk', '2', 'int'))
@@ -111,7 +111,7 @@ def test_bulk_transaction(simpleCohort):
 
 def test_bulk_transaction_rollback(simpleCohort):
     with pytest.raises(Exception) as e_info:
-        with simpleCohort.bulk_transaction() as cur:
+        with simpleCohort._bulk_transaction() as cur:
             cur.execute('''INSERT OR REPLACE INTO ERROR                                               
                 (key, val, type) VALUES (?, ?, ?)''',
                 ('test_bulk', 2, 'int'))
