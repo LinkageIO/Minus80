@@ -217,6 +217,7 @@ class Cohort(Freezable):
             Clear the aliases from the database
         '''
         self._db.cursor().execute('DELETE FROM aliases')
+        self._cache_clear()
 
 
     def assimilate_files(self,files):
@@ -261,6 +262,8 @@ class Cohort(Freezable):
             DELETE FROM metadata WHERE AID = ?;
             DELETE FROM files WHERE AID = ?;
         ''', (AID, AID, AID))
+        # Invalidate the cache
+        self._cache_clear()
 
     def __getitem__(self, name):
         '''
@@ -357,6 +360,12 @@ class Cohort(Freezable):
                 UNIQUE(AID, key, val)
             );
         ''')
+
+    def _cache_clear(self):
+        '''
+            This needs to be run whenever an AID is removed from the database
+        '''
+        self._get_AID.cache_clear()
 
 
     @lru_cache(maxsize=2048)
