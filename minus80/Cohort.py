@@ -357,13 +357,14 @@ class Cohort(Freezable):
         else:
             return True
 
-    @property
-    def _AID_mapping(self):
-        return {
-            x.name: x['AID']
-            for x in self
-        }
-
+    def add_file(self,name,path,verified=True):
+        if name is not None:
+            AID = self._get_AID(name)
+        else:
+            AID = None
+        self._db.cursor().execute('''
+            INSERT OR REPLACE INTO files (AID,path,verified) VALUES (?,?,?)
+        ''',(AID,path,verified))
 
     #------------------------------------------------------#
     #               Internal Methods                       #
@@ -388,6 +389,8 @@ class Cohort(Freezable):
             CREATE TABLE IF NOT EXISTS files (
                 AID INTEGER,
                 path TEXT ID NOT NULL UNIQUE,
+                verified INTEGER DEFAULT 0,
+                PRIMARY KEY(AID,path)
                 FOREIGN KEY(AID) REFERENCES accessions(AID)
             );
         ''')
