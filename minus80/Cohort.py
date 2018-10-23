@@ -2,10 +2,24 @@ from functools import lru_cache
 from collections import Counter
 
 from minus80 import Accession, Freezable
+from fuzzywuzzy import fuzz
+
 import numbers
 import math
 import warnings
+import logging
+import os
 
+
+__all__ = ['Cohort']
+
+def invalidates_cache(fn):
+    from functools import wraps
+    @wraps(fn)
+    def wrapped(self,*args,**kwargs):
+        fn(self,*args,**kwargs) 
+        self._get_AID.cache_clear()
+    return wrapped
 
 class Cohort(Freezable):
     '''
@@ -212,13 +226,12 @@ class Cohort(Freezable):
                 INSERT INTO aliases (alias,AID) VALUES (?,?)      
             ''',unique_aliases)
 
+    @invalidates_cache
     def drop_aliases(self):
         '''
             Clear the aliases from the database
         '''
         self._db.cursor().execute('DELETE FROM aliases')
-        self._cache_clear()
-
 
     def assimilate_files(self,files):
         '''
@@ -250,6 +263,7 @@ class Cohort(Freezable):
     def __repr__(self):
         return f'Cohort("{self.name}") -- contains {len(self)} Accessions'
 
+    @invalidates_cache
     def __delitem__(self, name):
         '''
             Remove a sample by name (or by composition)
@@ -262,8 +276,6 @@ class Cohort(Freezable):
             DELETE FROM metadata WHERE AID = ?;
             DELETE FROM files WHERE AID = ?;
         ''', (AID, AID, AID))
-        # Invalidate the cache
-        self._cache_clear()
 
     def __getitem__(self, name):
         '''
@@ -361,14 +373,8 @@ class Cohort(Freezable):
             );
         ''')
 
-    def _cache_clear(self):
-        '''
-            This needs to be run whenever an AID is removed from the database
-        '''
-        self._get_AID.cache_clear()
 
-
-    @lru_cache(maxsize=2048)
+    @lru_cache(maxsize=32768)
     def _get_AID(self, name):
         '''
             Return a Sample ID (AID)
