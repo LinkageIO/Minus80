@@ -195,6 +195,9 @@ class Cohort(Freezable):
         '''
         if name_col not in df.columns:
             raise ValueError(f'{name_col}S not a valid column name')
+        # filter out rows with NaN name_col values
+        # The tilda operator is a boolean inversion
+        df = df.loc[~df[name_col].isnull(),:]
         accessions = []
         # Iterate over the rows and create and accessions from each one
         for i,row in df.iterrows():
