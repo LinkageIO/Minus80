@@ -32,6 +32,7 @@ class Cohort(Freezable):
         super().__init__(name,parent=parent)
         self.name = name
         self._initialize_tables()
+        self.log = logging.getLogger(f'minus80.Cohort.{name}')
 
     #------------------------------------------------------#
     #                 Properties                           #
@@ -53,6 +54,13 @@ class Cohort(Freezable):
             Return a list of all available names and aliases
         '''
         return self.search_names('%')
+
+    @property
+    def _AID_mapping(self):
+        return {
+            x.name: x['AID']
+            for x in self
+        }
 
     #------------------------------------------------------#
     #                   Methods                            #
@@ -203,7 +211,7 @@ class Cohort(Freezable):
         self.add_accessions(accessions)
 
     
-    def alias_column(self, colname):
+    def alias_column(self, colname,min_alias_length=3):
         '''
             Assign an accession column as aliases
         '''
@@ -218,7 +226,9 @@ class Cohort(Freezable):
             alias_counts = Counter([x for x in alias_dict.keys()]) 
             for alias,count in alias_counts.items():
                 if count > 1 or alias in cur_names:
-                    warnings.warn(f"Cannot use {alias} as it is not unique",stacklevel=0)
+                    self.log.warning(f"Cannot use {alias} as it is not unique")
+                elif len(alias) < min_alias_length:
+                    self.log.warning(f"Skipping {alias} as it is too short (<{min_alias_length})")
                 else:
                     unique_aliases.append((alias,alias_dict[alias]))
 
@@ -233,7 +243,7 @@ class Cohort(Freezable):
         '''
         self._db.cursor().execute('DELETE FROM aliases')
 
-    def assimilate_files(self,files):
+    def assimilate_files(self,files, min_fuzz_score=90):
         '''
             Take a list of files and assign them to Accessions
         '''
@@ -243,7 +253,7 @@ class Cohort(Freezable):
 
     def search_names(self,name):
         '''
-            Performs a search of names in the 
+            Performs a search of accession names 
         '''
         cur = self._db.cursor()
         name = f'%{name}%'
