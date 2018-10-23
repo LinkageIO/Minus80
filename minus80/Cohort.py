@@ -56,6 +56,12 @@ class Cohort(Freezable):
         return self.search_names('%')
 
     @property
+    def files(self):
+        return [x[0] for x in self._db.cursor().execute('''
+            SELECT DISTINCT(path) FROM files
+        ''').fetchall() ]
+
+    @property
     def _AID_mapping(self):
         return {
             x.name: x['AID']
