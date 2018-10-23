@@ -68,6 +68,14 @@ class Cohort(Freezable):
             for x in self
         }
 
+    def as_DataFrame(self):
+        import pandas as pd
+        long_form = pd.DataFrame(self._db.cursor().execute('''
+            SELECT name,key,val FROM accessions acc 
+            JOIN metadata met on acc.AID = met.AID;
+        ''').fetchall(),columns=['name','key','val'])
+        return long_form.pivot(index='name',columns='key',values='val')
+
     #------------------------------------------------------#
     #                   Methods                            #
     #------------------------------------------------------#
