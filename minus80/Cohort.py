@@ -383,6 +383,11 @@ class Cohort(Freezable):
             INSERT OR REPLACE INTO files (AID,path,verified) VALUES (?,?,?)
         ''',(AID,path,verified))
 
+    def unverified_files(self):
+        return [x[0] for x in self._db.cursor().execute(
+            'SELECT path from files WHERE AID IS NULL'    
+        ).fetchall()]
+
     #------------------------------------------------------#
     #               Internal Methods                       #
     #------------------------------------------------------#
