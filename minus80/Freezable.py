@@ -26,6 +26,7 @@ class sqlite_dict(object):
             CREATE UNIQUE INDEX IF NOT EXISTS uniqkey ON globals(key)
         ''')
 
+
     def __call__(self,key,val=None):
         try:
             if val is not None:
@@ -168,6 +169,12 @@ class Freezable(object):
             raise e
         finally:
             cur.execute('RELEASE SAVEPOINT bulk_transaction')
+
+    def _query(self,q):
+        rows = self._db.cursor().execute(q)
+        names = [x[0] for x in rows.description]
+        result = pd.DataFrame(rows.fetchall(),columns=names)
+        return result
 
 
     def _get_dbpath(self, extension, create=False):
