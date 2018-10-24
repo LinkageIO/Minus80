@@ -69,7 +69,10 @@ class Cohort(Freezable):
         }
 
     def as_DataFrame(self):
-        import pandas as pd
+        try:
+            import pandas as pd
+        except ImportError as e:
+            raise ImportError('Pandas must be installed to use this feature')
         long_form = pd.DataFrame(self._db.cursor().execute('''
             SELECT name,key,val FROM accessions acc 
             JOIN metadata met on acc.AID = met.AID;

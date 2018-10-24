@@ -198,7 +198,7 @@ class Accession(object):
             tasks.append(self._check_file(url))
         tasks = asyncio.gather(*tasks)
         loop.run_until_complete(tasks)
-        unreachable = [i for i,r in enumerate(tasks.result()) if r.stdout!='Y']
+        unreachable = [i for i,r in enumerate(tasks.result()) if r.stdout != 'Y']
         if len(unreachable) == 0:
             return True
         else:
