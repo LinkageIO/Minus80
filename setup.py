@@ -78,7 +78,7 @@ setup(
         'urllib3 < 1.24',
         'boto3 >= 1.7.84',
         'requests >= 2.19.1',
-        'fuzzywuzzy >= 0.17.0'
+        'fuzzywuzzy >= 0.17.0',
         'apsw'
     ],
     extras_require={
