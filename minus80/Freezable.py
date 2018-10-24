@@ -171,9 +171,10 @@ class Freezable(object):
             cur.execute('RELEASE SAVEPOINT bulk_transaction')
 
     def _query(self,q):
-        rows = self._db.cursor().execute(q)
-        names = [x[0] for x in rows.description]
-        result = pd.DataFrame(rows.fetchall(),columns=names)
+        cur = self._db.cursor().execute(q)
+        names = [x[0] for x in cur.description]
+        rows = cur.fetchall()
+        result = pd.DataFrame(rows,columns=names)
         return result
 
 
