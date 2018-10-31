@@ -8,6 +8,7 @@ import numbers
 import math
 import warnings
 import logging
+import asyncssh
 import os
 
 
@@ -299,7 +300,13 @@ class Cohort(Freezable):
             'SELECT alias FROM aliases WHERE alias LIKE ?',(name,)
         ).fetchall()
         return [x[0] for x in names + aliases]
-        
+       
+    async def crawl_files(self,hostname='localhost',path='/',**kwargs):
+        find_command = f'find -L {path} -name "*.fastq"'
+        async with asyncssh.connect(hostname,**kwargs) as conn:
+            result = await conn.run(find_command,check=False)
+        return result
+
 
     #------------------------------------------------------#
     #               Magic Methods                          #
@@ -387,6 +394,7 @@ class Cohort(Freezable):
         return [x[0] for x in self._db.cursor().execute(
             'SELECT path from files WHERE AID IS NULL'    
         ).fetchall()]
+
 
     #------------------------------------------------------#
     #               Internal Methods                       #
