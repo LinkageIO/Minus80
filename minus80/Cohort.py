@@ -9,6 +9,8 @@ import math
 import warnings
 import logging
 import asyncssh
+import urllib
+import asyncio
 import os
 
 
@@ -59,7 +61,7 @@ class Cohort(Freezable):
     @property
     def files(self):
         return [x[0] for x in self._db.cursor().execute('''
-            SELECT DISTINCT(path) FROM files
+            SELECT path FROM raw_files
         ''').fetchall() ]
 
     @property
@@ -177,8 +179,8 @@ class Cohort(Freezable):
             ''', ((AID, k, v) for k, v in accession.metadata.items())
             )
             cur.executemany('''
-                INSERT OR REPLACE INTO files (AID, path) VALUES (?, ?)
-            ''', ((AID, file) for file in accession.files)
+                INSERT OR IGNORE INTO raw_files (path) VALUES (?)
+            ''', ((file,) for file in accession.files)
             )
         return self[accession]
 
@@ -278,14 +280,10 @@ class Cohort(Freezable):
             deduped = process.dedupe(matches.keys(),scorer=fuzz.partial_token_set_ratio)
             if len(deduped) == 0:
                 self.log.warning(f'no matches found for {f}') 
-                self.add_file(None,f,verified=False)
             elif len(deduped) == 1 and list(deduped)[0] in f:
                 self.log.warning(f'perfect match for {f}')
-                self.add_file(list(deduped)[0],f,verified=False)
             else:
                 self.log.warning(f'failed to match {f}') 
-                self.add_file(None,f,verified=False)
-
 
     def search_names(self,name):
         '''
@@ -301,12 +299,53 @@ class Cohort(Freezable):
         ).fetchall()
         return [x[0] for x in names + aliases]
        
-    async def crawl_files(self,hostname='localhost',path='/',**kwargs):
-        find_command = f'find -L {path} -name "*.fastq"'
-        async with asyncssh.connect(hostname,**kwargs) as conn:
-            result = await conn.run(find_command,check=False)
-        return result
+    def crawl_files(self,hostname='localhost',path='/',
+            username=None,glob='*.fastq'):
+        '''
+            Use SSH to crawl a host looking for raw files
+        '''
+        if username is None:
+            username = getpass.getuser()
+        async def crawl():
+            find_command = f'find -L {path} -name "{glob}"'
+            async with asyncssh.connect(hostname,username=username) as conn:
+                result = await conn.run(find_command,check=False)
+            files = result.stdout.split("\n")
+            return files
+        loop = asyncio.get_event_loop()
+        files = loop.run_until_complete(asyncio.gather(crawl()))[0]
+        for f in files:
+            if not f.startswith('/'):
+                f = path + f 
+            self.add_raw_file(f,scheme='ssh',username=username,
+                    hostname=hostname)
+        self.log.warning(f'Found {len(files)} raw files')
 
+    def add_raw_file(self,path,scheme='ssh',
+        username=None,hostname=None,verified=False):
+        '''
+            Add a raw file to the Cohort
+        '''
+        url = urllib.parse.urlparse(path)
+        # Override parsed url values with keywords
+        if scheme is not None:
+            url = url._replace(scheme=scheme)
+        # check if URL parameters were provided via path
+        if url.netloc == '':
+            if username is None:
+                username = getpass.getuser()
+            if hostname is None:
+                hostname = socket.gethostname()
+            netloc = f'{username}@{hostname}'
+            url = url._replace(netloc=netloc)
+        # Convert to absolute path
+        if url.path.startswith('./') or url.path.startswith('../'):
+            path = os.path.abspath(path)
+        path = urllib.parse.urlunparse(url)
+
+        self._db.cursor().execute('''
+            INSERT OR IGNORE INTO raw_files (path) VALUES (?)
+        ''',(path,))
 
     #------------------------------------------------------#
     #               Magic Methods                          #
@@ -326,7 +365,7 @@ class Cohort(Freezable):
         self._db.cursor().execute('''
             DELETE FROM accessions WHERE AID = ?;
             DELETE FROM metadata WHERE AID = ?;
-            DELETE FROM files WHERE AID = ?;
+            DELETE FROM aid_files WHERE AID = ?;
         ''', (AID, AID, AID))
 
     def __getitem__(self, name):
@@ -381,21 +420,6 @@ class Cohort(Freezable):
         else:
             return True
 
-    def add_file(self,name,path,verified=True):
-        if name is not None:
-            AID = self._get_AID(name)
-        else:
-            AID = None
-        self._db.cursor().execute('''
-            INSERT OR REPLACE INTO files (AID,path,verified) VALUES (?,?,?)
-        ''',(AID,path,verified))
-
-    def unverified_files(self):
-        return [x[0] for x in self._db.cursor().execute(
-            'SELECT path from files WHERE AID IS NULL'    
-        ).fetchall()]
-
-
     #------------------------------------------------------#
     #               Internal Methods                       #
     #------------------------------------------------------#
@@ -416,15 +440,6 @@ class Cohort(Freezable):
             );
         ''')
         cur.execute('''
-            CREATE TABLE IF NOT EXISTS files (
-                AID INTEGER,
-                path TEXT ID NOT NULL UNIQUE,
-                verified INTEGER DEFAULT 0,
-                PRIMARY KEY(AID,path)
-                FOREIGN KEY(AID) REFERENCES accessions(AID)
-            );
-        ''')
-        cur.execute('''
             CREATE TABLE IF NOT EXISTS metadata (
                 AID NOT NULL,
                 key TEXT NOL NULL,
@@ -433,6 +448,41 @@ class Cohort(Freezable):
                 UNIQUE(AID, key, val)
             );
         ''')
+        # All the files login
+        cur.execute('''
+            CREATE TABLE IF NOT EXISTS raw_files (
+                FID INTEGER PRIMARY KEY,
+                path TEXT NOT NULL UNIQUE
+            );
+        ''')
+        cur.execute('''
+            CREATE TABLE IF NOT EXISTS aid_files (
+                AID INTEGER,
+                FID INTEGER,
+                verified INTEGER DEFAULT 0,
+                PRIMARY KEY(AID,FID)
+                FOREIGN KEY(AID) REFERENCES accessions(AID),
+                FOREIGN KEY(FID) REFERENCES raw_files(FID)
+            );
+        ''')
+        cur.execute('''
+            CREATE VIEW IF NOT EXISTS files AS 
+            SELECT AID,path,verified 
+            FROM aid_files 
+            JOIN raw_files 
+                ON aid_files.FID = raw_files.FID;
+        ''')
+        cur.execute('''
+            CREATE TRIGGER IF NOT EXISTS assign_FID INSTEAD OF INSERT ON files
+            FOR EACH ROW
+            BEGIN
+                INSERT OR IGNORE INTO raw_files (path) VALUES (NEW.path);
+                INSERT INTO aid_files (AID,FID,verified) 
+                  SELECT NEW.AID, FID, NEW.verified
+                  FROM raw_files WHERE path=NEW.path;
+            END;
+        ''')
+
 
 
     @lru_cache(maxsize=32768)
