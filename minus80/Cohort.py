@@ -458,7 +458,11 @@ class Cohort(Freezable):
         cur.execute('''
             CREATE TABLE IF NOT EXISTS raw_files (
                 FID INTEGER PRIMARY KEY,
-                path TEXT NOT NULL UNIQUE
+                path TEXT NOT NULL UNIQUE,
+                md5 TEXT,
+                added ,
+                is_symlink INT,
+                ignore INT
             );
         ''')
         cur.execute('''
