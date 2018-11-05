@@ -71,6 +71,10 @@ class Cohort(Freezable):
             for x in self
         }
 
+    @property
+    def num_files(self):
+        return len(self.files)
+
     def as_DataFrame(self):
         try:
             import pandas as pd
@@ -320,6 +324,8 @@ class Cohort(Freezable):
             self.add_raw_file(f,scheme='ssh',username=username,
                     hostname=hostname)
         self.log.warning(f'Found {len(files)} raw files')
+
+
 
     def add_raw_file(self,path,scheme='ssh',
         username=None,hostname=None,verified=False):
