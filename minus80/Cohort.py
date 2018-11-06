@@ -303,7 +303,7 @@ class Cohort(Freezable):
         ).fetchall()
         return [x[0] for x in names + aliases]
        
-    def crawl_files(self,hostname='localhost',path='/',
+    def crawl_host(self,hostname='localhost',path='/',
             username=None,glob='*.fastq'):
         '''
             Use SSH to crawl a host looking for raw files
@@ -328,7 +328,7 @@ class Cohort(Freezable):
 
 
     def add_raw_file(self,path,scheme='ssh',
-        username=None,hostname=None,verified=False):
+        username=None,hostname=None):
         '''
             Add a raw file to the Cohort
         '''
