@@ -478,7 +478,7 @@ class Cohort(Freezable):
         ''')
         cur.execute('''
             CREATE VIEW IF NOT EXISTS files AS 
-            SELECT AID,path,verified 
+            SELECT AID,path 
             FROM aid_files 
             JOIN raw_files 
                 ON aid_files.FID = raw_files.FID;
@@ -488,8 +488,8 @@ class Cohort(Freezable):
             FOR EACH ROW
             BEGIN
                 INSERT OR IGNORE INTO raw_files (path) VALUES (NEW.path);
-                INSERT INTO aid_files (AID,FID,verified) 
-                  SELECT NEW.AID, FID, NEW.verified
+                INSERT INTO aid_files (AID,FID) 
+                  SELECT NEW.AID, FID
                   FROM raw_files WHERE path=NEW.path;
             END;
         ''')
