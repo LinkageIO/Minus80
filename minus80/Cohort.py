@@ -358,7 +358,9 @@ class Cohort(Freezable):
     #------------------------------------------------------#
 
     def __repr__(self):
-        return f'Cohort("{self.name}") -- contains {len(self)} Accessions'
+        return (f'Cohort("{self.name}") -- \n'
+            f'\tcontains {len(self)} Accessions\n'
+            f'\t{len(self.files)} files')
 
     @invalidates_cache
     def __delitem__(self, name):
