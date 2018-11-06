@@ -461,17 +461,16 @@ class Cohort(Freezable):
             CREATE TABLE IF NOT EXISTS raw_files (
                 FID INTEGER PRIMARY KEY,
                 path TEXT NOT NULL UNIQUE,
-                md5 TEXT,
-                added ,
-                is_symlink INT,
-                ignore INT
+                ignore INT DEFAULT 0,
+                md5 TEXT DEFAULT NULL,
+                added DATE DEFAULT (datetime('now','localtime')),
+                is_symlink INT DEFAULT 0
             );
         ''')
         cur.execute('''
             CREATE TABLE IF NOT EXISTS aid_files (
                 AID INTEGER,
                 FID INTEGER,
-                verified INTEGER DEFAULT 0,
                 PRIMARY KEY(AID,FID)
                 FOREIGN KEY(AID) REFERENCES accessions(AID),
                 FOREIGN KEY(FID) REFERENCES raw_files(FID)
