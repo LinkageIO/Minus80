@@ -17,13 +17,14 @@ import os
 
 __all__ = ['Cohort']
 
-def invalidates_cache(fn):
+def invalidates_AID_cache(fn):
     from functools import wraps
     @wraps(fn)
     def wrapped(self,*args,**kwargs):
         fn(self,*args,**kwargs) 
         self._get_AID.cache_clear()
     return wrapped
+
 
 class Cohort(Freezable):
     '''
