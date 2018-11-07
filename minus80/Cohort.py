@@ -341,6 +341,8 @@ class Cohort(Freezable):
         '''
             Performs a search of accession names 
         '''
+        # Find and Subset matches. e.g. Fat_shoulder_1 would
+        # match 'M7956_Fat_shoulder_1'
         cur = self._db.cursor()
         name = f'%{name}%'
         names = cur.execute(
@@ -349,7 +351,26 @@ class Cohort(Freezable):
         aliases = cur.execute(
             'SELECT alias FROM aliases WHERE alias LIKE ?',(name,)
         ).fetchall()
-        return [x[0] for x in names + aliases]
+        results = [(x[0],100) for x in names + aliases]
+        # Only resort to fuzzy search if no exact matches
+        if len(results) == 0:
+            matches = [
+                SequenceMatcher(None,name,x).find_longest_match(0,len(name),0,len(x)) \
+                for x in self.names
+            ] 
+            best = sorted(matches,key=lambda x:x.size,reverse=True)[0]
+            best = name[best.a:best.a+best.size]
+            results.append(self.search_accessions(best,include_scores=True)[0])
+            #scores = [(x,fuzz.partial_ratio(name,x)) for x in self.names]
+            # multiply the scores by their the log of their lengths
+            #matches = [(i,x*math.log2(len(i))) for i,x in scores if x >= score_cutoff]
+            #for x in matches:
+            #    if x[0] not in results:
+            #        results.append(x)
+        results = sorted(results,key=lambda x:x[1],reverse=True)
+        if include_scores == False:
+            results = [x[0] for x in results]
+        return results
        
     def crawl_host(self,hostname='localhost',path='/',
             username=None,glob='*.fastq'):
