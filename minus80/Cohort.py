@@ -266,14 +266,23 @@ class Cohort(Freezable):
                 INSERT INTO aliases (alias,AID) VALUES (?,?)      
             ''',unique_aliases)
 
-    @invalidates_cache
+    @invalidates_AID_cache
     def drop_aliases(self):
         '''
             Clear the aliases from the database
         '''
         self._db.cursor().execute('DELETE FROM aliases')
 
-    def assimilate_files(self,files, min_fuzz_score=90):
+    def drop_accessions(self):
+       with self._bulk_transaction() as cur:
+            cur.execute('''
+                DELETE FROM accessions;
+                DELETE FROM aliases;
+                DELETE FROM metadata;
+                DELETE FROM aid_files;
+            ''')
+
+    def assimilate_files(self,files,best_only=True):
         '''
             Take a list of files and assign them to Accessions
         '''
