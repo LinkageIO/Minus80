@@ -286,20 +286,18 @@ class Cohort(Freezable):
         '''
             Take a list of files and assign them to Accessions
         '''
-        names = self.names
-        from fuzzywuzzy import fuzz,process
+        results = defaultdict(set)
         for f in files:
-            #matches = process.extract(os.path.basename(f), names)
-            # Generate scores
-            scores = [fuzz.partial_ratio(os.path.basename(f),x) for x in self.names]
-            matches = {self.names[i]:x for i,x in enumerate(scores) if x >= min_fuzz_score}
-            deduped = process.dedupe(matches.keys(),scorer=fuzz.partial_token_set_ratio)
-            if len(deduped) == 0:
-                self.log.warning(f'no matches found for {f}') 
-            elif len(deduped) == 1 and list(deduped)[0] in f:
-                self.log.warning(f'perfect match for {f}')
+            matches = self.search_accessions(os.path.basename(f))
+            if len(matches) == 0:
+                results['unmatched'].add(f)
+            elif best_only:
+                results[matches[0]].add(f)
             else:
-                self.log.warning(f'failed to match {f}') 
+                for m in matches:
+                    results[m].add(f)
+        return results
+            
 
     def search_names(self,name):
         '''
