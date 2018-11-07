@@ -54,16 +54,17 @@ class Cohort(Freezable):
         ''').fetchall() ]
 
     @property
+    @lru_cache(65536)
     def names(self):
         '''
             Return a list of all available names and aliases
         '''
-        return self.search_names('%')
+        return self.search_accessions('%')
 
     @property
     def files(self):
         return [x[0] for x in self._db.cursor().execute('''
-            SELECT path FROM raw_files
+            SELECT path FROM raw_files WHERE ignore != 1
         ''').fetchall() ]
 
     @property
@@ -364,7 +365,7 @@ class Cohort(Freezable):
             f'\tcontains {len(self)} Accessions\n'
             f'\t{len(self.files)} files')
 
-    @invalidates_cache
+    @invalidates_AID_cache
     def __delitem__(self, name):
         '''
             Remove a sample by name (or by composition)
@@ -458,7 +459,6 @@ class Cohort(Freezable):
                 UNIQUE(AID, key, val)
             );
         ''')
-        # All the files login
         cur.execute('''
             CREATE TABLE IF NOT EXISTS raw_files (
                 FID INTEGER PRIMARY KEY,
