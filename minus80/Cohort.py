@@ -299,7 +299,45 @@ class Cohort(Freezable):
         return results
             
 
-    def search_names(self,name):
+    def interactive_ignore_pattern(self,pattern,n=20):
+        '''
+            Start an interactive prompt to ignore patterns
+            in file names (e.g. "test")
+        '''
+        from pprint import pprint
+        import click
+        matched_files = self.search_files(pattern)
+        for i in range(0,len(matched_files),n):
+            subset = matched_files[i:i+n]
+            print('Ignore the following?')
+            pprint(subset)
+            if input("[Y/n]:").upper() == 'Y': 
+                self.ignore_files(subset) 
+            click.clear()
+
+
+    def ignore_files(self,files):
+        '''
+            ignore file paths
+        '''
+        with self._bulk_transaction() as cur:
+            cur.executemany('''
+                UPDATE raw_files SET ignore = 1 
+                WHERE path = ?
+            ''',[(x,) for x in files])
+
+    def search_files(self,path):
+        '''
+            Perform a search of files names (path)
+        '''
+        cur = self._db.cursor()
+        name = f'%{path}%'
+        names = cur.execute(
+            'SELECT path FROM raw_files WHERE path LIKE ? and ignore != 1',(name,)        
+        ).fetchall()
+        return [x[0] for x in names]
+
+    def search_accessions(self,name,include_scores=False):
         '''
             Performs a search of accession names 
         '''
