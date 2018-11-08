@@ -68,6 +68,13 @@ class Cohort(Freezable):
         ''').fetchall() ]
 
     @property
+    def unassigned_files(self):
+        assigned = set([x[0] for x in 
+            self._db.cursor().execute("SELECT DISTINCT(path) FROM files").fetchall()
+        ])
+        return [x for x in self.files if x not in assigned]
+
+    @property
     def _AID_mapping(self):
         return {
             x.name: x['AID']
