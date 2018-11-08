@@ -344,12 +344,10 @@ class Cohort(Freezable):
         ).fetchall()
         return [x[0] for x in names]
 
-    def search_accessions(self,name,include_scores=False):
+    def search_accessions(self,name,include_scores=False,recurse=True):
         '''
             Performs a search of accession names 
         '''
-        # Find and Subset matches. e.g. Fat_shoulder_1 would
-        # match 'M7956_Fat_shoulder_1'
         cur = self._db.cursor()
         name = f'%{name}%'
         names = cur.execute(
@@ -359,15 +357,18 @@ class Cohort(Freezable):
             'SELECT alias FROM aliases WHERE alias LIKE ?',(name,)
         ).fetchall()
         results = [(x[0],100) for x in names + aliases]
-        # Only resort to fuzzy search if no exact matches
-        if len(results) == 0:
+        # Find and Subset matches. e.g. Fat_shoulder_1 would
+        # match 'M7956_Fat_shoulder_1'
+        if len(results) == 0 and recurse == True:
             matches = [
                 SequenceMatcher(None,name,x).find_longest_match(0,len(name),0,len(x)) \
                 for x in self.names
             ] 
             best = sorted(matches,key=lambda x:x.size,reverse=True)[0]
             best = name[best.a:best.a+best.size]
-            results.append(self.search_accessions(best,include_scores=True)[0])
+            best = self.search_accessions(best,include_scores=True,recurse=False)[0]
+            if len(best) > 0:
+                results.append(best)
             #scores = [(x,fuzz.partial_ratio(name,x)) for x in self.names]
             # multiply the scores by their the log of their lengths
             #matches = [(i,x*math.log2(len(i))) for i,x in scores if x >= score_cutoff]
@@ -436,7 +437,7 @@ class Cohort(Freezable):
     def __repr__(self):
         return (f'Cohort("{self.name}") -- \n'
             f'\tcontains {len(self)} Accessions\n'
-            f'\t{len(self.files)} files')
+            f'\t{len(self.files)} files ({len(self.unassigned_files)} unassigned)')
 
     @invalidates_AID_cache
     def __delitem__(self, name):
