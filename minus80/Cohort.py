@@ -2,7 +2,6 @@ from functools import lru_cache
 from collections import Counter,defaultdict
 
 from minus80 import Accession, Freezable
-from fuzzywuzzy import fuzz,process
 from difflib import SequenceMatcher
 
 import numbers
@@ -369,12 +368,6 @@ class Cohort(Freezable):
             best = self.search_accessions(best,include_scores=True,recurse=False)[0]
             if len(best) > 0:
                 results.append(best)
-            #scores = [(x,fuzz.partial_ratio(name,x)) for x in self.names]
-            # multiply the scores by their the log of their lengths
-            #matches = [(i,x*math.log2(len(i))) for i,x in scores if x >= score_cutoff]
-            #for x in matches:
-            #    if x[0] not in results:
-            #        results.append(x)
         results = sorted(results,key=lambda x:x[1],reverse=True)
         if include_scores == False:
             results = [x[0] for x in results]
