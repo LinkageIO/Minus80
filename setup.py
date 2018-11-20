@@ -79,6 +79,7 @@ setup(
         'boto3 >= 1.7.84',
         'requests >= 2.19.1',
         'fuzzywuzzy >= 0.17.0',
+        'python-Levenshtein >= 0.12.0',
         'apsw'
     ],
     extras_require={
