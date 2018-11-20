@@ -13,6 +13,9 @@ import urllib
 import asyncio
 import os
 
+import logging
+logging.basicConfig(level='DEBUG')
+
 
 __all__ = ['Cohort']
 
@@ -69,9 +72,23 @@ class Cohort(Freezable):
     @property
     def unassigned_files(self):
         assigned = set([x[0] for x in 
-            self._db.cursor().execute("SELECT DISTINCT(path) FROM files").fetchall()
+            self._db.cursor().execute('''
+                SELECT DISTINCT(path) 
+                FROM files
+            ''').fetchall()
         ])
         return [x for x in self.files if x not in assigned]
+
+    @property
+    def ignored_files(self):
+        ignored = [x[0] for x in 
+            self._db.cursor().execute('''
+                SELECT DISTINCT(path) 
+                FROM raw_files WHERE ignore != 0
+            ''').fetchall()
+        ]
+        return ignored
+        
 
     @property
     def _AID_mapping(self):
@@ -192,8 +209,8 @@ class Cohort(Freezable):
             ''', ((AID, k, v) for k, v in accession.metadata.items())
             )
             cur.executemany('''
-                INSERT OR IGNORE INTO raw_files (path) VALUES (?)
-            ''', ((file,) for file in accession.files)
+                INSERT OR IGNORE INTO files (AID,path) VALUES (?,?)
+            ''', ((AID,file) for file in accession.files)
             )
         return self[accession]
 
@@ -303,6 +320,43 @@ class Cohort(Freezable):
                 for m in matches:
                     results[m].add(f)
         return results
+
+    async def _get_file_md5sum(self, url, sem=None):
+        purl = urllib.parse.urlparse(url)
+        if sem is None:
+            sem = asyncio.Semaphone(1)
+        md5_cmd = f'md5sum {purl.path}'
+        async with sem:
+            async with asyncssh.connect(purl.hostname,username=purl.username) as conn:
+                result = await conn.run(md5_cmd,check=False)
+        if result.exit_status == 0:
+            md5 = result.stdout.split()[0]
+        return (md5,url)
+
+    def _calculate_file_md5sum(self,files=None,max_threads=30):
+        if files is None:
+            files = [x[0] for x in self._db.cursor().execute('''
+                SELECT path FROM raw_files 
+                WHERE md5 IS NULL
+            ''')]
+        loop = asyncio.get_event_loop()
+        sem = asyncio.Semaphore(max_threads)
+        futures = [self._get_file_md5sum(url,sem=sem) for url in files]
+        results = loop.run_until_complete(asyncio.gather(*futures))
+        # Update the checksums        
+        self._db.cursor().executemany('''
+            UPDATE raw_files SET
+                md5 = ?
+            WHERE
+                path = ?
+        ''',results)
+
+
+    def interactive_assimilate_files(self,mapping=None):
+        if mapping is None:
+            mapping = self.assimilate_files(self.unassigned_files)
+        for id,files in mapping.items():
+            files = sorted(files)
             
 
     def interactive_ignore_pattern(self,pattern,n=20):
@@ -507,7 +561,7 @@ class Cohort(Freezable):
         cur.execute('''
             CREATE TABLE IF NOT EXISTS accessions (
                 AID INTEGER PRIMARY KEY AUTOINCREMENT,
-                name NOT NULL UNIQUE
+                name TEXT NOT NULL UNIQUE
             );
         ''')
         cur.execute('''
@@ -528,7 +582,7 @@ class Cohort(Freezable):
         ''')
         cur.execute('''
             CREATE TABLE IF NOT EXISTS raw_files (
-                FID INTEGER PRIMARY KEY,
+                FID INTEGER PRIMARY KEY AUTOINCREMENT,
                 path TEXT NOT NULL UNIQUE,
                 ignore INT DEFAULT 0,
                 md5 TEXT DEFAULT NULL,
@@ -545,6 +599,7 @@ class Cohort(Freezable):
                 FOREIGN KEY(FID) REFERENCES raw_files(FID)
             );
         ''')
+        # Views ----------------------------------------------
         cur.execute('''
             CREATE VIEW IF NOT EXISTS files AS 
             SELECT AID,path 
