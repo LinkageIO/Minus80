@@ -157,7 +157,12 @@ class Accession(object):
         '''
         String representation of Accession
         '''
-        return f'Accession({self.name}, files={self.files}, {self.metadata})'
+        max_key_len = max([len(x) for x in self.metadata.keys()])
+        return (f'Accession({self.name}'+'\n'
+            'files=[\n\t' + '\n\t'.join(self.files)+'\t]\n'
+            '\t'+"\n\t".join(['{0: <{width}}:'.format(k,width=max_key_len)+'\t{}'.format(v) for k,v in self.metadata.items()])+
+            '\n)'
+        )
 
     @staticmethod
     async def _check_file(url): #pragma: no cover
