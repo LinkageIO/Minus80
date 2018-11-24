@@ -1,8 +1,9 @@
 from functools import lru_cache
-from collections import Counter,defaultdict
+from collections import Counter,defaultdict,namedtuple
 
 from minus80 import Accession, Freezable
 from difflib import SequenceMatcher
+from itertools import chain
 
 import numbers
 import math
@@ -12,10 +13,7 @@ import asyncssh
 import urllib
 import asyncio
 import os
-
-import logging
-logging.basicConfig(level='DEBUG')
-
+import backoff
 
 __all__ = ['Cohort']
 
@@ -35,11 +33,15 @@ class Cohort(Freezable):
         disk by minus80.
     '''
 
+    fileinfo = namedtuple('fileinfo',['FID','url','ignore','md5','added','is_symlink','inode'])
+
     def __init__(self, name, parent=None):
         super().__init__(name,parent=parent)
         self.name = name
         self._initialize_tables()
         self.log = logging.getLogger(f'minus80.Cohort.{name}')
+        logging.basicConfig()
+        self.log.setLevel(logging.INFO)
 
     #------------------------------------------------------#
     #                 Properties                           #
@@ -159,6 +161,50 @@ class Cohort(Freezable):
             )
         else:
             return (self.random_accession() for _ in range(n))
+
+    def get_fileinfo(self, url):
+        '''
+        Get file info from a url.
+        
+        Parameters
+        ----------
+        url : str
+            A URL(path) to get the info for.
+
+        Returns
+        -------
+        A named tuple contianing the url info.
+
+        '''
+        info = self._db.cursor().execute('''
+            SELECT FID, path, ignore, md5, added, is_symlink, inode
+            FROM raw_files WHERE path = ?
+        ''',(url,)).fetchone()
+        return self.fileinfo(*info)
+
+    def update_fileinfo(self,info):
+        '''
+            Update the fileinfo 
+        '''
+        info_list = []
+        if isinstance(info,self.fileinfo):
+            info = [info]
+        for x in info:
+            url = x.url
+            info_list.append(
+                (x.ignore,x.md5,x.added,x.is_symlink,x.inode,x.url)    
+            )		
+        # Update the info 
+        self._db.cursor().executemany('''
+            UPDATE raw_files SET
+                ignore = ?,
+		md5 = ?,
+		added = ?,
+		is_symlink = ?,
+		inode = ?
+            WHERE
+                path = ?
+        ''',info_list)
 
     def add_accessions(self, accessions):
         '''
