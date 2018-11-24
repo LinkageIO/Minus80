@@ -367,43 +367,70 @@ class Cohort(Freezable):
                     results[m].add(f)
         return results
 
-    async def _get_file_md5sum(self, url, sem=None):
-        purl = urllib.parse.urlparse(url)
-        if sem is None:
-            sem = asyncio.Semaphone(1)
-        md5_cmd = f'md5sum {purl.path}'
-        async with sem:
+    async def _info_worker(self, url_queue):
+        '''
+        Given a queue of URLs, this worker will calculate the md5 checksums
+        and commit them to the 'raw_files' database table
+        '''
+        def backoff_hdlr(details):
+            print("Backing off {wait:0.1f} seconds afters {tries} tries "
+                "calling function {target} with args {args} and kwargs "
+                "{kwargs}".format(**details)
+            )
+        @backoff.on_exception(backoff.expo,asyncssh.DisconnectError,max_tries=8,
+                            on_backoff=backoff_hdlr)
+        async def get_info(url):
+            current_info = self.get_fileinfo(url)
+            purl = urllib.parse.urlparse(url)
             async with asyncssh.connect(purl.hostname,username=purl.username) as conn:
-                result = await conn.run(md5_cmd,check=False)
-        if result.exit_status == 0:
-            md5 = result.stdout.split()[0]
-        return (md5,url)
+                if current_info.md5 is None: 
+                    md5sum = await conn.run(f'md5sum {purl.path}',check=False)
+                    if md5sum.exit_status == 0:
+                        md5sum = md5sum.stdout.strip().split()[0]
+                        current_info = current_info._replace(md5=md5sum)
+                if current_info.inode is None:
+                    inode = await conn.run(f'stat -c "%i" {purl.path}',check=False)
+                    if inode.exit_status == 0:
+                        inode = int(inode.stdout.strip())
+                        current_info = current_info._replace(inode=inode)
+            return current_info
 
-    def _calculate_file_md5sum(self,files=None,max_threads=30):
-        if files is None:
-            files = [x[0] for x in self._db.cursor().execute('''
-                SELECT path FROM raw_files 
-                WHERE md5 IS NULL
-            ''')]
-        loop = asyncio.get_event_loop()
-        sem = asyncio.Semaphore(max_threads)
-        futures = [self._get_file_md5sum(url,sem=sem) for url in files]
-        results = loop.run_until_complete(asyncio.gather(*futures))
-        # Update the checksums        
-        self._db.cursor().executemany('''
-            UPDATE raw_files SET
-                md5 = ?
-            WHERE
-                path = ?
-        ''',results)
+        results = [] 
+        # Define the coro here so we can decorate with a backoff
+        # while there is work to do, loop 
+        while not url_queue.empty():
+            url = await url_queue.get()
+            info = await get_info(url)
+            results.append(info)
+            url_queue.task_done()
+            if len(results) >= 50:
+                self.update_fileinfo(results)
+                results = []
+        self.update_fileinfo(results)
 
+    async def _calculate_fileinfo(self,files,max_tasks=10):
+        # Get a url  queue and fill it
+        url_queue = asyncio.Queue()
+        for f in files:
+            url_queue.put_nowait(f)
+        self.log.info(f'There are {url_queue.qsize()} urls to process')
+        # Get the event loop and control flow
+        tasks = []
+        for i in range(max_tasks):
+            task = asyncio.create_task(self._info_worker(url_queue))
+            tasks.append(task)
+        await url_queue.join()
+        # cancel tasks
+        for task in tasks:
+            task.cancel()
+        # wait until all tasks cancel
+        await asyncio.gather(*tasks,return_exceptions=True)
 
     def interactive_assimilate_files(self,mapping=None):
         if mapping is None:
             mapping = self.assimilate_files(self.unassigned_files)
         for id,files in mapping.items():
             files = sorted(files)
-            
 
     def interactive_ignore_pattern(self,pattern,n=20):
         '''
@@ -420,7 +447,6 @@ class Cohort(Freezable):
             if input("[Y/n]:").upper() == 'Y': 
                 self.ignore_files(subset) 
             click.clear()
-
 
     def ignore_files(self,files):
         '''
@@ -448,12 +474,12 @@ class Cohort(Freezable):
             Performs a search of accession names 
         '''
         cur = self._db.cursor()
-        name = f'%{name}%'
+        sql_name = f'%{name}%'
         names = cur.execute(
-            'SELECT name FROM accessions WHERE name LIKE ?',(name,)
+            'SELECT name FROM accessions WHERE name LIKE ?',(sql_name,)
         ).fetchall()
         aliases = cur.execute(
-            'SELECT alias FROM aliases WHERE alias LIKE ?',(name,)
+            'SELECT alias FROM aliases WHERE alias LIKE ?',(sql_name,)
         ).fetchall()
         results = [(x[0],100) for x in names + aliases]
         # Find and Subset matches. e.g. Fat_shoulder_1 would
@@ -633,7 +659,8 @@ class Cohort(Freezable):
                 ignore INT DEFAULT 0,
                 md5 TEXT DEFAULT NULL,
                 added DATE DEFAULT (datetime('now','localtime')),
-                is_symlink INT DEFAULT 0
+                is_symlink INT DEFAULT 0,
+                inode INT DEFAULT NULL
             );
         ''')
         cur.execute('''
