@@ -516,14 +516,14 @@ class Cohort(Freezable):
             return files
         loop = asyncio.get_event_loop()
         files = loop.run_until_complete(asyncio.gather(crawl()))[0]
+        # add new files
+        added = 0
         for f in files:
             if not f.startswith('/'):
                 f = path + f 
-            self.add_raw_file(f,scheme='ssh',username=username,
+            added += self.add_raw_file(f,scheme='ssh',username=username,
                     hostname=hostname)
-        self.log.warning(f'Found {len(files)} raw files')
-
-
+        self.log.info(f'Found {added} new raw files')
 
     def add_raw_file(self,path,scheme='ssh',
         username=None,hostname=None):
@@ -656,13 +656,12 @@ class Cohort(Freezable):
         ''')
         cur.execute('''
             CREATE TABLE IF NOT EXISTS raw_files (
+                -- Basic File Info
                 FID INTEGER PRIMARY KEY AUTOINCREMENT,
                 path TEXT NOT NULL UNIQUE,
+                -- MetaData
                 ignore INT DEFAULT 0,
-                md5 TEXT DEFAULT NULL,
-                added DATE DEFAULT (datetime('now','localtime')),
-                is_symlink INT DEFAULT 0,
-                inode INT DEFAULT NULL
+                canonical_path TEXT DEFAULT NULL,
             );
         ''')
         cur.execute('''
