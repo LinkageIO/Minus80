@@ -185,7 +185,7 @@ class Cohort(Freezable):
 
         '''
         info = self._db.cursor().execute('''
-            SELECT FID, path, ignore, md5, added, is_symlink, inode
+            SELECT FID, path, ignore, canonical_path
             FROM raw_files WHERE path = ?
         ''',(url,)).fetchone()
         return self.fileinfo(*info)
@@ -200,16 +200,13 @@ class Cohort(Freezable):
         for x in info:
             url = x.url
             info_list.append(
-                (x.ignore,x.md5,x.added,x.is_symlink,x.inode,x.url)    
+                (x.ignore, x.canonical_path, x.url)    
             )		
         # Update the info 
         self._db.cursor().executemany('''
             UPDATE raw_files SET
                 ignore = ?,
-		md5 = ?,
-		added = ?,
-		is_symlink = ?,
-		inode = ?
+                canonical_path = ?
             WHERE
                 path = ?
         ''',info_list)
@@ -391,6 +388,8 @@ class Cohort(Freezable):
             current_info = self.get_fileinfo(url)
             purl = urllib.parse.urlparse(url)
             async with asyncssh.connect(purl.hostname,username=purl.username) as conn:
+                if current_info.readlink in None:
+                    
                 if current_info.md5 is None: 
                     md5sum = await conn.run(f'md5sum {purl.path}',check=False)
                     if md5sum.exit_status == 0:
