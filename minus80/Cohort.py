@@ -14,6 +14,8 @@ import urllib
 import asyncio
 import os
 import backoff
+import getpass
+import socket
 
 __all__ = ['Cohort']
 
@@ -33,7 +35,7 @@ class Cohort(Freezable):
         disk by minus80.
     '''
 
-    fileinfo = namedtuple('fileinfo',['FID','url','ignore','md5','added','is_symlink','inode'])
+    fileinfo = namedtuple('fileinfo',['FID','path','ignore','canonical_path'])
 
     def __init__(self, name, parent=None):
         super().__init__(name,parent=parent)
