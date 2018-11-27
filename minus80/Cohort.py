@@ -74,6 +74,12 @@ class Cohort(Freezable):
         ''').fetchall() ]
 
     @property
+    def raw_files(self):
+        return [x[0] for x in self._db.cursor().execute('''
+            SELECT path FROM raw_files
+        ''').fetchall() ]
+
+    @property
     def unassigned_files(self):
         assigned = set([x[0] for x in 
             self._db.cursor().execute('''
