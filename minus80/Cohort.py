@@ -433,11 +433,6 @@ class Cohort(Freezable):
         # wait until all tasks cancel
         await asyncio.gather(*tasks,return_exceptions=True)
 
-    def interactive_assimilate_files(self,mapping=None):
-        if mapping is None:
-            mapping = self.assimilate_files(self.unassigned_files)
-        for id,files in mapping.items():
-            files = sorted(files)
 
     def interactive_ignore_pattern(self,pattern,n=20):
         '''
