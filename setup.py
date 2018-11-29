@@ -80,6 +80,7 @@ setup(
         'requests >= 2.19.1',
         'fuzzywuzzy >= 0.17.0',
         'python-Levenshtein >= 0.12.0',
+        'tqdm >= 4.28.1',
         'apsw'
     ],
     extras_require={
