@@ -35,7 +35,8 @@ class Cohort(Freezable):
         disk by minus80.
     '''
 
-    fileinfo = namedtuple('fileinfo',['FID','path','ignore','canonical_path'])
+    # This is a named tuple that will be populated by self.get_fileinfo
+    fileinfo = None
 
     def __init__(self, name, parent=None):
         super().__init__(name,parent=parent)
@@ -70,20 +71,20 @@ class Cohort(Freezable):
     @property
     def files(self):
         return [x[0] for x in self._db.cursor().execute('''
-            SELECT path FROM raw_files WHERE ignore != 1
+            SELECT url FROM raw_files WHERE ignore != 1
         ''').fetchall() ]
 
     @property
     def raw_files(self):
         return [x[0] for x in self._db.cursor().execute('''
-            SELECT path FROM raw_files
+            SELECT url FROM raw_files
         ''').fetchall() ]
 
     @property
     def unassigned_files(self):
         assigned = set([x[0] for x in 
             self._db.cursor().execute('''
-                SELECT DISTINCT(path) 
+                SELECT DISTINCT(url) 
                 FROM files
             ''').fetchall()
         ])
@@ -93,7 +94,7 @@ class Cohort(Freezable):
     def ignored_files(self):
         ignored = [x[0] for x in 
             self._db.cursor().execute('''
-                SELECT DISTINCT(path) 
+                SELECT DISTINCT(url) 
                 FROM raw_files WHERE ignore != 0
             ''').fetchall()
         ]
@@ -177,16 +178,21 @@ class Cohort(Freezable):
         Parameters
         ----------
         url : str
-            A URL(path) to get the info for.
+            A URL to get the info for.
 
         Returns
         -------
         A named tuple contianing the url info.
 
         '''
+        if self.fileinfo is None:
+            # create a named tuple
+            cols = [x[0] for x in self._db.cursor().execute('SELECT * FROM raw_files').description]
+            self.fileinfo = namedtuple('fileinfo',cols)
+
         info = self._db.cursor().execute('''
-            SELECT FID, path, ignore, canonical_path
-            FROM raw_files WHERE path = ?
+            SELECT *
+            FROM raw_files WHERE url = ?
         ''',(url,)).fetchone()
         return self.fileinfo(*info)
 
@@ -200,15 +206,16 @@ class Cohort(Freezable):
         for x in info:
             url = x.url
             info_list.append(
-                (x.ignore, x.canonical_path, x.url)    
+                (x.ignore, x.canonical_path, x.md5, x.url)    
             )		
         # Update the info 
         self._db.cursor().executemany('''
             UPDATE raw_files SET
                 ignore = ?,
-                canonical_path = ?
+                canonical_path = ?,
+                md5 = ?
             WHERE
-                path = ?
+                url = ?
         ''',info_list)
 
     def add_accessions(self, accessions):
@@ -233,7 +240,7 @@ class Cohort(Freezable):
                 )
             )
             cur.executemany('''
-                INSERT OR REPLACE INTO files (AID, path) VALUES (?, ?)
+                INSERT OR REPLACE INTO files (AID, url) VALUES (?, ?)
             ''', (
                     (AID_map[accession.name], file)
                     for accession in accessions
@@ -260,7 +267,7 @@ class Cohort(Freezable):
             ''', ((AID, k, v) for k, v in accession.metadata.items())
             )
             cur.executemany('''
-                INSERT OR IGNORE INTO files (AID,path) VALUES (?,?)
+                INSERT OR IGNORE INTO files (AID,url) VALUES (?,?)
             ''', ((AID,file) for file in accession.files)
             )
         return self[accession]
@@ -388,18 +395,16 @@ class Cohort(Freezable):
             current_info = self.get_fileinfo(url)
             purl = urllib.parse.urlparse(url)
             async with asyncssh.connect(purl.hostname,username=purl.username) as conn:
-                if current_info.readlink in None:
-                    
+                if current_info.canonical_path is None:
+                    readlink = await conn.run(f'readlink -f {purl.path}',check=False)
+                    if readlink.exit_status == 0:
+                        readlink = readlink.stdout.strip()
+                        current_info = current_info._replace(canonical_path=readlink)
                 if current_info.md5 is None: 
                     md5sum = await conn.run(f'md5sum {purl.path}',check=False)
                     if md5sum.exit_status == 0:
                         md5sum = md5sum.stdout.strip().split()[0]
                         current_info = current_info._replace(md5=md5sum)
-                if current_info.inode is None:
-                    inode = await conn.run(f'stat -c "%i" {purl.path}',check=False)
-                    if inode.exit_status == 0:
-                        inode = int(inode.stdout.strip())
-                        current_info = current_info._replace(inode=inode)
             return current_info
 
         results = [] 
@@ -452,22 +457,22 @@ class Cohort(Freezable):
 
     def ignore_files(self,files):
         '''
-            ignore file paths
+            ignore files
         '''
         with self._bulk_transaction() as cur:
             cur.executemany('''
                 UPDATE raw_files SET ignore = 1 
-                WHERE path = ?
+                WHERE url = ?
             ''',[(x,) for x in files])
 
-    def search_files(self,path):
+    def search_files(self,url):
         '''
-            Perform a search of files names (path)
+            Perform a search of files names (url/path)
         '''
         cur = self._db.cursor()
-        name = f'%{path}%'
+        name = f'%{url}%'
         names = cur.execute(
-            'SELECT path FROM raw_files WHERE path LIKE ? and ignore != 1',(name,)        
+            'SELECT url FROM raw_files WHERE url LIKE ? and ignore != 1',(name,)        
         ).fetchall()
         return [x[0] for x in names]
 
@@ -525,12 +530,12 @@ class Cohort(Freezable):
                     hostname=hostname)
         self.log.info(f'Found {added} new raw files')
 
-    def add_raw_file(self,path,scheme='ssh',
+    def add_raw_file(self,url,scheme='ssh',
         username=None,hostname=None):
         '''
             Add a raw file to the Cohort
         '''
-        url = urllib.parse.urlparse(path)
+        url = urllib.parse.urlparse(url)
         # Override parsed url values with keywords
         if scheme is not None:
             url = url._replace(scheme=scheme)
@@ -544,12 +549,14 @@ class Cohort(Freezable):
             url = url._replace(netloc=netloc)
         # Convert to absolute path
         if url.path.startswith('./') or url.path.startswith('../'):
-            path = os.path.abspath(path)
-        path = urllib.parse.urlunparse(url)
-
-        self._db.cursor().execute('''
-            INSERT OR IGNORE INTO raw_files (path) VALUES (?)
-        ''',(path,))
+            raise ValueError(f'url cannot be relative ({url.path})')
+        url = urllib.parse.urlunparse(url)
+        cur = self._db.cursor()
+        cur.execute('''
+            INSERT OR IGNORE INTO raw_files (url) VALUES (?)
+        ''',(url,))
+        # Return the num of db changes
+        return self._db.changes()
 
     #------------------------------------------------------#
     #               Magic Methods                          #
@@ -597,7 +604,7 @@ class Cohort(Freezable):
         }
         metadata['AID'] = AID
         files = [x[0] for x in cur.execute('''
-                SELECT path FROM files WHERE AID = ?;
+                SELECT url FROM files WHERE AID = ?;
             ''', (AID, )
             ).fetchall()
         ]
@@ -658,10 +665,11 @@ class Cohort(Freezable):
             CREATE TABLE IF NOT EXISTS raw_files (
                 -- Basic File Info
                 FID INTEGER PRIMARY KEY AUTOINCREMENT,
-                path TEXT NOT NULL UNIQUE,
+                url TEXT NOT NULL UNIQUE,
                 -- MetaData
                 ignore INT DEFAULT 0,
                 canonical_path TEXT DEFAULT NULL,
+                md5 TEXT DEFAULT NULL
             );
         ''')
         cur.execute('''
@@ -676,7 +684,7 @@ class Cohort(Freezable):
         # Views ----------------------------------------------
         cur.execute('''
             CREATE VIEW IF NOT EXISTS files AS 
-            SELECT AID,path 
+            SELECT AID,url
             FROM aid_files 
             JOIN raw_files 
                 ON aid_files.FID = raw_files.FID;
@@ -685,10 +693,10 @@ class Cohort(Freezable):
             CREATE TRIGGER IF NOT EXISTS assign_FID INSTEAD OF INSERT ON files
             FOR EACH ROW
             BEGIN
-                INSERT OR IGNORE INTO raw_files (path) VALUES (NEW.path);
+                INSERT OR IGNORE INTO raw_files (url) VALUES (NEW.url);
                 INSERT INTO aid_files (AID,FID) 
                   SELECT NEW.AID, FID
-                  FROM raw_files WHERE path=NEW.path;
+                  FROM raw_files WHERE url=NEW.url;
             END;
         ''')
 
