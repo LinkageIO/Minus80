@@ -16,6 +16,7 @@ import os
 import backoff
 import getpass
 import socket
+from tqdm import tqdm
 
 __all__ = ['Cohort']
 
@@ -379,7 +380,7 @@ class Cohort(Freezable):
                     results[m].add(f)
         return results
 
-    async def _info_worker(self, url_queue):
+    async def _info_worker(self, url_queue,pbar=None):
         '''
         Given a queue of URLs, this worker will calculate the md5 checksums
         and commit them to the 'raw_files' database table
@@ -417,21 +418,28 @@ class Cohort(Freezable):
             url_queue.task_done()
             if len(results) >= 50:
                 self.update_fileinfo(results)
+                pbar.update(len(results))
                 results = []
+        pbar.update(len(results))
         self.update_fileinfo(results)
 
-    async def _calculate_fileinfo(self,files,max_tasks=10):
+    async def _calculate_fileinfo(self,files,max_tasks=7):
         # Get a url  queue and fill it
         url_queue = asyncio.Queue()
+        hosts = set()
         for f in files:
             url_queue.put_nowait(f)
+            hosts.add(urllib.parse.urlparse(f).hostname)  
         self.log.info(f'There are {url_queue.qsize()} urls to process')
-        # Get the event loop and control flow
-        tasks = []
-        for i in range(max_tasks):
-            task = asyncio.create_task(self._info_worker(url_queue))
-            tasks.append(task)
-        await url_queue.join()
+        # Create a progress bar
+        with tqdm(total=url_queue.qsize()) as pbar:
+            # Get the event loop and control flow
+            tasks = []
+            for i in range(max_tasks):
+                task = asyncio.create_task(self._info_worker(url_queue,pbar=pbar))
+                await asyncio.sleep(3)
+                tasks.append(task)
+            await url_queue.join()
         # cancel tasks
         for task in tasks:
             task.cancel()
