@@ -207,14 +207,15 @@ class Cohort(Freezable):
         for x in info:
             url = x.url
             info_list.append(
-                (x.ignore, x.canonical_path, x.md5, x.url)    
+                (x.ignore, x.canonical_path, x.md5, x.size, x.url)    
             )		
         # Update the info 
         self._db.cursor().executemany('''
             UPDATE raw_files SET
                 ignore = ?,
                 canonical_path = ?,
-                md5 = ?
+                md5 = ?,
+                size = ?
             WHERE
                 url = ?
         ''',info_list)
@@ -406,6 +407,11 @@ class Cohort(Freezable):
                     if md5sum.exit_status == 0:
                         md5sum = md5sum.stdout.strip().split()[0]
                         current_info = current_info._replace(md5=md5sum)
+                if current_info.size is None:
+                    size = await conn.run(f'stat -c "%s" {purl.path}',check=False)
+                    if size.exit_status == 0:
+                        size = int(size.stdout.strip())
+                        current_info = current_info._replace(size=size)
             return current_info
 
         results = [] 
@@ -514,21 +520,20 @@ class Cohort(Freezable):
             results = [x[0] for x in results]
         return results
        
-    def crawl_host(self,hostname='localhost',path='/',
-            username=None,glob='*.fastq'):
+    async def crawl_host(self,hostname='localhost',path='/',
+                         username=None,glob='*.fastq'):
         '''
             Use SSH to crawl a host looking for raw files
         '''
         if username is None:
             username = getpass.getuser()
-        async def crawl():
-            find_command = f'find -L {path} -name "{glob}"'
-            async with asyncssh.connect(hostname,username=username) as conn:
-                result = await conn.run(find_command,check=False)
+        find_command = f'find -L {path} -name "{glob}"'
+        async with asyncssh.connect(hostname,username=username) as conn:
+            result = await conn.run(find_command,check=False)
+        if result.exit_status == 0:
             files = result.stdout.split("\n")
-            return files
-        loop = asyncio.get_event_loop()
-        files = loop.run_until_complete(asyncio.gather(crawl()))[0]
+        else:
+            raise ValueError(f"Crawl failed: {result.stderr}")
         # add new files
         added = 0
         for f in files:
@@ -677,7 +682,8 @@ class Cohort(Freezable):
                 -- MetaData
                 ignore INT DEFAULT 0,
                 canonical_path TEXT DEFAULT NULL,
-                md5 TEXT DEFAULT NULL
+                md5 TEXT DEFAULT NULL,
+                size INT DEFAULT NULL
             );
         ''')
         cur.execute('''
