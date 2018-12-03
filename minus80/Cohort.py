@@ -100,7 +100,6 @@ class Cohort(Freezable):
             ''').fetchall()
         ]
         return ignored
-        
 
     @property
     def _AID_mapping(self):
@@ -519,6 +518,29 @@ class Cohort(Freezable):
         if include_scores == False:
             results = [x[0] for x in results]
         return results
+
+    def search_metadata(self,**kwargs):
+        '''
+
+        '''
+        n_crit = 0
+        criteria = []
+        for k,v in kwargs.items():
+            criteria.append(f"(key = '{k}' AND val = '{v}')")
+            n_crit += 1
+        criteria = " OR ".join(criteria)
+        # Build the query
+        query = f'''
+            SELECT AID FROM (
+                SELECT AID, COUNT(*) as count FROM metadata 
+                WHERE {criteria}
+                GROUP BY AID
+            )
+            WHERE count = {n_crit}
+        '''
+        return [self[x] for (x,) in \
+                self._db.cursor().execute(query).fetchall()
+        ]
        
     async def crawl_host(self,hostname='localhost',path='/',
                          username=None,glob='*.fastq'):
