@@ -157,9 +157,9 @@ class Accession(object):
         '''
         String representation of Accession
         '''
-        max_key_len = max([len(x) for x in self.metadata.keys()])
+        max_key_len = max([len(x) for x in self.metadata.keys()]+[0])
         return (f'Accession({self.name}'+'\n'
-            'files=[\n\t' + '\n\t'.join(self.files)+'\t]\n'
+            'files=[' + '\n\t'.join(self.files)+']\n'
             '\t'+"\n\t".join(['{0: <{width}}:'.format(k,width=max_key_len)+'\t{}'.format(v) for k,v in self.metadata.items()])+
             '\n)'
         )
