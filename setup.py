@@ -81,6 +81,7 @@ setup(
         'fuzzywuzzy >= 0.17.0',
         'python-Levenshtein >= 0.12.0',
         'tqdm >= 4.28.1',
+        'backoff >= 1.7.1',
         'apsw'
     ],
     extras_require={
