@@ -557,7 +557,7 @@ class Cohort(Freezable):
         '''
         if username is None:
             username = getpass.getuser()
-        find_command = f'find -L {path} -name "{glob}"'
+        find_command = f'find -L {path} ! -readable -prune -o -name "{glob}" '
         async with asyncssh.connect(hostname,username=username) as conn:
             result = await conn.run(find_command,check=False)
         if result.exit_status == 0:
