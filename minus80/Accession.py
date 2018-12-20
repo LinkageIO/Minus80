@@ -157,11 +157,18 @@ class Accession(object):
         '''
         String representation of Accession
         '''
-        max_key_len = max([len(x) for x in self.metadata.keys()]+[0])
-        return (f'Accession({self.name}'+'\n'
-            'files=[' + '\n\t'.join(self.files)+']\n'
-            '\t'+"\n\t".join(['{0: <{width}}:'.format(k,width=max_key_len)+'\t{}'.format(v) for k,v in self.metadata.items()])+
-            '\n)'
+        if len(self.metadata) == 0:
+            max_key_len = 1
+        else:
+            max_key_len = max([len(x) for x in self.metadata.keys()]+[0])
+
+        return (
+            'Accession(\n'
+            f'  {self.name},' + '\n'
+            '  Metadata:{\n'
+            '  \t'+"\n\t".join(['{0: <{width}}:'.format(k,width=max_key_len)+' {}'.format(v) for k,v in self.metadata.items()])+
+            '\n  },\n'
+            '  files=[' + '\n\t'.join(self.files)+']\n)\n'
         )
 
     @staticmethod
