@@ -4,8 +4,13 @@ from collections import Counter,defaultdict,namedtuple
 from minus80 import Accession, Freezable
 from difflib import SequenceMatcher
 from itertools import chain
+from tqdm import tqdm
+from pprint import pprint
+
+import numpy as np
 
 import numbers
+import click
 import math
 import warnings
 import logging
@@ -16,7 +21,7 @@ import os
 import backoff
 import getpass
 import socket
-from tqdm import tqdm
+import inspect
 
 __all__ = ['Cohort']
 
@@ -62,12 +67,17 @@ class Cohort(Freezable):
         ''').fetchall() ]
 
     @property
-    @lru_cache(65536)
     def names(self):
         '''
             Return a list of all available names and aliases
         '''
-        return self.search_accessions('%')
+        names = [x[0] for x in self._db.cursor().execute(
+            'SELECT name FROM accessions'
+        )]
+        aliases = [x[0] for x in self._db.cursor().execute(
+            'SELECT alias FROM aliases'   
+        )]
+        return names + aliases
 
     @property
     def files(self):
@@ -451,7 +461,6 @@ class Cohort(Freezable):
         # wait until all tasks cancel
         await asyncio.gather(*tasks,return_exceptions=True)
 
-
     def interactive_ignore_pattern(self,pattern,n=20):
         '''
             Start an interactive prompt to ignore patterns
@@ -521,7 +530,6 @@ class Cohort(Freezable):
 
     def search_metadata(self,**kwargs):
         '''
-
         '''
         n_crit = 0
         criteria = []
