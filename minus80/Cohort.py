@@ -745,6 +745,20 @@ class Cohort(Freezable):
         ''')
 
 
+    def get_name(self,name):
+        AID = self._get_AID(name)
+        name = self._db.cursor().execute(
+            'SELECT name FROM accessions WHERE AID = ?',(AID,)
+        ).fetchone()[0]
+        return name
+
+    def get_aliases(self,name):
+        AID = self._get_AID(name)
+        aliases = [ x[0] for x in self._db.cursor().execute(
+            'SELECT alias FROM aliases WHERE AID = ?', (AID,)        
+        )]
+        return [self.get_name(name)] + aliases
+
 
     @lru_cache(maxsize=32768)
     def _get_AID(self, name):
@@ -777,30 +791,6 @@ class Cohort(Freezable):
     #------------------------------------------------------#
     #               Class Methods                          #
     #------------------------------------------------------#
-
-    @classmethod
-    def from_yaml(cls, name, yaml_file): #pragma: no cover
-        '''
-        Create a Cohort from a YAML file. Note: this yaml file
-        must be created from
-
-        Parameters
-        ----------
-        name : str
-            The name of the Cohort
-        yaml_file : pathlike
-            The path to the YAML file that contains the
-            Accessions
-
-        Returns
-        -------
-        A Cohort object
-        '''
-        import yaml
-        self = cls(name)
-        accessions = yaml.load(open(yaml_file, 'r'))
-        self.add_accessions(accessions)
-        return self
 
     @classmethod
     def from_accessions(cls, name, accessions):
