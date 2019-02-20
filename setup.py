@@ -67,7 +67,7 @@ setup(
         '':['*.cyx']    
     },
     install_requires = [		
-        'pandas <= 0.22.0',
+        'pandas<=0.23.9',		
         'bcolz >= 1.2.1',
         'blaze >= 0.10.1',
         'termcolor >= 1.1.0',
