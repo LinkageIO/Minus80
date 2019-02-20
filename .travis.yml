@@ -14,7 +14,7 @@ install:
 - conda info -a
 - conda create -q -n testEnv python=3 Cython numpy pandas pytest pytest-cov
 - source activate testEnv
-- python setup.py develop
+- pip install -e .
 - pip install codecov
 script:
 - source activate testEnv
