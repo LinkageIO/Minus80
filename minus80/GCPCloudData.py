@@ -1,4 +1,5 @@
 
+from google.cloud import storage
 
 class GCPCloudData(BaseCloudData):
 
@@ -8,7 +9,19 @@ class GCPCloudData(BaseCloudData):
     '''
 
     def __init__(self):
-        pass
+        
+        gcp_endpoint   = cf.gcp.endpoint
+        gcp_bucket     = cf.gcp.bucket
+        gcp_access_key = cf.gcp.access_key
+        gcp_secret_key = cf.gcp.secret_key
+
+        try:
+            self.client = storage.Client()
+        except Exception as e:
+            raise ValueError(
+                'Cloud access requires setting up GCP credentials in ~/.minus80.conf '
+                'contact help@linkage.io for assistance', e
+            )
 
     def push(self, dtype, name, raw=False):
         pass
