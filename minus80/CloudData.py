@@ -1,12 +1,10 @@
 
-from .S3CloudData import S3CloudData
-
-__all__ = ['CloudData']
-
-
 def CloudData(engine='s3'):
     if engine == 's3':
+        from .S3CloudData import S3CloudData
         return S3CloudData()
+    elif engine == 'gcp':
+        pass
     else:
         raise ValueError(f'Cannot use {engine} as a cloud engine.')
 
@@ -22,5 +20,3 @@ class BaseCloudData(object): #pragma: no cover
 
     def list(self, name=None, dtype=None, raw=None):
         raise NotImplementedError('This engine does not support listing')
-
-
