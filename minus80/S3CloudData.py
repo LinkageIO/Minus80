@@ -11,8 +11,6 @@ from .Tools import get_files
 from .Config import cf
 from .CloudData import BaseCloudData
 
-
-
 class ProgressPercentage(object):
     '''
     Borrowed from: https://boto3.readthedocs.io/en/latest/_modules/boto3/s3/transfer.html
