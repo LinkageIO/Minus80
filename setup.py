@@ -67,6 +67,8 @@ setup(
         '':['*.cyx']    
     },
     install_requires = [		
+        'google-cloud >= 0.34.0',
+        'google-cloud-storage >= 1.14.0',
         'pandas<=0.23.9',		
         'bcolz >= 1.2.1',
         'blaze >= 0.10.1',
