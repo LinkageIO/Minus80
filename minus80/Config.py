@@ -18,6 +18,12 @@ cloud:
     access_key: None
     secret_key: None
 
+gcp:
+    endpoint: https://storage.cloud.google.com
+    bucket: minus80
+    access_key: None
+    secret_key: None
+
 '''
 
 class Level(dict):
