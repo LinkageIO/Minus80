@@ -9,20 +9,8 @@ from collections import defaultdict
 
 from .Tools import get_files
 from .Config import cf
+from .CloudData import BaseCloudData
 
-
-class BaseCloudData(object): #pragma: no cover
-    def __init__(self):
-        pass
-
-    def push(self, name, dtype, raw=False, compress=False):
-        pass
-
-    def pull(self, name, dtype, raw=False):
-        pass
-
-    def list(self, name=None, dtype=None, raw=None):
-        pass
 
 
 class ProgressPercentage(object):
@@ -64,9 +52,6 @@ class ProgressDownloadPercentage(object):
                     percentage)
             )
             sys.stdout.flush()
-
-
-
 
 
 class S3CloudData(BaseCloudData):
