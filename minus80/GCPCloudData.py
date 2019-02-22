@@ -1,6 +1,7 @@
 import os
 import tarfile
 
+from collections import defaultdict
 from google.cloud import storage
 from minus80 import __version__ as m80_version
 
@@ -55,10 +56,10 @@ class GCPCloudData(BaseCloudData):
             # the name is a FILENAME
             filename = name
             key = os.path.basename(filename)
-            blob = self.bucket.blob(f'Raw/{dtype}/{key}') 
+            blob = self.bucket.blob(f'Raw/{dtype}.{key}') 
             blob.upload_from_filename(filename)
         else:
-            key = f'{dtype}/{name}'
+            key = f'{dtype}.{name}'
             data_path = os.path.join(
                 cf.options.basedir,
                 'databases', key
@@ -76,13 +77,88 @@ class GCPCloudData(BaseCloudData):
             os.unlink(tarpath)
     
     def pull(self, dtype, name, raw=False, output=None):
-        pass
+        '''
+        Retrive a minus80 dataset in the cloud using its name and dtype (e.g. Cohort).
+        the dtype is the name of the Freezable class or object. See :ref:`freezable`.
+        Assume we are storing ``x = Cohort('experiment1')``
 
+        dtype : str
+            The type of freezable object (i.e. 'Cohort')
+        name : str
+            The name of the dataset (i.e. 'experiment1')
+        raw : bool, default=False
+            If True, raw files can be stored in the cloud. In this case, name changes
+            to the file name and dtype changes to a string representing the future dtype
+            or anything that describes the type of data that is being stored.
+        '''
+        if raw == True:
+            prefix_dir = 'Raw'
+            name = os.path.basename(name)
+            if output is None:
+                output = name
+        else:
+            prefix_dir = 'databases'
+            output = os.path.join(cf.options.basedir,'tmp',f'{dtype}.{name}.tar')
+        # get the blob and download
+        blob = self.bucket.get_blob(f'{prefix_dir}/{dtype}.{name}')
+        if blob is None:
+            raise NameError(f'{name} does not exist as a {dtype}')
+        blob.download_to_filename(output) 
+        # Extract if its a tar file
+        if output.endswith('.tar'):
+            tar = tarfile.open(output,'r')
+            tar.extractall(path=os.path.join(cf.options.basedir,'databases'))
+    
     def list(self, name=None, dtype=None, raw=False):
-        pass
+        '''
+            List datasets that are in the cloud
+
+            Parameters
+            ----------
+            dtype : str
+                The type of freezable object (i.e. 'Cohort')
+            name : str
+                The name of the dataset (i.e. 'experiment1')
+            raw : bool, default=False
+                If true, list raw datasets instead of frozen ones.
+
+        '''
+        items = defaultdict(set)
+        try:
+            for blob in self.bucket.list_blobs():
+                key = blob.name
+                if key.startswith('Raw') and raw == False:
+                    pass
+                elif not key.startswith('Raw') and raw == True:
+                    pass
+                else:
+                    bucket, key = key.split('/')
+                    key_dtype, key_name = key.split('.',maxsplit=1)
+                    if dtype != None and key_dtype != dtype:
+                        pass
+                    elif name != None and not key_name.startswith(name):
+                        pass
+                    else:
+                        items[key_dtype].add(key_name)
+            if len(items) == 0:
+                print('Nothing here yet!')
+            else:
+                if raw:
+                    print('######   Raw Data:   ######')
+                for key, vals in items.items():
+                    print(f'-----{key}------')
+                    for i,name in enumerate(vals,1):
+                        print(f'{i}. {name}')
+        except KeyError:
+            if len(items) == 0:
+                print('Nothing here yet!')
 
     def remove(self, dtype, name, raw=False):
-        pass
+        if raw:
+            key = f'Raw/{dtype}.{name}'
+        else:
+            key = f'databases/{dtype}.{name}'
+        self.bucket.delete_blob(key)
 
     def nuke(self):
-        pass
+        self.bucket.delete_blobs(self.bucket.list_blobs())
