@@ -2,6 +2,7 @@
 
 import click
 import minus80 as m80
+import minus80.Tools
 
 
 @click.group(epilog=f'Made with Love in Denver -- Version {m80.__version__}\n{m80.__file__}')
@@ -32,7 +33,7 @@ def cli():
     help='Each dataset has a datatype associated with it. E.g.: `Cohort`. If no dtype is specified, all available dtypes  will be returned.'
 )
 def list(name, dtype):
-    m80.Tools.available(dtype=dtype,name=name)
+    minus80.Tools.available(dtype=dtype,name=name)
 
 cli.add_command(list)
 
@@ -43,7 +44,7 @@ cli.add_command(list)
 @click.argument('dtype',metavar='<dtype>')
 @click.argument('name',metavar='<name>')
 def delete(dtype,name):
-    m80.Tools.delete(dtype,name)
+    minus80.Tools.delete(dtype,name)
 
 cli.add_command(delete)
 
