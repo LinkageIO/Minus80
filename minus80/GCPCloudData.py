@@ -1,8 +1,12 @@
-
 import os
+import tarfile
+
 from google.cloud import storage
+from minus80 import __version__ as m80_version
+
 from .Config import cf
 from .CloudData import BaseCloudData
+
 
 class GCPCloudData(BaseCloudData):
 
@@ -19,11 +23,12 @@ class GCPCloudData(BaseCloudData):
 
         try:
             self.client = storage.Client()
-            self.bucket = cf.gcp.bucket
-            
-            if self.client.lookup_bucket(self.bucket) is None:
+            self.bucket_name = cf.gcp.bucket
+            if self.client.lookup_bucket(self.bucket_name) is None:
                 # Create the bucket
-                self.client.create_bucket(self.bucket)
+                self.bucket = self.client.create_bucket(self.bucket_name)
+            else:
+                self.bucket = self.client.get_bucket(self.bucket_name)
 
         except Exception as e:
             raise ValueError(
@@ -46,8 +51,29 @@ class GCPCloudData(BaseCloudData):
             to the file name and dtype changes to a string representing the future dtype
             or anything that describes the type of data that is being stored.
         '''
-
-        pass
+        if raw == True:
+            # the name is a FILENAME
+            filename = name
+            key = os.path.basename(filename)
+            blob = self.bucket.blob(f'Raw/{dtype}/{key}') 
+            blob.upload_from_filename(filename)
+        else:
+            key = f'{dtype}/{name}'
+            data_path = os.path.join(
+                cf.options.basedir,
+                'databases', key
+            )
+            if not os.path.exists(data_path):
+                raise ValueError('There were no datasets with that name')
+            # Tar it up
+            tarpath = os.path.join(cf.options.basedir,'tmp',key+'.tar')
+            tar = tarfile.open(tarpath,'w',dereference=True)
+            tar.add(data_path,recursive=True,arcname=key)
+            tar.close()
+            # create a blob in the bucket
+            blob = self.bucket.blob(f'databases/{key}')
+            blob.upload_from_filename(tarpath)
+            os.unlink(tarpath)
     
     def pull(self, dtype, name, raw=False, output=None):
         pass
