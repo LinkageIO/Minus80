@@ -83,7 +83,3 @@ def test_nuke(simpleCloudData):
     simpleCloudData.nuke()
 def test_list_empty(simpleCloudData):
     simpleCloudData.list()
-
-#def test_bucket_create(simpleCloudData):
-    #simpleCloudData.s3.delete_bucket(Bucket=simpleCloudData.bucket)
-    #x = m80.CloudData()
