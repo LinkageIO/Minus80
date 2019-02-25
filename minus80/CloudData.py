@@ -1,10 +1,11 @@
 
-def CloudData(engine='s3'):
+def CloudData(engine='gcp'):
     if engine == 's3':
         from .S3CloudData import S3CloudData
         return S3CloudData()
     elif engine == 'gcp':
-        pass
+        from .GCPCloudData import GCPCloudData
+        return GCPCloudData()
     else:
         raise ValueError(f'Cannot use {engine} as a cloud engine.')
 
