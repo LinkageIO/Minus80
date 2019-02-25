@@ -155,6 +155,7 @@ class GCPCloudData(BaseCloudData):
 
     def remove(self, dtype, name, raw=False):
         if raw:
+            name = os.path.basename(name)
             key = f'Raw/{dtype}.{name}'
         else:
             key = f'databases/{dtype}.{name}'
