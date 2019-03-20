@@ -2,6 +2,9 @@
 
 from setuptools import setup, find_packages
 import os
+from setuptools.command.develop import develop
+from setuptools.command.install import install
+from subprocess import check_call,CalledProcessError
 
 import io
 import re
@@ -20,6 +23,39 @@ def find_version(*file_paths):
     if version_match:
         return version_match.group(1)
     raise RuntimeError("Unable to find version string.")
+
+
+def install_apsw():
+    print('Running post-installation for apsw')
+    version = '3.27.2'
+    tag = '-r1'
+    check_call(f'''\
+    pip install  \
+    https://github.com/rogerbinns/apsw/releases/download/{version}{tag}/apsw-{version}{tag}.zip \
+    --global-option=fetch \
+    --global-option=--version \
+    --global-option={version} \
+    --global-option=--all \
+    --global-option=build  \
+    --global-option=--enable=rtree \
+    '''.split())
+
+class DevelopCommand(develop):
+    """
+        Installation (develop) command that pre-installs APSW since its not on pypi
+    """
+    def run(self):
+        install_apsw()
+        develop.run(self)
+class InstallCommand(install):
+    """
+        Installation command that pre-installs APSW since its not on pypi
+    """ 
+    def run(self):
+        install_apsw()
+        install.run(self)
+
+
 
 setup(
     name = 'minus80',
@@ -61,6 +97,8 @@ setup(
     ],
     ext_modules = [],
     cmdclass = {
+        'develop': DevelopCommand,
+        'install': InstallCommand,
     },
 
     package_data = {
@@ -89,9 +127,9 @@ setup(
     extras_require={
         'docs' : ['ipython>=6.5.0','matplotlib>=2.2.3']
     },
-    dependency_links = [
-        'git+https://github.com/rogerbinns/apsw'
-    ],
+    #dependency_links = [
+    #    'git+https://github.com/rogerbinns/apsw'
+    #],
     include_package_data=True,
     entry_points='''
         [console_scripts]
