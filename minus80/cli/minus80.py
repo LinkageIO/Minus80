@@ -5,7 +5,7 @@ import minus80 as m80
 import minus80.Tools
 
 
-@click.group(epilog=f'Made with Love in Denver -- Version {m80.__version__}\n{m80.__file__}')
+@click.group(epilog=f'Made with ❤️  in Denver -- Version {m80.__version__}\n{m80.__file__}')
 def cli():
     '''
     \b
