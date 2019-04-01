@@ -17,7 +17,7 @@ class GCPCloudData(BaseCloudData):
     '''
 
     def __init__(self):
-       
+
         if 'GOOGLE_APPLICATION_CREDENTIALS' not in os.environ:
             credential_path = os.path.join(cf.options.basedir,'gcp_creds.json')
             os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = credential_path
