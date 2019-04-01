@@ -155,7 +155,7 @@ class Freezable(object):
             ROLLBACKS.
 
             Usage:
-            >>> with x.bulk_transaction() as cur:
+            >>> with x._bulk_transaction() as cur:
                      cur.execute('INSERT INTO table XXX VALUES YYY')
         '''
         cur = self._db.cursor()
