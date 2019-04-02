@@ -154,6 +154,19 @@ class GCPCloudData(BaseCloudData):
                 print('Nothing here yet!')
 
     def remove(self, dtype, name, raw=False):
+        '''
+            Remove a dataset from the cloud
+
+            Parameters
+            ----------
+            dtype : str
+                The type of dataset (e.g. 'Cohort'). Types can be seen 
+                using the list command.
+            name : str
+                The name of the dataset to delete.
+            raw : bool, default=False
+                If True, specifies a raw dataset. (see list function)
+        '''
         if raw:
             name = os.path.basename(name)
             key = f'Raw/{dtype}.{name}'
@@ -162,4 +175,11 @@ class GCPCloudData(BaseCloudData):
         self.bucket.delete_blob(key)
 
     def nuke(self):
+        '''
+            Nuke all the datasets in the cloud.
+
+            Warning
+            -------
+            This WILL delete all your data
+        '''
         self.bucket.delete_blobs(self.bucket.list_blobs())
