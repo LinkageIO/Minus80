@@ -52,8 +52,9 @@ def test_name_list(simpleCloudData):
 def test_pull_raw(simpleCloudData):
     simpleCloudData.pull(
         dtype='Fastq',
-        name="data/Sample1_ATGTCA_L007_R1_001.fastq",
-        raw=True
+        name="Sample1_ATGTCA_L007_R1_001.fastq",
+        raw=True,
+        output="data/Sample1_ATGTCA_L007_R1_001.fastq"
     )
 
 
