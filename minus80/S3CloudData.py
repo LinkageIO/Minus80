@@ -11,7 +11,7 @@ from .Tools import get_files
 from .Config import cf
 from .CloudData import BaseCloudData
 
-class ProgressPercentage(object):
+class ProgressPercentage(object): # pragma: no cover
     '''
     Borrowed from: https://boto3.readthedocs.io/en/latest/_modules/boto3/s3/transfer.html
     '''
@@ -33,7 +33,7 @@ class ProgressPercentage(object):
                     percentage))
             sys.stdout.flush()
 
-class ProgressDownloadPercentage(object):
+class ProgressDownloadPercentage(object): # pragma: no cover
     def __init__(self,filename,total_bytes):
         self._filename = filename
         self._total_bytes = total_bytes
@@ -52,7 +52,7 @@ class ProgressDownloadPercentage(object):
             sys.stdout.flush()
 
 
-class S3CloudData(BaseCloudData):
+class S3CloudData(BaseCloudData): # pragma: no cover
 
     '''
     CloudData objects allow minus80 to interact with the cloud to store both
