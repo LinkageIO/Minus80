@@ -11,18 +11,10 @@ default_config = '''--- # YAML Minus80 Configuration File
 options:
     basedir: ~/.minus80/
 
-# AWS S3 Read Only
-cloud:
-    endpoint: https://s3.amazonaws.com
-    bucket: minus80
-    access_key: None
-    secret_key: None
-
 gcp:
+    credentials: ~/.minus80/gcp_creds.json
     endpoint: https://storage.cloud.google.com
     bucket: minus80
-    access_key: None
-    secret_key: None
 
 '''
 
