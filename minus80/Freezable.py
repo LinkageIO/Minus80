@@ -4,13 +4,20 @@ import re
 # Suppress the warning until the next wersion
 import bcolz as bcz
 
-import apsw as lite
 import os as os
 import numpy as np
 import pandas as pd
 
 from .Config import cf
 from contextlib import contextmanager
+
+try:
+    import apsw as lite
+except ModuleNotFoundError as e:
+    from .Tools import install_apsw
+    install_apsw()
+    import apsw as lite
+
 
 __all__ = ['Freezable']
 
