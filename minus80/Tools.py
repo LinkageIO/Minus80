@@ -5,8 +5,29 @@ import shutil
 from glob import glob
 from collections import defaultdict
 from pprint import pprint
+from subprocess import check_call,CalledProcessError
 
 __all__ = ['available', 'delete']
+
+
+def install_apsw(method='pip',version='3.27.2',tag='-r1'):
+    if method == 'pip':
+        print('Installing apsw from GitHub using ')
+        version = '3.27.2'
+        tag = '-r1'
+        check_call(f'''\
+            pip install  \
+            https://github.com/rogerbinns/apsw/releases/download/{version}{tag}/apsw-{version}{tag}.zip \
+            --global-option=fetch \
+            --global-option=--version \
+            --global-option={version} \
+            --global-option=--all \
+            --global-option=build  \
+            --global-option=--enable=rtree \
+        '''.split())
+    else:
+        raise ValueError(f'{method} not supported to install apsw')
+
 
 def get_files(dtype=None, name=None, fullpath=False):
     '''
