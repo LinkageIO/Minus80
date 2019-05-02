@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 
-from setuptools import setup, find_packages
+import io
+import re
 import os
+
+from setuptools import setup, find_packages
 from setuptools.command.develop import develop
 from setuptools.command.install import install
 from subprocess import check_call,CalledProcessError
 
-import io
-import re
 
 def read(*names, **kwargs):
     with io.open(
@@ -24,21 +25,24 @@ def find_version(*file_paths):
         return version_match.group(1)
     raise RuntimeError("Unable to find version string.")
 
+def install_apsw(method='pip',version='3.27.2',tag='-r1'):
+    if method == 'pip':
+        print('Installing apsw from GitHub using ')
+        version = '3.27.2'
+        tag = '-r1'
+        check_call(f'''\
+            pip install  \
+            https://github.com/rogerbinns/apsw/releases/download/{version}{tag}/apsw-{version}{tag}.zip \
+            --global-option=fetch \
+            --global-option=--version \
+            --global-option={version} \
+            --global-option=--all \
+            --global-option=build  \
+            --global-option=--enable=rtree \
+        '''.split())
+    else:
+        raise ValueError(f'{method} not supported to install apsw')
 
-def install_apsw():
-    print('Running post-installation for apsw')
-    version = '3.27.2'
-    tag = '-r1'
-    check_call(f'''\
-    pip install  \
-    https://github.com/rogerbinns/apsw/releases/download/{version}{tag}/apsw-{version}{tag}.zip \
-    --global-option=fetch \
-    --global-option=--version \
-    --global-option={version} \
-    --global-option=--all \
-    --global-option=build  \
-    --global-option=--enable=rtree \
-    '''.split())
 
 class DevelopCommand(develop):
     """
@@ -115,7 +119,7 @@ setup(
         'click >= 6.7',
         'asyncssh >= 1.12.2',
         'networkx == 1.11',
-        'urllib3 >= 1.24.2',
+        'urllib3 == 1.24.2',
         'boto3 >= 1.7.84',
         'requests >= 2.19.1',
         'fuzzywuzzy >= 0.17.0',
