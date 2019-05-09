@@ -101,6 +101,9 @@ class GCPCloudData(BaseCloudData):
             name = os.path.basename(name)
             if output is None:
                 output = name
+            else:
+                # create any directories for the outpu
+                os.makedirs(os.path.dirname(output),exist_ok=True)
         else:
             prefix_dir = 'databases'
             output = os.path.join(cf.options.basedir,'tmp',f'{dtype}.{name}.tar')
@@ -108,6 +111,7 @@ class GCPCloudData(BaseCloudData):
         blob = self.bucket.get_blob(f'{prefix_dir}/{dtype}.{name}')
         if blob is None:
             raise NameError(f'{name} does not exist as a {dtype}')
+        # check to see if output requires creating a directory
         blob.download_to_filename(output) 
         # Extract if its a tar file
         if output.endswith('.tar'):
