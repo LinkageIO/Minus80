@@ -14,7 +14,7 @@ def test_set_level_attr():
     assert cf.test.passed
 
 def test_get_cloud_creds():
-    assert cf.gcp.endpoint
+    assert cf.gcp.bucket
 
 def test_pprint():
     x=repr(cf)
