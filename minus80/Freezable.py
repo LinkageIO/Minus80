@@ -10,6 +10,7 @@ import pandas as pd
 
 from .Config import cf
 from contextlib import contextmanager
+from shutil import rmtree as rmdir
 
 try:
     import apsw as lite
@@ -211,11 +212,29 @@ class Freezable(object):
         filename = os.path.join(self._get_dbpath('db.sqlite'))
         return lite.Connection(filename)
 
+    def _bcolz_remove(self,name):
+        '''
+            Remove a bcolz array from disk
+        '''
+        path = os.path.join(self._get_dbpath('bcz'),name)
+        if not os.path.exists(path):
+            raise ValueError(f'{name} does not exist')
+        else:
+            rmdir(path)
+
+    def _bcolz_list(self):
+        '''
+            List the available bcolz datasets
+        '''
+        return os.listdir(self._get_dbpath('bcz'))
+       
+
     def _bcolz_array(self, name, array=None, m80name=None,
                      m80type=None):
         '''
             Routines to set/get arrays from the bcolz store
         '''
+
         # Fill in the defaults if they were not provided
         if m80type is None:
             m80type = self._m80_dtype
