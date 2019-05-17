@@ -1,11 +1,11 @@
-__version__ = '0.3.2'
+__version__ = '0.3.3'
 
 
 from .Freezable import Freezable
 from .Accession import Accession
 from .Cohort    import Cohort
 from .CloudData import CloudData
-
+import minus80.Tools as tools
 
 # Initialize the Minus80 Freezer
 def _init(): # pragma: no cover
