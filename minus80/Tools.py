@@ -1,11 +1,13 @@
-from .Config import cf
 import os
+import re
 import shutil
 
 from glob import glob
-from collections import defaultdict
 from pprint import pprint
+from collections import defaultdict
 from subprocess import check_call,CalledProcessError
+
+from .Config import cf
 
 __all__ = ['available', 'delete']
 
@@ -159,6 +161,15 @@ def delete(dtype=None, name=None, force=False):
     return num_deleted
 
 
-
-
+def guess_type(object):
+    '''
+        Guess the type of object from the class attribute
+    '''
+    # retrieve a list of classes
+    classes = re.match(
+        "<class '(.+)'>",
+        str(object.__class__)
+    ).groups()[0].split('.')
+    # Return the most specific one
+    return classes[-1]
 
