@@ -42,7 +42,6 @@ class Level(dict):
         self[item] = val
 
 
-
 class Config(object):
 
     def __init__(self,filename):

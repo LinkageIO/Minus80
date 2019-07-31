@@ -48,6 +48,7 @@ class Cohort(Freezable):
         super().__init__(name,parent=parent)
         self.name = name
         self._initialize_tables()
+        # Create the logger
         self.log = logging.getLogger(f'minus80.Cohort.{name}')
         logging.basicConfig()
         self.log.setLevel(logging.INFO)
@@ -233,7 +234,7 @@ class Cohort(Freezable):
         '''
             Add multiple Accessions at once
         '''
-        with self._bulk_transaction() as cur:
+        with self._m80_bulk_transaction() as cur:
             # When a name is added, it is automatically assigned an ID
             cur.executemany('''
                 INSERT OR IGNORE INTO accessions (name) VALUES (?)
@@ -264,7 +265,7 @@ class Cohort(Freezable):
         '''
             Add a sample to the Database
         '''
-        with self._bulk_transaction() as cur:
+        with self._m80_bulk_transaction() as cur:
             # When a name is added, it is automatically assigned an ID
             cur.execute('''
                 INSERT OR IGNORE INTO accessions (name) VALUES (?)
@@ -338,7 +339,7 @@ class Cohort(Freezable):
             Assign an accession column as aliases
         '''
         cur_names = set(self.names)
-        with self._bulk_transaction() as cur: 
+        with self._m80_bulk_transaction() as cur: 
             alias_dict = {a:aid for a,aid in cur.execute('''
                 SELECT val,AID FROM metadata 
                 WHERE key = ?
@@ -366,7 +367,7 @@ class Cohort(Freezable):
         self._db.cursor().execute('DELETE FROM aliases')
 
     def drop_accessions(self):
-       with self._bulk_transaction() as cur:
+       with self._m80_bulk_transaction() as cur:
             cur.execute('''
                 DELETE FROM accessions;
                 DELETE FROM aliases;
@@ -481,7 +482,7 @@ class Cohort(Freezable):
         '''
             ignore files
         '''
-        with self._bulk_transaction() as cur:
+        with self._m80_bulk_transaction() as cur:
             cur.executemany('''
                 UPDATE raw_files SET ignore = 1 
                 WHERE url = ?

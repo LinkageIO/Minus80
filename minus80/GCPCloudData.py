@@ -183,7 +183,7 @@ class GCPCloudData(BaseCloudData):
             key = f'databases/{dtype}.{name}'
         self.bucket.delete_blob(key)
 
-    def nuke(self):
+    def _nuke(self):
         '''
             Nuke all the datasets in the cloud.
 

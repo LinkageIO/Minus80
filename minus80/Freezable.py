@@ -24,6 +24,122 @@ except ModuleNotFoundError as e:
 
 __all__ = ['Freezable']
 
+
+class relational_db(object):
+    def __init__(self, basedir):
+        self.filename = os.path.expanduser(
+            os.path.join(basedir,'db.sqlite')        
+        )
+        self.db = lite.Connection(self.filename)
+
+    def cursor(self):
+        return self.db.cursor()
+
+    @contextmanager
+    def bulk_transaction(self):
+        '''
+            This is a context manager that handles bulk transaction.
+            i.e. this context will handle the BEGIN, END and appropriate
+            ROLLBACKS.
+
+            Usage:
+            >>> with x._bulk_transaction() as cur:
+                     cur.execute('INSERT INTO table XXX VALUES YYY')
+        '''
+        cur = self._db.cursor()
+        cur.execute('PRAGMA synchronous = off')
+        cur.execute('PRAGMA journal_mode = memory')
+        cur.execute('SAVEPOINT m80_bulk_transaction')
+        try:
+            yield cur
+        except Exception as e:
+            cur.execute('ROLLBACK TO SAVEPOINT m80_bulk_transaction')
+            raise e
+        finally:
+            cur.execute('RELEASE SAVEPOINT m80_bulk_transaction')
+
+    def query(self,q):
+        cur = self._db.cursor().execute(q)
+        names = [x[0] for x in cur.description]
+        rows = cur.fetchall()
+        result = pd.DataFrame(rows,columns=names)
+        return result
+
+
+
+class columnar_db(object):
+    def __init__(self,basedir):
+        self.dirname = os.path.expanduser(
+            os.path.join(basedir,'bcz')        
+        )
+
+
+    def remove(self,name):
+        '''
+            Remove a bcolz array from disk
+        '''
+        path = os.path.join(self.dirname,name)
+        if not os.path.exists(path):
+            raise ValueError(f'{name} does not exist')
+        else:
+            rmdir(path)
+
+    def list(self):
+        '''
+            List the available bcolz datasets
+        '''
+        return os.listdir(self.dirname)
+       
+    def __getitem__(self,name):
+        arr = bcz.open(os.path.join(self.dirname, name))
+        return arr
+
+    def __setitem__(self,val):
+        if isinstance(val,np.array):
+            bcz.carray(
+                val, mode='w', rootdir=os.path.join(self.dirname, name)
+            )
+        elif isinstance(val,
+
+    def _bcolz(self, tblname, df=None):
+
+        # function is a getter if df is provided
+        if df is None:
+            # return the dataframe if it exists
+            try:
+                df = bcz.open(os.path.join(path, tblname))
+            except IOError:
+                raise IOError(
+                    f'could not open database for {m80type}:{m80name} '
+                )
+            else:
+                if len(df) == 0:
+                    df = pd.DataFrame()
+                else:
+                    df = df.todataframe()
+                if not blaze and f'{tblname}_index' in self._dict:
+                    df.set_index(
+                        self._dict[f'{tblname}_index'], 
+                        inplace=True)
+                return df
+        # If df is set, then store the table
+        else:
+            df = df.copy()
+            if df.index.name is not None:
+                # We need to remember to index
+                self._dict[tblname+'_index'] = df.index.name
+                df.reset_index(inplace=True)
+            path = os.path.join(path, tblname)
+            if df.empty:
+                bcz.fromiter(
+                    (), dtype=np.int32, mode='w',
+                    count=0, rootdir=path
+                )
+            else:
+                bcz.ctable.fromdataframe(df, mode='w', rootdir=path)
+            return
+
+
 class Freezable(object):
 
     '''
@@ -57,72 +173,49 @@ class Freezable(object):
         self._m80_name = name
         # Set the m80 dtype
         self._m80_dtype = guess_type(self)
-        # Keep track of children
-        self._children = []
-       
+      
+        # default to the basedir in the config file
         if basedir is None:
             basedir = cf.options.basedir
-
         # Set up our base directory
         if parent is None:
             # set as the top level basedir as specified in the config file
-            self._basedir = os.path.join(
+            self._m80_basedir = os.path.join(
                 basedir,
                 'databases',
                 f'{self._m80_dtype}.{self._m80_name}'
             )
-            self._parent = None
+            self._m80_parent = None
         else:
-            self._basedir = os.path.join(
-                parent._basedir,
+            # set up the basedir to be within the parent basedir
+            self._m80_basedir = os.path.join(
+                parent._m80_basedir,
                 f'{self._m80_dtype}.{self._m80_name}'
             )
-            self._parent = parent
-            parent._add_child(self)
-        os.makedirs(self._basedir,exist_ok=True)
+            self._m80_parent = parent
+            self._m80_parent._m80_add_child(self)
+        # Create the base dir
+        os.makedirs(self._m80_basedir,exist_ok=True)
 
         # Get a handle to the sql database
-        self._db = self._sqlite()
+        self._m80db = relational_db(self.basedir)
         # Set up a table
-        self._dict = sqlite_dict(self._db) 
+        self._m80_dict = sqlite_dict(self._db) 
 
-
-    def _add_child(self,child):
-        '''
-            Register a child dataset
-        '''
-        self._children.append(child)
-
-    @contextmanager
-    def _bulk_transaction(self):
-        '''
-            This is a context manager that handles bulk transaction.
-            i.e. this context will handle the BEGIN, END and appropriate
-            ROLLBACKS.
-
-            Usage:
-            >>> with x._bulk_transaction() as cur:
-                     cur.execute('INSERT INTO table XXX VALUES YYY')
-        '''
-        cur = self._db.cursor()
-        cur.execute('PRAGMA synchronous = off')
-        cur.execute('PRAGMA journal_mode = memory')
-        cur.execute('SAVEPOINT bulk_transaction')
-        try:
-            yield cur
-        except Exception as e:
-            cur.execute('ROLLBACK TO SAVEPOINT bulk_transaction')
-            raise e
-        finally:
-            cur.execute('RELEASE SAVEPOINT bulk_transaction')
-
-    def _query(self,q):
-        cur = self._db.cursor().execute(q)
-        names = [x[0] for x in cur.description]
-        rows = cur.fetchall()
-        result = pd.DataFrame(rows,columns=names)
-        return result
-
+    @staticmethod
+    def _tmpfile(*args, **kwargs):
+        # returns a handle to a tmp file
+        return tempfile.NamedTemporaryFile(
+            'w',
+            dir=os.path.expanduser(
+                os.path.join(
+                    # use the top level basedir
+                    cf.options.basedir,
+                    "tmp"
+                )
+            ),
+            **kwargs
+        )
 
     def _get_dbpath(self, extension, create=False):
         '''
@@ -142,128 +235,8 @@ class Freezable(object):
         return path
 
 
-    def _sqlite(self):
-        '''
-            This is the access point to the sqlite database
-        '''
-        # return a connection if exists
-        filename = os.path.join(self._get_dbpath('db.sqlite'))
-        return lite.Connection(filename)
 
-    def _bcolz_remove(self,name):
-        '''
-            Remove a bcolz array from disk
-        '''
-        path = os.path.join(self._get_dbpath('bcz'),name)
-        if not os.path.exists(path):
-            raise ValueError(f'{name} does not exist')
-        else:
-            rmdir(path)
 
-    def _bcolz_list(self):
-        '''
-            List the available bcolz datasets
-        '''
-        return os.listdir(self._get_dbpath('bcz'))
-       
-
-    def _bcolz_array(self, name, array=None, m80name=None,
-                     m80type=None):
-        '''
-            Routines to set/get arrays from the bcolz store
-        '''
-
-        # Fill in the defaults if they were not provided
-        if m80type is None:
-            m80type = self._m80_dtype
-        if m80name is None:
-            m80name = self._m80_name
-        # function is a getter if df is provided
-        path = self._get_dbpath('bcz', create=True)
-        if array is None:
-            # GETTER
-            arr = bcz.open(os.path.join(path, name))
-            return arr
-        else:
-            # SETTER
-            bcz.carray(array, mode='w', rootdir=os.path.join(path, name))
-
-    def _bcolz(self, tblname, df=None, m80name=None, m80type=None,
-               blaze=False):
-        '''
-            This is the access point to the bcolz database
-        '''
-        try:
-            import blaze as blz
-        except FutureWarning: # pragma: no cover
-            pass
-        import warnings
-        # from flask.exthook import ExtDeprecationWarning
-        # warnings.simplefilter('ignore', ExtDeprecationWarning)
-        warnings.simplefilter('ignore', FutureWarning)
-
-        # Fill in the defaults if they were not provided
-        if m80type is None:
-            m80type = self._m80_dtype
-        if m80name is None:
-            m80name = self._m80_name
-        path = self._get_dbpath('bcz',create=True)
-
-        # function is a getter if df is provided
-        if df is None:
-            # return the dataframe if it exists
-            try:
-                df = bcz.open(os.path.join(path, tblname))
-            except IOError:
-                raise IOError(
-                    f'could not open database for {m80type}:{m80name} '
-                )
-            else:
-                if len(df) == 0:
-                    df = pd.DataFrame()
-                    if blaze:
-                        df = blz.data(df)
-                else:
-                    if blaze:
-                        df = blz.data(df)
-                    else:
-                        df = df.todataframe()
-                if not blaze and f'{tblname}_index' in self._dict:
-                    df.set_index(
-                        self._dict[f'{tblname}_index'], 
-                        inplace=True)
-                return df
-        # If df is set, then store the table
-        else:
-            df = df.copy()
-            if df.index.name is not None:
-                # We need to remember to index
-                self._dict[tblname+'_index'] = df.index.name
-                df.reset_index(inplace=True)
-            path = os.path.join(path, tblname)
-            if df.empty:
-                bcz.fromiter(
-                    (), dtype=np.int32, mode='w',
-                    count=0, rootdir=path
-                )
-            else:
-                bcz.ctable.fromdataframe(df, mode='w', rootdir=path)
-            return
-
-    @staticmethod
-    def _tmpfile(*args, **kwargs):
-        # returns a handle to a tmp file
-        return tempfile.NamedTemporaryFile(
-            'w',
-            dir=os.path.expanduser(
-                os.path.join(
-                    # use the top level basedir
-                    cf.options.basedir,
-                    "tmp"
-                )
-            ),
-            **kwargs
-        )
 
 
 
