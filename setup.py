@@ -109,23 +109,23 @@ setup(
         '':['*.cyx']    
     },
     install_requires = [		
-        'google-cloud >= 0.34.0',
-        'google-cloud-storage >= 1.14.0',
-        'pandas<=0.23.9',		
-        'bcolz >= 1.2.1',
-        'blaze >= 0.10.1',
-        'termcolor >= 1.1.0',
-        'pyyaml >= 3.12',
-        'click >= 6.7',
-        'asyncssh >= 1.12.2',
+        'google-cloud == 0.34.0',
+        'google-cloud-storage == 1.17.0',
+        'pandas==0.23.4',		
+        'bcolz == 1.2.1',
+        'blaze == 0.10.1',
+        'termcolor == 1.1.0',
+        'pyyaml == 5.1.2',
+        'click == 7.0',
+        'asyncssh == 1.17.1',
         'networkx == 1.11',
         'urllib3 == 1.24.2',
-        'boto3 >= 1.7.84',
-        'requests >= 2.19.1',
-        'fuzzywuzzy >= 0.17.0',
-        'python-Levenshtein >= 0.12.0',
-        'tqdm >= 4.28.1',
-        'backoff >= 1.7.1'
+        'boto3 == 1.9.99',
+        'requests == 2.22.0',
+        'fuzzywuzzy == 0.17.0',
+        'python-Levenshtein == 0.12.0',
+        'tqdm == 4.32.2',
+        'backoff == 1.8.0'
     ],
     extras_require={
         'docs' : ['ipython>=6.5.0','matplotlib>=2.2.3']
