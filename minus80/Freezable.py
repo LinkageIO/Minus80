@@ -89,7 +89,7 @@ class sqlite_dict(object):
 class Freezable(object):
 
     '''
-    Freezable is an abstract class. Things that inherit from Freezable can
+    Freezable is an base class. Things that inherit from Freezable can
     be loaded and unloaded from the Minus80.
 
     A freezable object is a persistant object that lives in a known directory
