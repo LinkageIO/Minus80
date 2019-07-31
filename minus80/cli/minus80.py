@@ -16,7 +16,7 @@ def cli():
     /_/  /_/_/_/ /_/\__,_/____/\____/\____/
 
 
-    Minus80 is a library for storing biological data. See linkage.io/docs/minus80
+    Minus80 is a library for storing biological data. See https://github.com/LinkageIO/minus80
     for more details.
     '''
 
