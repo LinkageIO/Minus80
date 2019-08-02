@@ -114,6 +114,8 @@ setup(
         'pandas==0.23.4',		
         'bcolz == 1.2.1',
         'blaze == 0.10.1',
+        'tables == 3.5.2',
+        'h5py == 2.9.0',
         'termcolor == 1.1.0',
         'pyyaml == 5.1.2',
         'click == 7.0',
