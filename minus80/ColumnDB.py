@@ -26,6 +26,19 @@ class ColumnarDB(object):
     def __getitem__(self,name):
         raise NotImplementedError()
 
+class bcolz_db(ColumnarDB):
+    def __init__(self,basedir,engine=None):
+        raise NotImplementedError()
+    def remove(self,name):
+        raise NotImplementedError()
+    def list(self):
+        raise NotImplementedError()
+    def __contains__(self,key):
+        raise NotImplementedError()
+    def __setitem__(self,name,val):
+        raise NotImplementedError()
+    def __getitem__(self,name):
+        raise NotImplementedError()
 
 class hdf5_db(ColumnarDB):
 
@@ -42,7 +55,7 @@ class hdf5_db(ColumnarDB):
             Remove a  dataframe/array from disk
         '''
         with h5py.File(self.filename, "a") as hdf:
-            self.remove(name)
+            del hdf[name]
 
     def list(self):
         '''
@@ -60,11 +73,13 @@ class hdf5_db(ColumnarDB):
         if isinstance(val,numpy.ndarray):
             # check if exists and if so, delete
             if name in self:
-                del self[name]
+                self.remove(name)
             with h5py.File(self.filename, "a") as hdf:
                 hdf[name] = val
-        if isinstance(val, pandas.DataFrame):
+        elif isinstance(val, pandas.DataFrame):
             val.to_hdf(self.filename,key=name,mode='a')
+        else:
+            raise ValueError("Datatype must be either a numpy array or a dataframe")
        
     def __getitem__(self,name):
         with h5py.File(self.filename, "r") as hdf:
