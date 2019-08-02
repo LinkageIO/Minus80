@@ -7,65 +7,19 @@ import os as os
 import numpy as np
 import pandas as pd
 
-from contextlib import contextmanager
 from shutil import rmtree as rmdir
 
-from .Config import cf
-from .SQLiteDict import sqlite_dict
-from .Tools import guess_type
 
-try:
-    import apsw as lite
-except ModuleNotFoundError as e:
-    from .Tools import install_apsw
-    install_apsw()
-    import apsw as lite
+from minus80.RelationalDB import relational_db
+from minus80.SQLiteDict import sqlite_dict
+from minus80.ColumnDB import columnar_db
+
+
+from .Config import cf
+from .Tools import guess_type
 
 
 __all__ = ['Freezable']
-
-
-class relational_db(object):
-    def __init__(self, basedir):
-        self.filename = os.path.expanduser(
-            os.path.join(basedir,'db.sqlite')        
-        )
-        self.db = lite.Connection(self.filename)
-
-    def cursor(self):
-        return self.db.cursor()
-
-    @contextmanager
-    def bulk_transaction(self):
-        '''
-            This is a context manager that handles bulk transaction.
-            i.e. this context will handle the BEGIN, END and appropriate
-            ROLLBACKS.
-
-            Usage:
-            >>> with x._bulk_transaction() as cur:
-                     cur.execute('INSERT INTO table XXX VALUES YYY')
-        '''
-        cur = self._db.cursor()
-        cur.execute('PRAGMA synchronous = off')
-        cur.execute('PRAGMA journal_mode = memory')
-        cur.execute('SAVEPOINT m80_bulk_transaction')
-        try:
-            yield cur
-        except Exception as e:
-            cur.execute('ROLLBACK TO SAVEPOINT m80_bulk_transaction')
-            raise e
-        finally:
-            cur.execute('RELEASE SAVEPOINT m80_bulk_transaction')
-
-    def query(self,q):
-        cur = self._db.cursor().execute(q)
-        names = [x[0] for x in cur.description]
-        rows = cur.fetchall()
-        result = pd.DataFrame(rows,columns=names)
-        return result
-
-
 
 
 class Freezable(object):
@@ -125,10 +79,12 @@ class Freezable(object):
         # Create the base dir
         os.makedirs(self._m80_basedir,exist_ok=True)
 
+        # Set up the columnar db
+        self._m80col = columnar_db(self._m80_basedir)
         # Get a handle to the sql database
-        self._m80db = relational_db(self.basedir)
+        self._m80db = relational_db(self._m80_basedir)
         # Set up a table
-        self._m80_dict = sqlite_dict(self._db) 
+        self._m80_dict = sqlite_dict(self._m80db) 
 
     @staticmethod
     def _tmpfile(*args, **kwargs):
@@ -144,27 +100,4 @@ class Freezable(object):
             ),
             **kwargs
         )
-
-    def _get_dbpath(self, extension, create=False):
-        '''
-        Get the path to database files
-
-        Parameters
-        ----------
-        '''
-        path = os.path.expanduser(
-            os.path.join(
-                self._basedir,
-                f'{extension}'
-            )
-        )
-        if create:
-            os.makedirs(path,exist_ok=True)
-        return path
-
-
-
-
-
-
 
