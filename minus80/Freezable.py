@@ -8,10 +8,10 @@ import numpy as np
 import pandas as pd
 
 from shutil import rmtree as rmdir
+from tinydb import TinyDB
 
 
 from minus80.RelationalDB import relational_db
-from minus80.SQLiteDict import sqlite_dict
 from minus80.ColumnDB import columnar_db
 
 
@@ -21,9 +21,7 @@ from .Tools import guess_type
 
 __all__ = ['Freezable']
 
-
 class Freezable(object):
-
     '''
     Freezable is an base class. Things that inherit from Freezable can
     be loaded and unloaded from the Minus80.
@@ -39,8 +37,16 @@ class Freezable(object):
     * access to named temp files
 
     '''
+    def __init__(self,name,parent=None,basedir=None):
+        '''
+            Freezable object inherit an insance to the Freezable API.
+        '''
+        dtype = guess_type(self)
+        self.m80 = FreezableAPI(dtype,name,parent,basedir)
 
-    def __init__(self, name, parent=None, basedir=None):
+class FreezableAPI(object):
+
+    def __init__(self, dtype, name, parent=None, basedir=None):
         '''
         Initialize the Freezable Object.
 
@@ -52,9 +58,9 @@ class Freezable(object):
             The parent object
         '''
         # Set the m80 name
-        self._m80_name = name
+        self.name = name
         # Set the m80 dtype
-        self._m80_dtype = guess_type(self)
+        self.dtype = dtype
       
         # default to the basedir in the config file
         if basedir is None:
@@ -62,29 +68,29 @@ class Freezable(object):
         # Set up our base directory
         if parent is None:
             # set as the top level basedir as specified in the config file
-            self._m80_basedir = os.path.join(
+            self.basedir = os.path.join(
                 basedir,
                 'databases',
-                f'{self._m80_dtype}.{self._m80_name}'
+                f'{self.dtype}.{self.name}'
             )
-            self._m80_parent = None
+            self.parent = None
         else:
             # set up the basedir to be within the parent basedir
-            self._m80_basedir = os.path.join(
-                parent._m80_basedir,
-                f'{self._m80_dtype}.{self._m80_name}'
+            self.basedir = os.path.join(
+                parent.basedir,
+                f'{self.dtype}.{self.name}'
             )
-            self._m80_parent = parent
-            self._m80_parent._m80_add_child(self)
+            self.parent = parent
+            self.parent.add_child(self)
         # Create the base dir
-        os.makedirs(self._m80_basedir,exist_ok=True)
+        os.makedirs(self.basedir,exist_ok=True)
 
         # Set up the columnar db
-        self._m80col = columnar_db(self._m80_basedir)
+        self.col = columnar_db(self.basedir)
         # Get a handle to the sql database
-        self._m80db = relational_db(self._m80_basedir)
+        self.db = relational_db(self.basedir)
         # Set up a table
-        self._m80_dict = sqlite_dict(self._m80db) 
+        self.doc = TinyDB(os.path.join(self.basedir,"tinydb.json"))
 
     @staticmethod
     def _tmpfile(*args, **kwargs):
