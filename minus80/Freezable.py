@@ -19,10 +19,11 @@ from .Config import cf
 from .Tools import guess_type
 
 
-__all__ = ['Freezable']
+__all__ = ["Freezable"]
+
 
 class Freezable(object):
-    '''
+    """
     Freezable is an base class. Things that inherit from Freezable can
     be loaded and unloaded from the Minus80.
 
@@ -36,18 +37,19 @@ class Freezable(object):
     * access to a persistant key/val store
     * access to named temp files
 
-    '''
-    def __init__(self,name,parent=None,basedir=None):
-        '''
+    """
+
+    def __init__(self, name, parent=None, basedir=None):
+        """
             Freezable object inherit an insance to the Freezable API.
-        '''
+        """
         dtype = guess_type(self)
-        self.m80 = FreezableAPI(dtype,name,parent,basedir)
+        self.m80 = FreezableAPI(dtype, name, parent, basedir)
+
 
 class FreezableAPI(object):
-
     def __init__(self, dtype, name, parent=None, basedir=None):
-        '''
+        """
         Initialize the Freezable Object.
 
         Parameters
@@ -56,12 +58,12 @@ class FreezableAPI(object):
             The name of the frozen object.
         parent: Freezable object or None
             The parent object
-        '''
+        """
         # Set the m80 name
         self.name = name
         # Set the m80 dtype
         self.dtype = dtype
-      
+
         # default to the basedir in the config file
         if basedir is None:
             basedir = cf.options.basedir
@@ -69,41 +71,35 @@ class FreezableAPI(object):
         if parent is None:
             # set as the top level basedir as specified in the config file
             self.basedir = os.path.join(
-                basedir,
-                'databases',
-                f'{self.dtype}.{self.name}'
+                basedir, "databases", f"{self.dtype}.{self.name}"
             )
             self.parent = None
         else:
             # set up the basedir to be within the parent basedir
-            self.basedir = os.path.join(
-                parent.basedir,
-                f'{self.dtype}.{self.name}'
-            )
+            self.basedir = os.path.join(parent.basedir, f"{self.dtype}.{self.name}")
             self.parent = parent
             self.parent.add_child(self)
         # Create the base dir
-        os.makedirs(self.basedir,exist_ok=True)
+        os.makedirs(self.basedir, exist_ok=True)
 
         # Set up the columnar db
         self.col = columnar_db(self.basedir)
         # Get a handle to the sql database
         self.db = relational_db(self.basedir)
         # Set up a table
-        self.doc = TinyDB(os.path.join(self.basedir,"tinydb.json"))
+        self.doc = TinyDB(os.path.join(self.basedir, "tinydb.json"))
 
     @staticmethod
     def _tmpfile(*args, **kwargs):
         # returns a handle to a tmp file
         return tempfile.NamedTemporaryFile(
-            'w',
+            "w",
             dir=os.path.expanduser(
                 os.path.join(
                     # use the top level basedir
                     cf.options.basedir,
-                    "tmp"
+                    "tmp",
                 )
             ),
-            **kwargs
+            **kwargs,
         )
-

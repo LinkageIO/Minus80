@@ -1,21 +1,19 @@
-__version__ = '1.0.0'
+__version__ = "1.0.0"
 
 
 from .Freezable import Freezable
 from .Accession import Accession
-from .Cohort    import Cohort
+from .Cohort import Cohort
 from .CloudData import CloudData
 import minus80.Tools as tools
 
 # Initialize the Minus80 Freezer
-def _init(): # pragma: no cover
+def _init():  # pragma: no cover
     import os
     from .Config import cf
- 
-    basedir = os.path.realpath(
-        os.path.expanduser(cf.options.basedir)
-    )
-    
+
+    basedir = os.path.realpath(os.path.expanduser(cf.options.basedir))
+
     # Create the basedir if not exists
     try:
         os.makedirs(basedir, exist_ok=True)
@@ -24,5 +22,6 @@ def _init(): # pragma: no cover
         os.makedirs(os.path.join(basedir, "Raw"), exist_ok=True)
     except Exception:
         raise
+
 
 _init()

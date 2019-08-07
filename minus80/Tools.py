@@ -5,19 +5,20 @@ import shutil
 from glob import glob
 from pprint import pprint
 from collections import defaultdict
-from subprocess import check_call,CalledProcessError
+from subprocess import check_call, CalledProcessError
 
 from .Config import cf
 
-__all__ = ['available', 'delete']
+__all__ = ["available", "delete"]
 
 
-def install_apsw(method='pip',version='3.27.2',tag='-r1'):
-    if method == 'pip':
-        print('Installing apsw from GitHub using ')
-        version = '3.27.2'
-        tag = '-r1'
-        check_call(f'''\
+def install_apsw(method="pip", version="3.27.2", tag="-r1"):
+    if method == "pip":
+        print("Installing apsw from GitHub using ")
+        version = "3.27.2"
+        tag = "-r1"
+        check_call(
+            f"""\
             pip install  \
             https://github.com/rogerbinns/apsw/releases/download/{version}{tag}/apsw-{version}{tag}.zip \
             --global-option=fetch \
@@ -26,13 +27,14 @@ def install_apsw(method='pip',version='3.27.2',tag='-r1'):
             --global-option=--all \
             --global-option=build  \
             --global-option=--enable=rtree \
-        '''.split())
+        """.split()
+        )
     else:
-        raise ValueError(f'{method} not supported to install apsw')
+        raise ValueError(f"{method} not supported to install apsw")
 
 
 def get_files(dtype=None, name=None, fullpath=False):
-    '''
+    """
         List the files in the minus80 directory
         associated with a dtype and a name.
 
@@ -51,13 +53,13 @@ def get_files(dtype=None, name=None, fullpath=False):
 
         .. note:: This will only return top level files which sometimes
                   will be directories.
-    '''
+    """
     bdir = os.path.expanduser(cf.options.basedir)
     if name is None:
         name = "*"
     if dtype is None:
         dtype = "*"
-    data_dir = os.path.join(bdir, 'databases', f'{dtype}.{name}')
+    data_dir = os.path.join(bdir, "databases", f"{dtype}.{name}")
     files = sorted(glob(data_dir))
     if fullpath:
         files = files
@@ -65,8 +67,9 @@ def get_files(dtype=None, name=None, fullpath=False):
         files = [os.path.basename(x) for x in files]
     return files
 
-def available(dtype=None,name=None):
-    ''' 
+
+def available(dtype=None, name=None):
+    """ 
         Reports the available datasets **Frozen** in the minus80
         database.
 
@@ -87,11 +90,11 @@ def available(dtype=None,name=None):
             If both dtype and name are specified, a bool is returned
             indiciating if the dataset is available. Otherise a formatted
             table is printed and None is returned.
-    '''
-    files = get_files(dtype=dtype,name=name)
+    """
+    files = get_files(dtype=dtype, name=name)
 
     bdir = os.path.expanduser(cf.options.basedir)
-    print(f'Using basedir: {bdir}')
+    print(f"Using basedir: {bdir}")
     # handle case where bool is returns when both params specified
     if dtype != None and name != None:
         if len(files) > 0:
@@ -100,22 +103,23 @@ def available(dtype=None,name=None):
             return False
     else:
         # Print message if nothing is here
-        if len(files) == 0: # pragma: no cover
+        if len(files) == 0:  # pragma: no cover
             print("--- Nothing here yet ---")
             return None
         # group by dtype and print
         datasets = defaultdict(list)
         for f in files:
-            dtype,name = f.split('.') 
+            dtype, name = f.split(".")
             datasets[dtype].append(name)
         # Print a formatted table
         for dtype, names in datasets.items():
             print(f"--- {dtype}: -----------------")
             for i, name in enumerate(names, 1):
-                print(f'\t{i}. {name}')
+                print(f"\t{i}. {name}")
+
 
 def delete(dtype=None, name=None, force=False):
-    ''' 
+    """ 
         Deletes files associated with Minus80 datasets.
 
         Parameters
@@ -137,23 +141,23 @@ def delete(dtype=None, name=None, force=False):
             Returns the number of files deleted
 
         .. warning:: This is damaging. Deleted datasets cannot be (easily) recovered.
-    '''
-    if not available(dtype,name):
-        print(f'{dtype}.{name} does not exist -- nothing deleted')
+    """
+    if not available(dtype, name):
+        print(f"{dtype}.{name} does not exist -- nothing deleted")
         return
     # Get a filecard for all the minus80 filenames that match the
     # type and the name
     files = get_files(name=name, dtype=dtype)
-    if force != True: # pragma: no cover
-        print(f'Are you sure you want to delete {dtype}.{name}?:\n')
-        if input('[y/n]: ').upper() != 'Y':
-            print('Nothing deleted.')
+    if force != True:  # pragma: no cover
+        print(f"Are you sure you want to delete {dtype}.{name}?:\n")
+        if input("[y/n]: ").upper() != "Y":
+            print("Nothing deleted.")
             return 0
     # delete them
     num_deleted = 0
     for filename in files:
         bdir = os.path.expanduser(cf.options.basedir)
-        data_dir = os.path.join(bdir, 'databases')
+        data_dir = os.path.join(bdir, "databases")
         filename = os.path.join(data_dir, filename)
         # delete it
         shutil.rmtree(filename)
@@ -162,14 +166,10 @@ def delete(dtype=None, name=None, force=False):
 
 
 def guess_type(object):
-    '''
+    """
         Guess the type of object from the class attribute
-    '''
+    """
     # retrieve a list of classes
-    classes = re.match(
-        "<class '(.+)'>",
-        str(object.__class__)
-    ).groups()[0].split('.')
+    classes = re.match("<class '(.+)'>", str(object.__class__)).groups()[0].split(".")
     # Return the most specific one
     return classes[-1]
-
