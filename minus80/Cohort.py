@@ -48,6 +48,7 @@ class Cohort(Freezable):
     fileinfo = None
 
     def __init__(self, name, parent=None):
+        # Initialize Minus80
         super().__init__(name, parent=parent)
         self.name = name
         self._initialize_tables()
@@ -68,7 +69,7 @@ class Cohort(Freezable):
         """
         return [
             x[0]
-            for x in self._db.cursor()
+            for x in self.m80.db.cursor()
             .execute(
                 """
             SELECT DISTINCT(key) FROM metadata;
@@ -82,15 +83,15 @@ class Cohort(Freezable):
         """
             Return a list of all available names and aliases
         """
-        names = [x[0] for x in self._db.cursor().execute("SELECT name FROM accessions")]
-        aliases = [x[0] for x in self._db.cursor().execute("SELECT alias FROM aliases")]
+        names = [x[0] for x in self.m80.db.cursor().execute("SELECT name FROM accessions")]
+        aliases = [x[0] for x in self.m80.db.cursor().execute("SELECT alias FROM aliases")]
         return names + aliases
 
     @property
     def files(self):
         return [
             x[0]
-            for x in self._db.cursor()
+            for x in self.m80.db.cursor()
             .execute(
                 """
             SELECT url FROM raw_files WHERE ignore != 1
@@ -103,7 +104,7 @@ class Cohort(Freezable):
     def raw_files(self):
         return [
             x[0]
-            for x in self._db.cursor()
+            for x in self.m80.db.cursor()
             .execute(
                 """
             SELECT url FROM raw_files
@@ -117,7 +118,7 @@ class Cohort(Freezable):
         assigned = set(
             [
                 x[0]
-                for x in self._db.cursor()
+                for x in self.m80.db.cursor()
                 .execute(
                     """
                 SELECT DISTINCT(url) 
@@ -133,7 +134,7 @@ class Cohort(Freezable):
     def ignored_files(self):
         ignored = [
             x[0]
-            for x in self._db.cursor()
+            for x in self.m80.db.cursor()
             .execute(
                 """
                 SELECT DISTINCT(url) 
@@ -158,7 +159,7 @@ class Cohort(Freezable):
         except ImportError as e:
             raise ImportError("Pandas must be installed to use this feature")
         long_form = pd.DataFrame(
-            self._db.cursor()
+            self.m80.db.cursor()
             .execute(
                 """
             SELECT name,key,val FROM accessions acc 
@@ -188,7 +189,7 @@ class Cohort(Freezable):
                 An Accession object
         """
         name = (
-            self._db.cursor()
+            self.m80.db.cursor()
             .execute(
                 """
             SELECT name from accessions ORDER BY RANDOM() LIMIT 1;
@@ -218,7 +219,7 @@ class Cohort(Freezable):
                 )
             return (
                 self[name]
-                for (name,) in self._db.cursor().execute(
+                for (name,) in self.m80.db.cursor().execute(
                     """
                     SELECT name from accessions ORDER BY RANDOM() LIMIT ?;
                 """,
@@ -246,14 +247,14 @@ class Cohort(Freezable):
             # create a named tuple
             cols = [
                 x[0]
-                for x in self._db.cursor()
+                for x in self.m80.db.cursor()
                 .execute("SELECT * FROM raw_files")
                 .description
             ]
             self.fileinfo = namedtuple("fileinfo", cols)
 
         info = (
-            self._db.cursor()
+            self.m80.db.cursor()
             .execute(
                 """
             SELECT *
@@ -276,7 +277,7 @@ class Cohort(Freezable):
             url = x.url
             info_list.append((x.ignore, x.canonical_path, x.md5, x.size, x.url))
         # Update the info
-        self._db.cursor().executemany(
+        self.m80.db.cursor().executemany(
             """
             UPDATE raw_files SET
                 ignore = ?,
@@ -293,7 +294,7 @@ class Cohort(Freezable):
         """
             Add multiple Accessions at once
         """
-        with self._m80_bulk_transaction() as cur:
+        with self.m80.db.bulk_transaction() as cur:
             # When a name is added, it is automatically assigned an ID
             cur.executemany(
                 """
@@ -331,7 +332,7 @@ class Cohort(Freezable):
         """
             Add a sample to the Database
         """
-        with self._m80_bulk_transaction() as cur:
+        with self.m80.db.bulk_transaction() as cur:
             # When a name is added, it is automatically assigned an ID
             cur.execute(
                 """
@@ -410,7 +411,7 @@ class Cohort(Freezable):
             Assign an accession column as aliases
         """
         cur_names = set(self.names)
-        with self._m80_bulk_transaction() as cur:
+        with self.m80.db.bulk_transaction() as cur:
             alias_dict = {
                 a: aid
                 for a, aid in cur.execute(
@@ -446,10 +447,10 @@ class Cohort(Freezable):
         """
             Clear the aliases from the database
         """
-        self._db.cursor().execute("DELETE FROM aliases")
+        self.m80.db.cursor().execute("DELETE FROM aliases")
 
     def drop_accessions(self):
-        with self._m80_bulk_transaction() as cur:
+        with self.m80.db.bulk_transaction() as cur:
             cur.execute(
                 """
                 DELETE FROM accessions;
@@ -571,7 +572,7 @@ class Cohort(Freezable):
         """
             ignore files
         """
-        with self._m80_bulk_transaction() as cur:
+        with self.m80.db.bulk_transaction() as cur:
             cur.executemany(
                 """
                 UPDATE raw_files SET ignore = 1 
@@ -584,7 +585,7 @@ class Cohort(Freezable):
         """
             Perform a search of files names (url/path)
         """
-        cur = self._db.cursor()
+        cur = self.m80.db.cursor()
         name = f"%{url}%"
         names = cur.execute(
             "SELECT url FROM raw_files WHERE url LIKE ? and ignore != 1", (name,)
@@ -595,7 +596,7 @@ class Cohort(Freezable):
         """
             Performs a search of accession names 
         """
-        cur = self._db.cursor()
+        cur = self.m80.db.cursor()
         sql_name = f"%{name}%"
         names = cur.execute(
             "SELECT name FROM accessions WHERE name LIKE ?", (sql_name,)
@@ -641,7 +642,7 @@ class Cohort(Freezable):
             )
             WHERE count = {n_crit}
         """
-        return [self[x] for (x,) in self._db.cursor().execute(query).fetchall()]
+        return [self[x] for (x,) in self.m80.db.cursor().execute(query).fetchall()]
 
     async def crawl_host(
         self, hostname="localhost", path="/", username=None, glob="*.fastq"
@@ -688,7 +689,7 @@ class Cohort(Freezable):
         if url.path.startswith("./") or url.path.startswith("../"):
             raise ValueError(f"url cannot be relative ({url.path})")
         url = urllib.parse.urlunparse(url)
-        cur = self._db.cursor()
+        cur = self.m80.db.cursor()
         cur.execute(
             """
             INSERT OR IGNORE INTO raw_files (url) VALUES (?)
@@ -704,7 +705,7 @@ class Cohort(Freezable):
 
     def __repr__(self):
         return (
-            f'Cohort("{self.name}") -- \n'
+            f'Cohort("{self.m80.name}") -- \n'
             f"\tcontains {len(self)} Accessions\n"
             f"\t{len(self.files)} files ({len(self.unassigned_files)} unassigned)"
         )
@@ -717,7 +718,7 @@ class Cohort(Freezable):
         # First try
         AID = self._get_AID(name)
 
-        self._db.cursor().execute(
+        self.m80.db.cursor().execute(
             """
             DELETE FROM accessions WHERE AID = ?;
             DELETE FROM metadata WHERE AID = ?;
@@ -738,7 +739,7 @@ class Cohort(Freezable):
                 is an internal ID for accession
         """
         AID = self._get_AID(name)
-        cur = self._db.cursor()
+        cur = self.m80.db.cursor()
         # Get the name based on AID
         name, = cur.execute(
             "SELECT name FROM accessions WHERE AID = ?", (AID,)
@@ -766,7 +767,7 @@ class Cohort(Freezable):
 
     def __len__(self):
         return (
-            self._db.cursor()
+            self.m80.db.cursor()
             .execute(
                 """
             SELECT COUNT(*) FROM accessions;
@@ -778,7 +779,7 @@ class Cohort(Freezable):
     def __iter__(self):
         for name in (
             x[0]
-            for x in self._db.cursor()
+            for x in self.m80.db.cursor()
             .execute(
                 """
                 SELECT name FROM accessions
@@ -805,7 +806,7 @@ class Cohort(Freezable):
     # ------------------------------------------------------#
 
     def _initialize_tables(self):
-        cur = self._db.cursor()
+        cur = self.m80.db.cursor()
         cur.execute(
             """
             CREATE TABLE IF NOT EXISTS accessions (
@@ -885,7 +886,7 @@ class Cohort(Freezable):
     def get_name(self, name):
         AID = self._get_AID(name)
         name = (
-            self._db.cursor()
+            self.m80.db.cursor()
             .execute("SELECT name FROM accessions WHERE AID = ?", (AID,))
             .fetchone()[0]
         )
@@ -895,7 +896,7 @@ class Cohort(Freezable):
         AID = self._get_AID(name)
         aliases = [
             x[0]
-            for x in self._db.cursor().execute(
+            for x in self.m80.db.cursor().execute(
                 "SELECT alias FROM aliases WHERE AID = ?", (AID,)
             )
         ]
@@ -908,7 +909,7 @@ class Cohort(Freezable):
         """
         if isinstance(name, Accession):
             name = name.name
-        cur = self._db.cursor()
+        cur = self.m80.db.cursor()
         try:
             return cur.execute(
                 "SELECT AID FROM accessions WHERE name = ?", (name,)

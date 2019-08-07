@@ -1,13 +1,13 @@
 import pytest
 from minus80 import Accession
 from minus80 import Cohort
-from minus80 import CloudData
+#from minus80 import CloudData
 from minus80.Tools import *
 
 
-@pytest.fixture(scope="module")
-def simpleCloudData():
-    return CloudData()
+#@pytest.fixture(scope="module")
+#def simpleCloudData():
+#    return CloudData()
 
 
 @pytest.fixture(scope="module")

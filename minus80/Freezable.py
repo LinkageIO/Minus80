@@ -90,7 +90,7 @@ class FreezableAPI(object):
         self.doc = TinyDB(os.path.join(self.basedir, "tinydb.json"))
 
     @staticmethod
-    def _tmpfile(*args, **kwargs):
+    def tmpfile(*args, **kwargs):
         # returns a handle to a tmp file
         return tempfile.NamedTemporaryFile(
             "w",
