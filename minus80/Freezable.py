@@ -2,7 +2,6 @@
 import re
 import tempfile
 
-import bcolz as bcz
 import os as os
 import numpy as np
 import pandas as pd
