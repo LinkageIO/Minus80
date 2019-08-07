@@ -105,7 +105,7 @@ setup(
     install_requires=[
         "google-cloud >= 0.34.0",
         "google-cloud-storage >= 1.17.0",
-        "pandasr>=0.23.4",
+        "pandas>=0.23.4",
         #"bcolz == 1.2.1",
         #"blaze == 0.10.1",
         "tinydb>=3.13.0",
