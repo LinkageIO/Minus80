@@ -41,7 +41,9 @@ class bcolz_db(ColumnarDB):
         raise NotImplementedError()
 
 class hdf5_db(ColumnarDB):
-
+    '''
+        An HDF5 engine for storing columnar data in Minus80
+    '''
     def __init__(self,basedir):
         self.filename = os.path.expanduser(
             os.path.join(basedir,'db.hdf5')        
