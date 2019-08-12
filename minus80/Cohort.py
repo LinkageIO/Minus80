@@ -31,8 +31,9 @@ def invalidates_AID_cache(fn):
 
     @wraps(fn)
     def wrapped(self, *args, **kwargs):
-        fn(self, *args, **kwargs)
+        fn_result = fn(self, *args, **kwargs)
         self._get_AID.cache_clear()
+        return fn_result
 
     return wrapped
 
