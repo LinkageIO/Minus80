@@ -1,8 +1,7 @@
-def CloudData(engine="gcp"):
-    if engine == "gcp":
-        from .GCPCloudData import GCPCloudData
-
-        return GCPCloudData()
+def CloudData(engine="firebase"):
+    if engine == 'firebase':
+        from .FireBaseCloudData import FireBaseCloudData
+        return FireBaseCloudData()
     else:
         raise ValueError(f"Cannot use {engine} as a cloud engine.")
 
