@@ -11,11 +11,6 @@ default_config = """--- # YAML Minus80 Configuration File
 options:
     basedir: ~/.minus80/
 
-gcp:
-    credentials: ~/.minus80/gcp_creds.json
-    endpoint: https://storage.cloud.google.com
-    bucket: minus80
-
 """
 
 
