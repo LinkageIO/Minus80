@@ -9,6 +9,23 @@ from .CloudData import BaseCloudData
 from .Config import cf
 
 
+def ensure_valid_user(fn):
+    from functools import wraps
+
+    @wraps(fn)
+    def  wrapped(self, *args, **kwargs):
+        # make sure logged in
+        if os.path.exists(self._token_file):
+            self._load_token()
+            self._refresh_token()
+        else:
+            self._login()
+        # execute the function
+        result = fn(self, *args, **kwargs)
+        return result
+    return wrapped
+
+
 class FireBaseCloudData(BaseCloudData):
 
     config = {
@@ -24,11 +41,6 @@ class FireBaseCloudData(BaseCloudData):
         self.auth = self.firebase.auth()
         self._user = None
 
-        # Initialize
-        if os.path.exists(self._token_file):
-            self._load_token()
-        else:
-            self._login()
 
     @property
     def user(self):
@@ -52,6 +64,11 @@ class FireBaseCloudData(BaseCloudData):
 
     @property        
     def _token_file(self):
+        '''
+            Returns a path to a token file based
+            on the base directory defined in the 
+            config file.
+        '''
         return os.path.join(
             os.path.expanduser(cf.options.basedir),
             'JWT.json'
@@ -59,6 +76,9 @@ class FireBaseCloudData(BaseCloudData):
 
     @staticmethod
     def _validate_token_fields(token):
+        '''
+            Validates a token
+        '''
         valid_keys = [
             'kind', 'localId', 'email', 'displayName', 
             'idToken', 'registered', 'refreshToken', 
@@ -99,13 +119,14 @@ class FireBaseCloudData(BaseCloudData):
         except HTTPError as e:
             raise e
     
-
-
+    @ensure_valid_user 
     def push(self, name, dtype, raw=False, compress=False):
         raise NotImplementedError("This engine does not support pushing")
 
+    @ensure_valid_user  
     def pull(self, name, dtype, raw=False):
         raise NotImplementedError("This engine does not support pulling")
 
+    @ensure_valid_user
     def list(self, name=None, dtype=None, raw=None):
         raise NotImplementedError("This engine does not support listing")
