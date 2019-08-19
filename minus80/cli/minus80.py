@@ -70,7 +70,6 @@ def cloud():
 
 cli.add_command(cloud)
 
-
 @click.command()
 @click.option("--dtype", metavar="<dtype>", default=None)
 @click.option("--name", metavar="<name>", default=None)
