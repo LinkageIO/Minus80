@@ -48,9 +48,9 @@ class Cohort(Freezable):
     # This is a named tuple that will be populated by self.get_fileinfo
     fileinfo = None
 
-    def __init__(self, name, parent=None):
+    def __init__(self, name, basedir=None):
         # Initialize Minus80
-        super().__init__(name, parent=parent)
+        super().__init__(name,basedir=basedir)
         self.name = name
         self._initialize_tables()
         # Create the logger
@@ -59,7 +59,7 @@ class Cohort(Freezable):
         self.log.setLevel(logging.INFO)
 
     # ------------------------------------------------------#
-    #                 Properties                           #
+    #                 Properties                            #
     # ------------------------------------------------------#
 
     @property
@@ -71,11 +71,9 @@ class Cohort(Freezable):
         return [
             x[0]
             for x in self.m80.db.cursor()
-            .execute(
-                """
-            SELECT DISTINCT(key) FROM metadata;
-        """
-            )
+            .execute("""
+                SELECT DISTINCT(key) FROM metadata;
+            """)
             .fetchall()
         ]
 
