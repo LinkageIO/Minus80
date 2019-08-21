@@ -18,7 +18,9 @@ def cli():
     /_/  /_/_/_/ /_/\__,_/____/\____/\____/
 
 
-    Minus80 is a library for storing biological data. See https://github.com/LinkageIO/minus80
+    Minus80 is a library for storing biological data. 
+
+    See https://github.com/LinkageIO/minus80
     for more details.
     """
 
@@ -33,12 +35,16 @@ def cli():
 @click.option(
     "--name",
     default=None,
-    help="The name of the dataset you want to check is available. The default value is the wildcard '*' which will return all available datasets with the specified dtype.",
+    help=("The name of the dataset you want to check is available. "
+         "The default value is the wildcard '*' which will return "
+         "all available datasets with the specified dtype."),
 )
 @click.option(
     "--dtype",
     default=None,
-    help="Each dataset has a datatype associated with it. E.g.: `Cohort`. If no dtype is specified, all available dtypes  will be returned.",
+    help=("Each dataset has a datatype associated with it. "
+         "E.g.: `Cohort`. If no dtype is specified, all "
+         "available dtypes  will be returned."),
 )
 def list(name, dtype):
     minus80.Tools.available(dtype=dtype, name=name)
