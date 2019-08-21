@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import re
 import tempfile
+import hashlib
 
 import os as os
 import numpy as np
@@ -8,6 +9,7 @@ import pandas as pd
 
 from shutil import rmtree as rmdir
 from tinydb import TinyDB
+from pathlib import Path
 
 
 from minus80.RelationalDB import relational_db
@@ -33,7 +35,7 @@ class Freezable(object):
     The three main things that a Freezable object supplies are:
     * access to a sqlite database (relational records)
     * access to a bcolz databsase (columnar/table data)
-    * access to a persistant key/val store
+    * access to a persistant key/val document store
     * access to named temp files
 
     """
@@ -42,12 +44,13 @@ class Freezable(object):
         """
             Freezable object inherit an insance to the Freezable API.
         """
+        # Guess the dtype based on the class name
         dtype = guess_type(self)
         self.m80 = FreezableAPI(dtype, name, parent, basedir)
 
 
 class FreezableAPI(object):
-    def __init__(self, dtype, name, parent=None, basedir=None):
+    def __init__(self, dtype, name, basedir=None):
         """
         Initialize the Freezable Object.
 
@@ -62,31 +65,53 @@ class FreezableAPI(object):
         self.name = name
         # Set the m80 dtype
         self.dtype = dtype
+        self.tag = tag
 
-        # default to the basedir in the config file
+        # Default to the basedir in the config file
         if basedir is None:
-            basedir = cf.options.basedir
-        # Set up our base directory
-        if parent is None:
-            # set as the top level basedir as specified in the config file
-            self.basedir = os.path.join(
-                basedir, "databases", f"{self.dtype}.{self.name}"
-            )
-            self.parent = None
+            basedir = Path(cf.options.basedir).expanduser() / 'databases'
         else:
-            # set up the basedir to be within the parent basedir
-            self.basedir = os.path.join(parent.basedir, f"{self.dtype}.{self.name}")
-            self.parent = parent
-            self.parent.add_child(self)
+            basedir = Path(basedir).expanduser()
         # Create the base dir
+        self.basedir = basedir / self.slug
+        )
         os.makedirs(self.basedir, exist_ok=True)
-
         # Set up the columnar db
         self.col = columnar_db(self.basedir)
         # Get a handle to the sql database
         self.db = relational_db(self.basedir)
         # Set up a table
         self.doc = TinyDB(os.path.join(self.basedir, "tinydb.json"))
+
+    @property
+    def slug(self):
+        if self.tag is not None:
+            return f'{self.dtype}.{self.name}:{self.tag}'
+        else:
+            return f'{self.dtype}.{self.name}'
+
+    @property
+    def checksum(self):
+        """
+        Calculates the checksum of all the files in the freezable 
+        objects database directory   
+        """
+        def update_hash(running_hash, filepath):
+            with open(filepath, 'rb') as IN:
+                while True:
+                    # Read file in as little chunks.
+                    buf = IN.read(4096)
+                    if not buf:
+                        break
+                    running_hash.update(buf)
+        sha_hash = hashlib.sha256('{self.name}.{self.dtype}'.encode('utf-8'))
+        # iterate over the direcory and calucalte the hash
+        for root, dirs, files in os.walk(self.basedir):
+            for names in sorted(files):
+                filepath = os.path.join(root, names)
+                update_hash(running_hash=sha_hash,
+                            filepath=filepath)
+        return sha_hash.hexdigest()        
 
     @staticmethod
     def tmpfile(*args, **kwargs):
