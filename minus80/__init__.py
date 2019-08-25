@@ -17,7 +17,7 @@ def _init():  # pragma: no cover
     # Create the basedir if not exists
     try:
         os.makedirs(basedir, exist_ok=True)
-        os.makedirs(os.path.join(basedir, "databases"), exist_ok=True)
+        os.makedirs(os.path.join(basedir, "datasets"), exist_ok=True)
         os.makedirs(os.path.join(basedir, "tmp"), exist_ok=True)
         os.makedirs(os.path.join(basedir, "Raw"), exist_ok=True)
     except Exception:
