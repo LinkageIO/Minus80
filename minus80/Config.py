@@ -16,8 +16,7 @@ options:
 
 class Level(dict):
     """
-        Ha! Take that config parser! I am accessing
-        everything like an object.
+        access everything like an object.
     """
 
     def __init__(self, *args, **kwargs):
