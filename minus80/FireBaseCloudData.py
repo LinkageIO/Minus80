@@ -3,11 +3,14 @@ import json
 import getpass
 import pyrebase
 
+from pathlib import Path
+from tinydb import TinyDB, where
 from requests.exceptions import HTTPError
 
 from .CloudData import BaseCloudData
 from .Config import cf
 
+from .Exceptions import (TagDoesNotExistError,)
 
 def ensure_valid_user(fn):
     from functools import wraps
@@ -40,7 +43,6 @@ class FireBaseCloudData(BaseCloudData):
         self.firebase = pyrebase.initialize_app(self.config)
         self.auth = self.firebase.auth()
         self._user = None
-
 
     @property
     def user(self):
@@ -118,15 +120,29 @@ class FireBaseCloudData(BaseCloudData):
             self.user = user
         except HTTPError as e:
             raise e
-    
+
     @ensure_valid_user 
-    def push(self, name, dtype, raw=False, compress=False):
-        raise NotImplementedError("This engine does not support pushing")
+    def push(self, dtype, name, tag):
+        manifest = TinyDB(
+            Path(cf.options.basedir)/'datasets'/f'{dtype}.{name}'/'MANIFEST.json'
+        )
+        tag_data = manifest.get(where('tag') == tag)
+        if tag_data is None:
+            raise TagDoesNotExistError 
+        breakpoint()
+        db = self.firebase.database()
+        db.child('frozen').child(
+            self.user['userId']
+        ).child(
+            f'{dtype}'
+        ).child(
+            f'{name}'
+        ).push(tag_data,token=self.user['idToken'])
 
     @ensure_valid_user  
-    def pull(self, name, dtype, raw=False):
+    def pull(self, dtype, name, tag):
         raise NotImplementedError("This engine does not support pulling")
 
     @ensure_valid_user
-    def list(self, name=None, dtype=None, raw=None):
+    def list(self, dtype=None, name=None):
         raise NotImplementedError("This engine does not support listing")
