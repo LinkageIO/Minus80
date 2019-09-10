@@ -6,8 +6,14 @@ from glob import glob
 from pprint import pprint
 from collections import defaultdict
 from subprocess import check_call, CalledProcessError
+from pathlib import Path
+from tinydb import TinyDB
+from datetime import datetime
 
 from .Config import cf
+
+from .Exceptions import (TagInvalidError,
+                         FreezableNameInvalidError)
 
 __all__ = ["available", "delete"]
 
@@ -59,7 +65,7 @@ def get_files(dtype=None, name=None, fullpath=False):
         name = "*"
     if dtype is None:
         dtype = "*"
-    data_dir = os.path.join(bdir, "databases", f"{dtype}.{name}")
+    data_dir = os.path.join(bdir, "datasets", f"{dtype}.{name}")
     files = sorted(glob(data_dir))
     if fullpath:
         files = files
@@ -68,7 +74,7 @@ def get_files(dtype=None, name=None, fullpath=False):
     return files
 
 
-def available(dtype=None, name=None):
+def available(dtype=None, name=None, tags=False):
     """ 
         Reports the available datasets **Frozen** in the minus80
         database.
@@ -83,6 +89,8 @@ def available(dtype=None, name=None):
             The name of the dataset you want to check is available.
             The default value is the wildcard '*' which will return
             all available datasets with the specified dtype.
+        tags : bool, default: False
+            Prints the tags for each frozen dataset
 
         Returns
         -------
@@ -116,6 +124,13 @@ def available(dtype=None, name=None):
             print(f"--- {dtype}: -----------------")
             for i, name in enumerate(names, 1):
                 print(f"\t{i}. {name}")
+                if tags:
+                    manifest = TinyDB(Path(bdir)/'datasets'/f'{dtype}.{name}'/'MANIFEST.json') 
+                    tags = [x for x in manifest.table().all() if x['tag'] != 'thawed']
+                    tags.sort(key= lambda x: x['timestamp'])
+                    for t in tags:
+                        timestamp = datetime.fromtimestamp(t['timestamp']).strftime('%I:%M%p - %b %d, %Y')
+                        print(f"\t\t{t['tag']}\t({timestamp})")
 
 
 def delete(dtype=None, name=None, force=False):
@@ -157,12 +172,49 @@ def delete(dtype=None, name=None, force=False):
     num_deleted = 0
     for filename in files:
         bdir = os.path.expanduser(cf.options.basedir)
-        data_dir = os.path.join(bdir, "databases")
+        data_dir = os.path.join(bdir, "datasets")
         filename = os.path.join(data_dir, filename)
         # delete it
         shutil.rmtree(filename)
         num_deleted += 1
     return num_deleted
+
+def parse_slug(slug):
+    '''
+    Parses the dtype, name and tag from a slug
+    This function also validates the tag and the name
+    '''
+    try:
+        rest,tag = slug.split(':')
+    except ValueError:
+        rest,tag = slug,None
+    if tag is not None:
+        tag = validate_tagname(tag)    
+    dtype,name = rest.split('.',1)
+    name = validate_freezable_name(name)
+    return (dtype,name,tag)
+
+def validate_freezable_name(name):
+    '''
+    Cannot contain slashes, periods, or colons
+    '''
+    import re
+    if re.search('[./:]+',name) is None:
+        return name
+    else:
+        raise FreezableNameInvalidError(f'Invalid Freezable Name: "{name}"')
+
+def validate_tagname(tagname):
+    '''
+    '''
+    if tagname is None:
+        raise TagInvalidError(f'Invalid Tag Name: "{tagname}"')
+    import re
+    if re.search('[:]+',tagname) is None:
+        return tagname
+    else:
+        raise TagInvalidError(f'Invalid Tag Name: "{tagname}"')
+
 
 
 def guess_type(object):
