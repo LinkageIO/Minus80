@@ -20,7 +20,9 @@ from minus80.ColumnDB import columnar_db
 
 
 from .Config import cf
-from .Tools import guess_type
+from .Tools import (guess_type,
+                    validate_tagname,
+                    validate_freezable_name)
 
 from .Exceptions import (TagExistsError, 
                         TagDoesNotExistError, 
@@ -30,6 +32,8 @@ from .Exceptions import (TagExistsError,
 __all__ = ["Freezable"]
 
 log = logging.getLogger('minus80')
+
+SLUG_VERSION = 'v1'
 
 class Freezable(object):
     """
@@ -68,13 +72,13 @@ class FreezableAPI(object):
             The name of the frozen object.
         """
         # Set the m80 name
-        self.name = self._validate_freezable_name(name)
+        self.name = validate_freezable_name(name)
         # Set the m80 dtype
-        self.dtype = self._validate_freezable_name(dtype)
+        self.dtype = validate_freezable_name(dtype)
 
         # Default to the basedir in the config file
         if basedir is None:
-            basedir = Path(cf.options.basedir).expanduser() / 'datasets'
+            basedir = Path(cf.options.basedir).expanduser() / SLUG_VERSION / 'datasets'
         else:
             basedir = Path(basedir).expanduser()
         # Create the base dir
@@ -154,16 +158,18 @@ class FreezableAPI(object):
                     running_hash.update(buf)
             return running_hash.hexdigest()
         # iterate over the direcory and calucalte the hash
-        for root, dirs, files in os.walk(self.thawed_dir):
+        for root, dirs, files in os.walk(self.thawed_dir,followlinks=True):
             for file_path in sorted(files):
                 # Calculate a relative path to the freezable object
                 relative_path = str(Path(root) / file_path).replace(str(self.thawed_dir)+'/','')
-                full_file_path = Path(root) / file_path
+                # Calculate the full path without symlinks
+                full_path = (Path(root) / file_path).resolve()
                 # calculate and store the checksums
-                checksums['files'][relative_path] = file_hash(full_file_path)
+                phash = file_hash(full_path)
+                checksums['files'][phash] = (str(relative_path),str(full_path))
         # calculate the total
         total = hashlib.sha256(checksums['slug'].encode('utf-8'))
-        for csum in checksums['files'].values():
+        for csum in checksums['files'].keys():
             total.update(csum.encode('utf-8'))
         checksums['total'] = total.hexdigest()
         return checksums
@@ -177,7 +183,7 @@ class FreezableAPI(object):
         '''
         # Create the tag from the current thawed tag
         tag = self.thawed_tag
-        tagname = self._validate_tagname(tagname)
+        tagname = validate_tagname(tagname)
         # Make sure the tag doesn't already exist
         if tagname in self.tags:
             raise TagExistsError(f'Tag already exists: {tagname}')
@@ -186,18 +192,18 @@ class FreezableAPI(object):
         tag.update(self.checksum)
 
         # Check to see what files need to be frozen
-        for path,phash in tag['files'].items():
+        for phash,(relative_path,full_path) in tag['files'].items():
             if not (self.basedir / 'frozen' / phash).exists():
-                print(f'Found a new file: {path}')
+                log.info(f'Found a new file: {relative_path}')
                 shutil.copyfile(
-                    self.thawed_dir / path,
+                    self.thawed_dir / relative_path,
                     self.frozen_dir / phash
                 )
             else:
-                print(f'File already exists: {path}')
+                log.info(f'Using cached file: {relative_path}')
 
         # Add a datetime to the document
-        tag['timestamp'] = str(datetime.now())
+        tag['timestamp'] = datetime.now().timestamp()
 
         # Add the tag to the manifest
         self._manifest.insert(tag)
@@ -206,7 +212,7 @@ class FreezableAPI(object):
 
     def thaw(self, tagname, force=False):
         # Validate tag name
-        tagname = self._validate_tagname(tagname)
+        tagname = validate_tagname(tagname)
         # Check that tag exists
         tag_data = self._manifest.get(where('tag') == tagname)
         if tag_data is None:
@@ -226,12 +232,24 @@ class FreezableAPI(object):
         # Remove the current files in the thawed directory 
         shutil.rmtree(self.thawed_dir)
         self.thawed_dir.mkdir(exist_ok=True)
+         
+        for phash,(rel_path,full_path) in tag_data['files'].items():
+            # if the full and relative paths are equal, just copy
+            if Path(self.thawed_dir) / rel_path == full_path:
+                shutil.copyfile(
+                    self.frozen_dir / phash,
+                    self.thawed_dir / path,
+                )
+            else:
+                # set up the symlink
+                shutil.copyfile(
+                    self.frozen_dir / phash,
+                    full_path,
+                )
+                (Path(self.thawed_dir) / rel_path).symlink_to()
 
-        for path,phash in tag_data['files'].items():
-            shutil.copyfile(
-                self.frozen_dir / phash,
-                self.thawed_dir / path,
-            )
+
+
 
         self._update_thawed_tag({'parent':tagname})
             
@@ -245,7 +263,7 @@ class FreezableAPI(object):
         tag = self.thawed_tag
         #tag.update(self.checksum)
         # Update core data
-        tag['timestamp'] = str(datetime.now())
+        tag['timestamp'] = datetime.now().timestamp()
         # Update any extra data passed in through doc
         if doc is not None:
             tag.update(doc)
@@ -257,26 +275,6 @@ class FreezableAPI(object):
 
     # Class static methods---------------------------------------------
 
-    @staticmethod
-    def _validate_freezable_name(name):
-        '''
-        Cannot contain slashes, periods, or colons
-        '''
-        import re
-        if re.search('[./:]+',name) is None:
-            return name
-        else:
-            raise ValueError(f'Invalid Freezable Name: "{name}"')
-
-    @staticmethod
-    def _validate_tagname(tagname):
-        '''
-        '''
-        import re
-        if re.search('[:]+',tagname) is None:
-            return tagname
-        else:
-            raise ValueError(f'Invalid Tag Name: "{tagname}"')
 
 
     @staticmethod
