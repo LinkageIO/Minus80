@@ -10,11 +10,11 @@ class BaseCloudData(object):  # pragma: no cover
     def __init__(self):
         pass
 
-    def push(self, name, dtype, raw=False, compress=False):
+    def push(self, dtype, name, tag):
         raise NotImplementedError("This engine does not support pushing")
 
-    def pull(self, name, dtype, raw=False):
+    def pull(self, dtype, name, tag):
         raise NotImplementedError("This engine does not support pulling")
 
-    def list(self, name=None, dtype=None, raw=None):
+    def list(self, dtype=None, name=None):
         raise NotImplementedError("This engine does not support listing")
