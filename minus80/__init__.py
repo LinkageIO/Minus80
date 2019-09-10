@@ -3,8 +3,10 @@ __version__ = "1.0.0"
 
 from .Freezable import Freezable
 from .Accession import Accession
-from .Cohort import Cohort
 from .CloudData import CloudData
+from .Project import Project
+from .Cohort import Cohort
+
 import minus80.Tools as tools
 
 # Initialize the Minus80 Freezer
