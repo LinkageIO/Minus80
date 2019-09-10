@@ -106,8 +106,6 @@ setup(
         "google-cloud >= 0.34.0",
         "google-cloud-storage >= 1.17.0",
         "pandas>=0.23.4",
-        #"bcolz == 1.2.1",
-        #"blaze == 0.10.1",
         "tinydb>=3.13.0",
         "tables >= 3.5.2",
         "h5py >= 2.9.0",
