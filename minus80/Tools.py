@@ -11,9 +11,9 @@ from tinydb import TinyDB
 from datetime import datetime
 
 from .Config import cf
-
 from .Exceptions import (TagInvalidError,
                          FreezableNameInvalidError)
+from minus80 import SLUG_VERSION 
 
 __all__ = ["available", "delete"]
 
@@ -65,8 +65,8 @@ def get_files(dtype=None, name=None, fullpath=False):
         name = "*"
     if dtype is None:
         dtype = "*"
-    data_dir = os.path.join(bdir, "datasets", f"{dtype}.{name}")
-    files = sorted(glob(data_dir))
+    data_dir = Path(bdir)/"datasets"/SLUG_VERSION/f"{dtype}.{name}"
+    files = sorted(glob(str(data_dir)))
     if fullpath:
         files = files
     else:
@@ -102,7 +102,6 @@ def available(dtype=None, name=None, tags=False):
     files = get_files(dtype=dtype, name=name)
 
     bdir = os.path.expanduser(cf.options.basedir)
-    print(f"Using basedir: {bdir}")
     # handle case where bool is returns when both params specified
     if dtype != None and name != None:
         if len(files) > 0:
@@ -125,7 +124,7 @@ def available(dtype=None, name=None, tags=False):
             for i, name in enumerate(names, 1):
                 print(f"\t{i}. {name}")
                 if tags:
-                    manifest = TinyDB(Path(bdir)/'datasets'/f'{dtype}.{name}'/'MANIFEST.json') 
+                    manifest = TinyDB(Path(bdir)/'datasets'/SLUG_VERSION/f'{dtype}.{name}'/'MANIFEST.json') 
                     tags = [x for x in manifest.table().all() if x['tag'] != 'thawed']
                     tags.sort(key= lambda x: x['timestamp'])
                     for t in tags:
@@ -172,7 +171,7 @@ def delete(dtype=None, name=None, force=False):
     num_deleted = 0
     for filename in files:
         bdir = os.path.expanduser(cf.options.basedir)
-        data_dir = os.path.join(bdir, "datasets")
+        data_dir = Path(bdir)/"datasets"/SLUG_VERSION
         filename = os.path.join(data_dir, filename)
         # delete it
         shutil.rmtree(filename)
