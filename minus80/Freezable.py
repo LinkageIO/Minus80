@@ -17,6 +17,7 @@ from datetime import datetime
 
 from minus80.RelationalDB import relational_db
 from minus80.ColumnDB import columnar_db
+from minus80 import SLUG_VERSION
 
 
 from .Config import cf
@@ -33,7 +34,6 @@ __all__ = ["Freezable"]
 
 log = logging.getLogger('minus80')
 
-SLUG_VERSION = 'v1'
 
 class Freezable(object):
     """
@@ -78,7 +78,7 @@ class FreezableAPI(object):
 
         # Default to the basedir in the config file
         if basedir is None:
-            basedir = Path(cf.options.basedir).expanduser() / SLUG_VERSION / 'datasets'
+            basedir = Path(cf.options.basedir).expanduser() / 'datasets' / SLUG_VERSION
         else:
             basedir = Path(basedir).expanduser()
         # Create the base dir
@@ -146,6 +146,7 @@ class FreezableAPI(object):
                 '{self.name}.{self.dtype}'.encode('utf-8')
             ).hexdigest(),
             'files': {},
+            'dirs': []
         }
         def file_hash(filepath):
             running_hash = hashlib.sha256()
@@ -158,7 +159,11 @@ class FreezableAPI(object):
                     running_hash.update(buf)
             return running_hash.hexdigest()
         # iterate over the direcory and calucalte the hash
-        for root, dirs, files in os.walk(self.thawed_dir,followlinks=True):
+        for level,(root,dirs,files) in enumerate(os.walk(self.thawed_dir,followlinks=True)):
+            for dir_path in sorted(dirs):
+                rel_path = str(Path(root)/dir_path).replace(str(self.thawed_dir)+'/','')
+                full_path = (Path(root)/dir_path).resolve()
+                checksums['dirs'].append((level,str(rel_path),str(full_path))) 
             for file_path in sorted(files):
                 # Calculate a relative path to the freezable object
                 relative_path = str(Path(root) / file_path).replace(str(self.thawed_dir)+'/','')
