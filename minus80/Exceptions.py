@@ -17,3 +17,6 @@ class FreezableNameInvalidError(M80Error):
 
 class UnsavedChangesInThawedError(M80Error):
     pass
+
+class NotLoggedInError(M80Error):
+    pass
