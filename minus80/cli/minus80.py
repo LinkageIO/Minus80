@@ -1,13 +1,18 @@
 #!/usr/bin/env python3
 
+import os
 import click
 import minus80 as m80
 import minus80.Tools
+
+from pathlib import Path
 
 from minus80.Exceptions import (TagInvalidError,
                                 FreezableNameInvalidError,
                                 TagExistsError,
                                 TagDoesNotExistError)
+from requests.exceptions import HTTPError
+
 
 class NaturalOrderGroup(click.Group):
     '''
@@ -49,12 +54,22 @@ def cli():
 @click.argument(
     'name',
 )
-@click.argument(
-    'directory'        
+@click.option(
+    '--path',
+    default=None,
+    help='If specified, the minus80 project directory for NAME will be created here'
 )
-def init(name,directory):
+def init(name,path):
     x = m80.Project(name)
-    x.dir = directory
+    if path is not None:
+        path = str(Path(path)/name)
+    else:
+        path = str(Path.cwd()/name)
+    try:
+        x.create_link(path)
+    except ValueError as e:
+        click.echo(f'cannot create project directroy at: "{path}", directory already exists')
+
 
 cli.add_command(init)
 
@@ -162,7 +177,12 @@ cli.add_command(freeze)
 
 @click.command(help='Thaw a minus80 dataset')
 @click.argument("slug",metavar="<slug>")
-def thaw(slug):
+@click.option("--force",is_flag=True,default=False,help='forces a thaw, even if there are unsaved changes',)
+def thaw(slug,force):
+    try:
+        cwd = Path.cwd().resolve()
+    except FileNotFoundError as e:
+        cwd = '/' 
     try:
         dtype,name,tag = minus80.Tools.parse_slug(slug) 
         if tag is None:
@@ -187,10 +207,19 @@ def thaw(slug):
             click.echo(f'Could not build {dtype}.{name}')
         # Freeze with tag
         try:
-            dataset.m80.thaw(tag)
+            dataset.m80.thaw(tag,force=force)
             click.echo(click.style("SUCCESS!",fg="green",bold=True))
         except TagDoesNotExistError:
             click.echo(f'tag "{tag}" does not exist for {dtype}.{name}')
+    # Warn the user if they are in a directory (cwd) that was deleted
+    # in the thaw -- theres nothing we can do about this ...
+    if str(cwd).startswith(str(dataset.m80.thawed_dir)):
+        click.echo(
+            'Looks like you are currently in a directory that was just thawed, '
+            'update your current working directory with, e.g.:\n'
+            '$ cd `pwd`\n'
+            f'$ cd {cwd}'
+        )
         
 cli.add_command(thaw)
 
@@ -200,9 +229,36 @@ cli.add_command(thaw)
 @click.group()
 def cloud():
     """
-    Manage your frozen minus80 datasets in the cloud.
+    Manage your frozen minus80 datasets in the cloud (minus80.linkage.io).
     """
 cli.add_command(cloud)
+
+@click.command()
+@click.option('--username',default=None)
+@click.option('--password',default=None)
+@click.option('--force',is_flag=True,default=False)
+def login(username,password,force):
+    """
+        Log into your cloud account at minus80.linkage.io
+    """
+    cloud = m80.CloudData() 
+    try:
+        user = cloud.user
+        if user['email'] is not None and force != True:
+            click.echo(f"Already loggin in as {cloud.user['email']}")
+            click.echo('User --force to override')
+            return 0
+    except NotLoggedInError:
+        pass
+    if username is None:
+        username = click.prompt('Username (email)',type=str)
+    if password is None:
+        password = click.prompt('Password', hide_input=True, type=str)
+    try:
+        cloud.login(username,password)
+        click.secho('Successfully logged in',bg='green')
+    except HTTPError as e:
+        click.secho('Error logging in. Check username and password',fg='red')
 
 @click.command()
 @click.option("--dtype", metavar="<dtype>", default=None)
@@ -276,7 +332,7 @@ def remove(dtype, name, raw):
     cloud = m80.CloudData()
     cloud.remove(dtype, name, raw)
 
-
+cloud.add_command(login)
 cloud.add_command(list)
 cloud.add_command(push)
 cloud.add_command(pull)
