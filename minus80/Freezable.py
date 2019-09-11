@@ -132,8 +132,17 @@ class FreezableAPI(object):
                 'tag' : 'thawed',
                 'parent' : None
             }
-        #tag.update(self.checksum)
         return tag
+
+    @property
+    def parent_tag(self):
+        tag = self.thawed_tag
+        if tag['parent'] is None:
+            raise TagDoesNotExistError('parent tag is None') 
+        parent = self._manifest.get(where('tag') == tag['parent']) 
+        if parent is None:
+            raise TagDoesNotExistError('parent tag "{tag["parent"]} is not in manifest"')
+        return parent
 
     @property
     def checksum(self):
@@ -145,8 +154,7 @@ class FreezableAPI(object):
             'slug': hashlib.sha256(
                 '{self.name}.{self.dtype}'.encode('utf-8')
             ).hexdigest(),
-            'files': {},
-            'dirs': []
+            'files': {}
         }
         def file_hash(filepath):
             running_hash = hashlib.sha256()
@@ -159,19 +167,14 @@ class FreezableAPI(object):
                     running_hash.update(buf)
             return running_hash.hexdigest()
         # iterate over the direcory and calucalte the hash
-        for level,(root,dirs,files) in enumerate(os.walk(self.thawed_dir,followlinks=True)):
-            for dir_path in sorted(dirs):
-                rel_path = str(Path(root)/dir_path).replace(str(self.thawed_dir)+'/','')
-                full_path = (Path(root)/dir_path).resolve()
-                checksums['dirs'].append((level,str(rel_path),str(full_path))) 
+        for root,dirs,files in os.walk(self.thawed_dir):
             for file_path in sorted(files):
+                full_path = str(Path(root)/file_path)
                 # Calculate a relative path to the freezable object
-                relative_path = str(Path(root) / file_path).replace(str(self.thawed_dir)+'/','')
-                # Calculate the full path without symlinks
-                full_path = (Path(root) / file_path).resolve()
+                rel_path = full_path.replace(str(self.thawed_dir)+'/','')
                 # calculate and store the checksums
                 phash = file_hash(full_path)
-                checksums['files'][phash] = (str(relative_path),str(full_path))
+                checksums['files'][rel_path] = phash
         # calculate the total
         total = hashlib.sha256(checksums['slug'].encode('utf-8'))
         for csum in checksums['files'].keys():
@@ -197,7 +200,7 @@ class FreezableAPI(object):
         tag.update(self.checksum)
 
         # Check to see what files need to be frozen
-        for phash,(relative_path,full_path) in tag['files'].items():
+        for relative_path,phash in tag['files'].items():
             if not (self.basedir / 'frozen' / phash).exists():
                 log.info(f'Found a new file: {relative_path}')
                 shutil.copyfile(
@@ -235,26 +238,18 @@ class FreezableAPI(object):
         # Thaw it out ----------
 
         # Remove the current files in the thawed directory 
-        shutil.rmtree(self.thawed_dir)
-        self.thawed_dir.mkdir(exist_ok=True)
-         
-        for phash,(rel_path,full_path) in tag_data['files'].items():
-            # if the full and relative paths are equal, just copy
-            if Path(self.thawed_dir) / rel_path == full_path:
-                shutil.copyfile(
-                    self.frozen_dir / phash,
-                    self.thawed_dir / path,
-                )
-            else:
-                # set up the symlink
-                shutil.copyfile(
-                    self.frozen_dir / phash,
-                    full_path,
-                )
-                (Path(self.thawed_dir) / rel_path).symlink_to()
+        for root, dirs, files in os.walk(self.thawed_dir):
+            for f in files:
+                os.unlink(os.path.join(root, f))
+            for d in dirs:
+                shutil.rmtree(os.path.join(root, d))
 
-
-
+        for rel_path,phash in tag_data['files'].items():
+            (self.thawed_dir/rel_path).parent.mkdir(parents=True,exist_ok=True)
+            shutil.copyfile(
+                self.frozen_dir / phash,
+                self.thawed_dir / rel_path,
+            )
 
         self._update_thawed_tag({'parent':tagname})
             
