@@ -100,7 +100,6 @@ def available(dtype=None, name=None, tags=False):
             table is printed and None is returned.
     """
     files = get_files(dtype=dtype, name=name)
-
     bdir = os.path.expanduser(cf.options.basedir)
     # handle case where bool is returns when both params specified
     if dtype != None and name != None:
@@ -111,7 +110,7 @@ def available(dtype=None, name=None, tags=False):
     else:
         # Print message if nothing is here
         if len(files) == 0:  # pragma: no cover
-            print("--- Nothing here yet ---")
+            print("[Nothing here yet]")
             return None
         # group by dtype and print
         datasets = defaultdict(list)
@@ -120,16 +119,16 @@ def available(dtype=None, name=None, tags=False):
             datasets[dtype].append(name)
         # Print a formatted table
         for dtype, names in datasets.items():
-            print(f"--- {dtype}: -----------------")
+            print(f"{dtype}")
             for i, name in enumerate(names, 1):
-                print(f"\t{i}. {name}")
+                print(f"  └──{name}")
                 if tags:
                     manifest = TinyDB(Path(bdir)/'datasets'/SLUG_VERSION/f'{dtype}.{name}'/'MANIFEST.json') 
                     tags = [x for x in manifest.table().all() if x['tag'] != 'thawed']
                     tags.sort(key= lambda x: x['timestamp'])
                     for t in tags:
                         timestamp = datetime.fromtimestamp(t['timestamp']).strftime('%I:%M%p - %b %d, %Y')
-                        print(f"\t\t{t['tag']}\t({timestamp})")
+                        print(f"   ├──{t['tag']}\t({timestamp})")
 
 
 def delete(dtype=None, name=None, force=False):
