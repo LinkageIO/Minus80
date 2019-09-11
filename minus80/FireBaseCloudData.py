@@ -10,7 +10,10 @@ from requests.exceptions import HTTPError
 from .CloudData import BaseCloudData
 from .Config import cf
 
-from .Exceptions import (TagDoesNotExistError,)
+from .Exceptions import (
+    TagDoesNotExistError,
+    NotLoggedInError
+)
 
 def ensure_valid_user(fn):
     from functools import wraps
@@ -22,7 +25,7 @@ def ensure_valid_user(fn):
             self._load_token()
             self._refresh_token()
         else:
-            self._login()
+            raise NotLoggedInError
         # execute the function
         result = fn(self, *args, **kwargs)
         return result
@@ -51,7 +54,7 @@ class FireBaseCloudData(BaseCloudData):
             try: 
                 self._load_token()
             except FileNotFoundError:
-                self._login()
+                raise NotLoggedInError()
         return self._user
 
     @user.setter
@@ -112,9 +115,7 @@ class FireBaseCloudData(BaseCloudData):
         new_user = self.auth.refresh(self.user['refreshToken'])
         self._user.update(new_user)
 
-    def _login(self):
-        email = input('email: ')
-        password = getpass.getpass('password: ')
+    def login(self,email,password):
         try:
             user = self.auth.sign_in_with_email_and_password(email,password)
             self.user = user
