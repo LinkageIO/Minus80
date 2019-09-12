@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import os
+import json
 import click
 import minus80 as m80
 import minus80.Tools
@@ -10,7 +11,10 @@ from pathlib import Path
 from minus80.Exceptions import (TagInvalidError,
                                 FreezableNameInvalidError,
                                 TagExistsError,
-                                TagDoesNotExistError)
+                                TagDoesNotExistError,
+                                UserNotLoggedInError,
+                                UserNotVerifiedError,
+                                UnsavedChangesInThawedError)
 from requests.exceptions import HTTPError
 
 
@@ -26,7 +30,7 @@ class NaturalOrderGroup(click.Group):
 
 @click.group(
     cls=NaturalOrderGroup,
-    epilog=f"Made with ❤️  in Denver -- Version {m80.__version__}"
+    epilog=f"Made with ❤️  in Denver, Colorado"
 )
 def cli():
     """
@@ -38,7 +42,7 @@ def cli():
     /_/  /_/_/_/ /_/\__,_/____/\____/\____/
 
 
-    Minus80 is a library for storing biological data. 
+    Track, tag, store, and share biological datasets. 
 
     See https://github.com/LinkageIO/minus80
     for more details.
@@ -211,6 +215,17 @@ def thaw(slug,force):
             click.echo(click.style("SUCCESS!",fg="green",bold=True))
         except TagDoesNotExistError:
             click.echo(f'tag "{tag}" does not exist for {dtype}.{name}')
+            return 0
+        except UnsavedChangesInThawedError as e:
+            click.secho(
+                'freeze your current changes or use "force" to dispose of '
+                'any unsaved changes in current thawed dataset',fg='red'
+            )
+            for status,files in {'Changed':e.changed,'New':e.new,'Deleted':e.deleted}.items(): 
+                for f in files:
+                    click.secho(f"    {status}: {f}",fg='yellow')
+            return 0
+
     # Warn the user if they are in a directory (cwd) that was deleted
     # in the thaw -- theres nothing we can do about this ...
     if str(cwd).startswith(str(dataset.m80.thawed_dir)):
@@ -237,28 +252,46 @@ cli.add_command(cloud)
 @click.option('--username',default=None)
 @click.option('--password',default=None)
 @click.option('--force',is_flag=True,default=False)
-def login(username,password,force):
+@click.option('--reset-password',is_flag=True,default=False)
+def login(username,password,force,reset_password):
     """
         Log into your cloud account at minus80.linkage.io
     """
     cloud = m80.CloudData() 
+    if force:
+        try:
+            os.remove(cloud._token_file)
+        except FileNotFoundError:
+            pass
     try:
-        user = cloud.user
-        if user['email'] is not None and force != True:
-            click.echo(f"Already loggin in as {cloud.user['email']}")
-            click.echo('User --force to override')
+        # See if currently logged in
+        cloud.user
+    except UserNotLoggedInError:
+        if username is None:
+            username = click.prompt('Username (email)',type=str)
+        if password is None:
+            password = click.prompt('Password', hide_input=True, type=str)
+        try:
+            cloud.login(username,password)
+        except HTTPError as e:
+            error_code = json.loads(e.args[1])['error']['message']
+            if error_code == 'INVALID_EMAIL':
+                click.secho('Error logging in. Invalid email address!.',fg='red')
+            elif error_code == 'INVALID_PASSWORD':
+                click.secho('Error logging in. Incorrect Password!',fg='red')
+            else:
+                click.secho(f'Error logging in. {error_code}',fg='red')
             return 0
-    except NotLoggedInError:
-        pass
-    if username is None:
-        username = click.prompt('Username (email)',type=str)
-    if password is None:
-        password = click.prompt('Password', hide_input=True, type=str)
-    try:
-        cloud.login(username,password)
-        click.secho('Successfully logged in',bg='green')
-    except HTTPError as e:
-        click.secho('Error logging in. Check username and password',fg='red')
+    account_info = cloud.auth.get_account_info(cloud.user['idToken'])
+    # double check that the user is verified
+    if account_info['users'][0]['emailVerified'] == False:
+        # make sure they have email verified
+        click.secho("Your email has not been verified!")
+        if click.confirm('Do you want to resend the verification email?'):
+            cloud.auth.send_email_verification(cloud._user['idToken'])
+        click.secho("Please follow the link sent to your email address, then re-run this command")
+        return 0
+    click.secho('Successfully logged in',bg='green')
 
 @click.command()
 @click.option("--dtype", metavar="<dtype>", default=None)
@@ -280,6 +313,11 @@ def push(slug):
     Positional Arguments:
     <slug> - A slug of a frozen minus80 dataset
     """
+    cloud = m80.CloudData()
+    try:
+        cloud.user
+    except UserNotLoggedInError as e:
+        click.secho("Please log in to use this feature")
     try:
         dtype,name,tag = minus80.Tools.parse_slug(slug) 
         if tag is None:
@@ -297,12 +335,10 @@ def push(slug):
         )
         return 0
     else:
-        cloud = m80.CloudData()
         try:
             cloud.push(dtype, name, tag)
         except TagDoesNotExistError as e:
             click.echo(f'tag "{tag}" does not exist for {dtype}.{name}')
-
 
 @click.command()
 @click.argument("dtype", metavar="<dtype>")
@@ -340,9 +376,9 @@ cloud.add_command(remove)
 
 
 
-@click.command(help='Additional information')
-def info():
+@click.command(help='Additional information information')
+def version():
     print(f'Version: {m80.__version__}')
     print(f'Installation Path: {m80.__file__}')
 
-cli.add_command(info)
+cli.add_command(version)
