@@ -16,7 +16,14 @@ class FreezableNameInvalidError(M80Error):
     pass
 
 class UnsavedChangesInThawedError(M80Error):
+    def __init__(self,msg='',new=None,changed=None,deleted=None):
+        super().__init__(msg)
+        self.new = new
+        self.changed = changed
+        self.deleted = deleted
+
+class UserNotLoggedInError(M80Error):
     pass
 
-class NotLoggedInError(M80Error):
+class UserNotVerifiedError(M80Error):
     pass
