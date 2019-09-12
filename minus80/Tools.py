@@ -7,7 +7,7 @@ from pprint import pprint
 from collections import defaultdict
 from subprocess import check_call, CalledProcessError
 from pathlib import Path
-from tinydb import TinyDB
+from tinydb import TinyDB,where
 from datetime import datetime
 
 from .Config import cf
@@ -122,13 +122,16 @@ def available(dtype=None, name=None, tags=False):
             print(f"{dtype}")
             for i, name in enumerate(names, 1):
                 print(f"  └──{name}")
+                # Print tag data
                 if tags:
                     manifest = TinyDB(Path(bdir)/'datasets'/SLUG_VERSION/f'{dtype}.{name}'/'MANIFEST.json') 
                     tags = [x for x in manifest.table().all() if x['tag'] != 'thawed']
                     tags.sort(key= lambda x: x['timestamp'])
+                    # print thawed info first
                     for t in tags:
                         timestamp = datetime.fromtimestamp(t['timestamp']).strftime('%I:%M%p - %b %d, %Y')
-                        print(f"   ├──{t['tag']}\t({timestamp})")
+                        csum = t['total'][0:10]
+                        print(f"   └──{t['tag']} {csum} ({timestamp})")
 
 
 def delete(dtype=None, name=None, force=False):
@@ -212,8 +215,6 @@ def validate_tagname(tagname):
         return tagname
     else:
         raise TagInvalidError(f'Invalid Tag Name: "{tagname}"')
-
-
 
 def guess_type(object):
     """
