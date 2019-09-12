@@ -60,6 +60,14 @@ class Freezable(object):
         dtype = guess_type(self)
         self.m80 = FreezableAPI(dtype, name, basedir)
 
+    def __freezable_delete_cleanup__(self):
+        """
+            This method gets called when intefaces delete datasets.
+            It is up to the interface to call this method after all
+            the internal minus80 files are deleted
+        """
+        pass
+
 
 class FreezableAPI(object):
     def __init__(self, dtype, name, basedir=None):
@@ -177,7 +185,9 @@ class FreezableAPI(object):
                 checksums['files'][rel_path] = phash
         # calculate the total
         total = hashlib.sha256(checksums['slug'].encode('utf-8'))
-        for csum in checksums['files'].keys():
+        # Iterate over filenames AND hashes and update checksum
+        for filename,csum in checksums['files'].items():
+            total.update(filename.encode('utf-8'))
             total.update(csum.encode('utf-8'))
         checksums['total'] = total.hexdigest()
         return checksums
@@ -227,13 +237,26 @@ class FreezableAPI(object):
             raise TagDoesNotExistError(f'{tagname} is not in frozen datasets')
         # Check to see that current thawed dataset doesnt have unsaved work
         current_checksum = self.checksum['total']        
-        parent_checksum = self._manifest.get(
+        parent = self._manifest.get(
             where('tag') == self.thawed_tag['parent']
-        )['total']
-        if not force and current_checksum != parent_checksum:
+        )
+        if not force and current_checksum != parent['total']:
+            new = []
+            changed = []
+            deleted = []
+            for f,c in self.checksum['files'].items():
+                if f not in parent['files']:
+                    new.append(f)
+                elif c != parent['files'][f]:
+                    changed.append(f)
+            for f,c in parent['files'].items():
+                if f not in self.checksum['files']:
+                    deleted.append(f)
+            # poppulate a list of files that changed
             raise UnsavedChangesInThawedError(
                 'freeze your current changes or use "force" to dispose '
-                'of any unsaved changes in current thawed dataset'
+                'of any unsaved changes in current thawed dataset',
+                new=new,changed=changed,deleted=deleted
             ) 
         # Thaw it out ----------
 
