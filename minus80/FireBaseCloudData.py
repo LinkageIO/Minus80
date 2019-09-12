@@ -12,8 +12,11 @@ from .Config import cf
 
 from .Exceptions import (
     TagDoesNotExistError,
-    NotLoggedInError
+    UserNotLoggedInError,
+    UserNotVerifiedError
 )
+
+from minus80 import SLUG_VERSION
 
 def ensure_valid_user(fn):
     from functools import wraps
@@ -52,20 +55,28 @@ class FireBaseCloudData(BaseCloudData):
         # user pre-loaded user
         if self._user is None:
             try: 
-                self._load_token()
+                self._user = self._load_token()
             except FileNotFoundError:
-                raise NotLoggedInError()
+                raise UserNotLoggedInError()
+        # else refresh
+        refresh = self._refresh_token(self._user)
+        self._user.update(refresh)
+        # Dump refreshed token
+        self._dump_token(self._user)
+        # return fresh token 
         return self._user
 
     @user.setter
     def user(self, new_user):
         # Return the new token
         if self._user is None:
-            self._user = new_user 
-        else:
-            self._user.update(new_user)
-        self._refresh_token()
-        self._dump_token()
+            self._user = {}
+        self._user.update(new_user)
+        # Try to refresh token
+        refresh = self._refresh_token(self._user)
+        self._user.update(refresh)
+        # Dump refreshed token
+        self._dump_token(self._user)
 
     @property        
     def _token_file(self):
@@ -94,56 +105,53 @@ class FireBaseCloudData(BaseCloudData):
                 return False
         return True
 
-    def _dump_token(self):
-        self._refresh_token()
-        token = self._user
-        if not self._validate_token_fields(token):
-            raise ValueError(f"Current token is invalid: {token}")
+    def _dump_token(self,token):
         json.dump(token, open(self._token_file,'w'))
 
     def _load_token(self):
         if not os.path.exists(self._token_file):
             raise FileNotFoundError('No token file to load')
         token = json.load(open(self._token_file,'r')) 
-        if not self._validate_token_fields(token):
-            raise ValueError(f"Current token is invalid: {token}")
-        self._user = token
-        self._refresh_token()
+        return token
 
-    def _refresh_token(self):
-        old_user = self.user
-        new_user = self.auth.refresh(self.user['refreshToken'])
-        self._user.update(new_user)
+    def _refresh_token(self,token):
+        new_user = self.auth.refresh(token['refreshToken'])
+        return new_user
 
     def login(self,email,password):
+        '''
+            Log into minus80.linkage.io using a username and password
+
+            Parameters
+            ----------
+            email: str
+                 
+
+        '''
         try:
             user = self.auth.sign_in_with_email_and_password(email,password)
             self.user = user
         except HTTPError as e:
             raise e
 
-    @ensure_valid_user 
     def push(self, dtype, name, tag):
         manifest = TinyDB(
-            Path(cf.options.basedir)/'datasets'/f'{dtype}.{name}'/'MANIFEST.json'
+            Path(cf.options.basedir)/'datasets'/SLUG_VERSION/f'{dtype}.{name}'/'MANIFEST.json'
         )
         tag_data = manifest.get(where('tag') == tag)
         if tag_data is None:
             raise TagDoesNotExistError 
-        breakpoint()
-        db = self.firebase.database()
-        db.child('frozen').child(
-            self.user['userId']
-        ).child(
-            f'{dtype}'
-        ).child(
-            f'{name}'
-        ).push(tag_data,token=self.user['idToken'])
+        # build the REST query
+        headers = {"content-type": "application/json; charset=UTF-8"}
+        data = {
+            'user' : self.user,
+            'slug' : f'{dtype}/{name}:{tag}',
+            'tag' : tag_data
+        }
+        req_url = 'https://us-central1-minus80.cloudfunctions.net/function-1'
 
-    @ensure_valid_user  
     def pull(self, dtype, name, tag):
         raise NotImplementedError("This engine does not support pulling")
 
-    @ensure_valid_user
     def list(self, dtype=None, name=None):
         raise NotImplementedError("This engine does not support listing")
