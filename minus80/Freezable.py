@@ -64,7 +64,8 @@ class Freezable(object):
         """
             This method gets called when intefaces delete datasets.
             It is up to the interface to call this method after all
-            the internal minus80 files are deleted
+            the internal minus80 files are deleted. E.g. deleting
+            any files outside of the base minus80 directory
         """
         pass
 
