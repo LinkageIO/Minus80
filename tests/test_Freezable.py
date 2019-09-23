@@ -35,7 +35,7 @@ def test_get_df(simpleCohort):
     assert all(df == df2)
 
 
-def test_get_bcolz_idxcol(simpleCohort):
+def test_get_col_idxcol(simpleCohort):
     df = pd.DataFrame([
         [1, 2, 3], 
         [4, 5, 6], 
@@ -89,7 +89,7 @@ def test_delete_m80():
     from minus80.Tools import delete
 
     c = Cohort("DeleteMe")
-    dbFile = os.path.join(c.m80.basedir,"db.sqlite")
+    dbFile = os.path.join(c.m80.basedir,"thawed/db.sqlite")
     assert os.path.exists(dbFile) == True
     delete("Cohort", "DeleteMe", force=True)
     assert os.path.exists(dbFile) == False
@@ -100,7 +100,7 @@ def test_delete_missing():
     from minus80.Tools import delete
 
     c = Cohort("DeleteMe")
-    dbFile = os.path.join(c.m80.basedir,"db.sqlite")
+    dbFile = os.path.join(c.m80.basedir,"thawed/db.sqlite")
     assert os.path.exists(dbFile) == True
     # Giving the wrong information shouldnt do anything
     delete("Cohort", "DeleteMeee", force=True)
