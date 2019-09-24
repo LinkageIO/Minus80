@@ -30,7 +30,7 @@ class NaturalOrderGroup(click.Group):
 
 @click.group(
     cls=NaturalOrderGroup,
-    epilog=f"Made with ❤️  in Denver, Colorado"
+    epilog=f"Made with 🥶 in Denver, Colorado"
 )
 def cli():
     """
