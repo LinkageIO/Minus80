@@ -1,4 +1,5 @@
 import os
+import yaml
 import getpass
 import socket
 import urllib
@@ -113,6 +114,8 @@ class Accession(object):
         -------
         None
         '''
+        if path.startswith('.'):
+            path = os.path.abspath(path)
         url = urllib.parse.urlparse(path)
         # Override parsed url values with keywords
         if scheme is not None:
@@ -126,8 +129,8 @@ class Accession(object):
             netloc = f'{username}@{hostname}'
             url = url._replace(netloc=netloc)
         # Convert to absolute path
-        if url.path.startswith('./') or url.path.startswith('../'):
-            path = os.path.abspath(path)
+        #if not url.path.startswith('/'): #url.path.startswith('./') or url.path.startswith('../'):
+            #url._replace(path=os.path.abspath(path))
         url = urllib.parse.urlunparse(url)
         self.files.add(url)
 
@@ -216,4 +219,32 @@ class Accession(object):
         else:
             return [files[x] for x in unreachable]
 
+
+
+    @classmethod
+    def from_yaml(cls,yaml_file):
+        '''
+        Create Accessions from a YAML file
+        e.g.
+        10F:
+            files:
+                - ssh://user@hostname.edu/path/to/file/10_F_S66_R1_001.fastq.gz
+                - ssh://user@hostname.edu/path/to/file/10_F_S66_R2_001.fastq.gz
+            metadata:
+            seqtype: novaseq
+        10M:
+            files:
+                - ssh://user@hostname.edu/path/to/file/10_M_S10_R1_001.fastq.gz
+                - ssh://user@hostname.edu/path/to/file/10_M_S10_R2_001.fastq.gz
+                - ssh://user@hostname.edu/path/to/file/10_M_S40_R1_001.fastq.gz
+                - ssh://user@hostname.edu/path/to/file/10_M_S40_R2_001.fastq.gz
+        '''
+        accessions = []
+        with open(yaml_file,'r') as IN:
+            for name,v in yaml.safe_load(IN).items():
+                files = v['files'] if 'files' in v else []
+                metadata = v['metadata'] if 'metadata' in v else {}
+                a = cls(name,files=files,**metadata)
+                accessions.append(a)
+        return accessions
 
