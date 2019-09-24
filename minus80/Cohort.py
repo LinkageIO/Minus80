@@ -1,5 +1,5 @@
 from functools import lru_cache
-from collections import Counter,defaultdict,namedtuple
+from collections import Counter, defaultdict, namedtuple
 
 from minus80 import Accession, Freezable
 from difflib import SequenceMatcher
@@ -23,100 +23,130 @@ import getpass
 import socket
 import inspect
 
-__all__ = ['Cohort']
+__all__ = ["Cohort"]
+
 
 def invalidates_AID_cache(fn):
     from functools import wraps
+
     @wraps(fn)
-    def wrapped(self,*args,**kwargs):
-        fn(self,*args,**kwargs) 
+    def wrapped(self, *args, **kwargs):
+        fn_result = fn(self, *args, **kwargs)
         self._get_AID.cache_clear()
+        return fn_result
+
     return wrapped
 
 
 class Cohort(Freezable):
-    '''
+    """
         A Cohort is a named set of accessions. Once cohorts are
         created, they are persistant as they are stored in the
         disk by minus80.
-    '''
+    """
 
     # This is a named tuple that will be populated by self.get_fileinfo
     fileinfo = None
 
-    def __init__(self, name, parent=None):
-        super().__init__(name,parent=parent)
+    def __init__(self, name, basedir=None):
+        # Initialize Minus80
+        super().__init__(name,basedir=basedir)
         self.name = name
         self._initialize_tables()
-        self.log = logging.getLogger(f'minus80.Cohort.{name}')
+        # Create the logger
+        self.log = logging.getLogger(f"minus80.Cohort.{name}")
         logging.basicConfig()
         self.log.setLevel(logging.INFO)
 
-    #------------------------------------------------------#
-    #                 Properties                           #
-    #------------------------------------------------------#
+    # ------------------------------------------------------#
+    #                 Properties                            #
+    # ------------------------------------------------------#
 
     @property
     def columns(self):
-        '''
+        """
             Return a list of all the available metadata stored
             for available Accessions
-        '''
-        return [ x[0] for x in self._db.cursor().execute('''
-            SELECT DISTINCT(key) FROM metadata;
-        ''').fetchall() ]
+        """
+        return [
+            x[0]
+            for x in self.m80.db.cursor()
+            .execute("""
+                SELECT DISTINCT(key) FROM metadata;
+            """)
+            .fetchall()
+        ]
 
     @property
     def names(self):
-        '''
+        """
             Return a list of all available names and aliases
-        '''
-        names = [x[0] for x in self._db.cursor().execute(
-            'SELECT name FROM accessions'
-        )]
-        aliases = [x[0] for x in self._db.cursor().execute(
-            'SELECT alias FROM aliases'   
-        )]
+        """
+        names = [x[0] for x in self.m80.db.cursor().execute("SELECT name FROM accessions")]
+        aliases = [x[0] for x in self.m80.db.cursor().execute("SELECT alias FROM aliases")]
         return names + aliases
 
     @property
     def files(self):
-        return [x[0] for x in self._db.cursor().execute('''
+        return [
+            x[0]
+            for x in self.m80.db.cursor()
+            .execute(
+                """
             SELECT url FROM raw_files WHERE ignore != 1
-        ''').fetchall() ]
+        """
+            )
+            .fetchall()
+        ]
 
     @property
     def raw_files(self):
-        return [x[0] for x in self._db.cursor().execute('''
+        return [
+            x[0]
+            for x in self.m80.db.cursor()
+            .execute(
+                """
             SELECT url FROM raw_files
-        ''').fetchall() ]
+        """
+            )
+            .fetchall()
+        ]
 
     @property
     def unassigned_files(self):
-        assigned = set([x[0] for x in 
-            self._db.cursor().execute('''
+        assigned = set(
+            [
+                x[0]
+                for x in self.m80.db.cursor()
+                .execute(
+                    """
                 SELECT DISTINCT(url) 
                 FROM files
-            ''').fetchall()
-        ])
+            """
+                )
+                .fetchall()
+            ]
+        )
         return [x for x in self.files if x not in assigned]
 
     @property
     def ignored_files(self):
-        ignored = [x[0] for x in 
-            self._db.cursor().execute('''
+        ignored = [
+            x[0]
+            for x in self.m80.db.cursor()
+            .execute(
+                """
                 SELECT DISTINCT(url) 
                 FROM raw_files WHERE ignore != 0
-            ''').fetchall()
+            """
+            )
+            .fetchall()
         ]
         return ignored
 
     @property
     def _AID_mapping(self):
-        return {
-            x.name: x['AID']
-            for x in self
-        }
+        return {x.name: x["AID"] for x in self}
 
     @property
     def num_files(self):
@@ -126,19 +156,26 @@ class Cohort(Freezable):
         try:
             import pandas as pd
         except ImportError as e:
-            raise ImportError('Pandas must be installed to use this feature')
-        long_form = pd.DataFrame(self._db.cursor().execute('''
+            raise ImportError("Pandas must be installed to use this feature")
+        long_form = pd.DataFrame(
+            self.m80.db.cursor()
+            .execute(
+                """
             SELECT name,key,val FROM accessions acc 
             JOIN metadata met on acc.AID = met.AID;
-        ''').fetchall(),columns=['name','key','val'])
-        return long_form.pivot(index='name',columns='key',values='val')
+        """
+            )
+            .fetchall(),
+            columns=["name", "key", "val"],
+        )
+        return long_form.pivot(index="name", columns="key", values="val")
 
-    #------------------------------------------------------#
+    # ------------------------------------------------------#
     #                   Methods                            #
-    #------------------------------------------------------#
+    # ------------------------------------------------------#
 
     def random_accession(self):
-        '''
+        """
             Returns a random accession from the Cohort
 
             Parameters
@@ -149,14 +186,20 @@ class Cohort(Freezable):
             -------
             Accession
                 An Accession object
-        '''
-        name = self._db.cursor().execute('''
+        """
+        name = (
+            self.m80.db.cursor()
+            .execute(
+                """
             SELECT name from accessions ORDER BY RANDOM() LIMIT 1;
-        ''').fetchone()[0]
+        """
+            )
+            .fetchone()[0]
+        )
         return self[name]
 
     def random_accessions(self, n=1, replace=False):
-        '''
+        """
             Returns a list of random accessions from the Cohort, either
             with or without replacement.
 
@@ -166,23 +209,27 @@ class Cohort(Freezable):
                 The number of random accessions to retrieve
             replace: bool
                 If false, randomimzation does not include replacement
-        '''
+        """
         if replace is False:
             if n > len(self):
                 raise ValueError(
-                        f'Only {len(self)} accessions in cohort. Cannot'
-                        ' get {n} samples. See replace parameter in help.'
+                    f"Only {len(self)} accessions in cohort. Cannot"
+                    " get {n} samples. See replace parameter in help."
                 )
             return (
-                self[name] for (name, ) in self._db.cursor().execute('''
+                self[name]
+                for (name,) in self.m80.db.cursor().execute(
+                    """
                     SELECT name from accessions ORDER BY RANDOM() LIMIT ?;
-                ''', (n, ))
+                """,
+                    (n,),
+                )
             )
         else:
             return (self.random_accession() for _ in range(n))
 
     def get_fileinfo(self, url):
-        '''
+        """
         Get file info from a url.
         
         Parameters
@@ -194,32 +241,43 @@ class Cohort(Freezable):
         -------
         A named tuple contianing the url info.
 
-        '''
+        """
         if self.fileinfo is None:
             # create a named tuple
-            cols = [x[0] for x in self._db.cursor().execute('SELECT * FROM raw_files').description]
-            self.fileinfo = namedtuple('fileinfo',cols)
+            cols = [
+                x[0]
+                for x in self.m80.db.cursor()
+                .execute("SELECT * FROM raw_files")
+                .description
+            ]
+            self.fileinfo = namedtuple("fileinfo", cols)
 
-        info = self._db.cursor().execute('''
+        info = (
+            self.m80.db.cursor()
+            .execute(
+                """
             SELECT *
             FROM raw_files WHERE url = ?
-        ''',(url,)).fetchone()
+        """,
+                (url,),
+            )
+            .fetchone()
+        )
         return self.fileinfo(*info)
 
-    def update_fileinfo(self,info):
-        '''
+    def update_fileinfo(self, info):
+        """
             Update the fileinfo 
-        '''
+        """
         info_list = []
-        if isinstance(info,self.fileinfo):
+        if isinstance(info, self.fileinfo):
             info = [info]
         for x in info:
             url = x.url
-            info_list.append(
-                (x.ignore, x.canonical_path, x.md5, x.size, x.url)    
-            )		
-        # Update the info 
-        self._db.cursor().executemany('''
+            info_list.append((x.ignore, x.canonical_path, x.md5, x.size, x.url))
+        # Update the info
+        self.m80.db.cursor().executemany(
+            """
             UPDATE raw_files SET
                 ignore = ?,
                 canonical_path = ?,
@@ -227,65 +285,80 @@ class Cohort(Freezable):
                 size = ?
             WHERE
                 url = ?
-        ''',info_list)
+        """,
+            info_list,
+        )
 
     def add_accessions(self, accessions):
-        '''
+        """
             Add multiple Accessions at once
-        '''
-        with self._bulk_transaction() as cur:
+        """
+        with self.m80.db.bulk_transaction() as cur:
             # When a name is added, it is automatically assigned an ID
-            cur.executemany('''
+            cur.executemany(
+                """
                 INSERT OR IGNORE INTO accessions (name) VALUES (?)
-            ''', [(x.name, ) for x in accessions])
+            """,
+                [(x.name,) for x in accessions],
+            )
             # Fetch that ID
             AID_map = self._AID_mapping
             # Populate the metadata and files tables
-            cur.executemany('''
+            cur.executemany(
+                """
                 INSERT OR REPLACE INTO metadata (AID, key, val)
                 VALUES (?, ?, ?)
-            ''', (
+            """,
+                (
                     (AID_map[accession.name], k, v)
                     for accession in accessions
                     for k, v in accession.metadata.items()
-                )
+                ),
             )
-            cur.executemany('''
+            cur.executemany(
+                """
                 INSERT OR REPLACE INTO files (AID, url) VALUES (?, ?)
-            ''', (
+            """,
+                (
                     (AID_map[accession.name], file)
                     for accession in accessions
                     for file in accession.files
-                )
+                ),
             )
         return [self[x] for x in accessions]
 
     def add_accession(self, accession):
-        '''
+        """
             Add a sample to the Database
-        '''
-        with self._bulk_transaction() as cur:
+        """
+        with self.m80.db.bulk_transaction() as cur:
             # When a name is added, it is automatically assigned an ID
-            cur.execute('''
+            cur.execute(
+                """
                 INSERT OR IGNORE INTO accessions (name) VALUES (?)
-            ''', (accession.name, ))
+            """,
+                (accession.name,),
+            )
             # Fetch that ID
             AID = self._get_AID(accession)
             # Populate the metadata and files tables
-            cur.executemany('''
+            cur.executemany(
+                """
                 INSERT OR REPLACE INTO metadata (AID, key, val)
                 VALUES (?, ?, ?)
-            ''', ((AID, k, v) for k, v in accession.metadata.items())
+            """,
+                ((AID, k, v) for k, v in accession.metadata.items()),
             )
-            cur.executemany('''
+            cur.executemany(
+                """
                 INSERT OR IGNORE INTO files (AID,url) VALUES (?,?)
-            ''', ((AID,file) for file in accession.files)
+            """,
+                ((AID, file) for file in accession.files),
             )
         return self[accession]
 
-
-    def add_accessions_from_data_frame(self,df,name_col):
-        '''
+    def add_accessions_from_data_frame(self, df, name_col):
+        """
             Add accessions from data frame. This assumes
             each row is an Accession and that the properties
             of the accession are stored in the columns. 
@@ -311,78 +384,90 @@ class Cohort(Freezable):
             Would yield two Accessions: S1 and S2 with Age and Type
             properties.
 
-        '''
+        """
         if name_col not in df.columns:
-            raise ValueError(f'{name_col}S not a valid column name')
+            raise ValueError(f"{name_col}S not a valid column name")
         # filter out rows with NaN name_col values
         # The tilda operator is a boolean inversion
-        df = df.loc[~df[name_col].isnull(),:]
+        df = df.loc[~df[name_col].isnull(), :]
         accessions = []
         # Iterate over the rows and create and accessions from each one
-        for i,row in df.iterrows():
-            d = dict(row)  
+        for i, row in df.iterrows():
+            d = dict(row)
             name = d[name_col]
             del d[name_col]
             # Get rid of missing data
-            for k,v in list(d.items()):
-                if isinstance(v,numbers.Number) and math.isnan(v): 
+            for k, v in list(d.items()):
+                if isinstance(v, numbers.Number) and math.isnan(v):
                     del d[k]
                 else:
                     d[k] = str(v)
             accessions.append(Accession(name, files=None, **d))
         self.add_accessions(accessions)
 
-    
-    def alias_column(self, colname,min_alias_length=3):
-        '''
+    def alias_column(self, colname, min_alias_length=3):
+        """
             Assign an accession column as aliases
-        '''
+        """
         cur_names = set(self.names)
-        with self._bulk_transaction() as cur: 
-            alias_dict = {a:aid for a,aid in cur.execute('''
+        with self.m80.db.bulk_transaction() as cur:
+            alias_dict = {
+                a: aid
+                for a, aid in cur.execute(
+                    """
                 SELECT val,AID FROM metadata 
                 WHERE key = ?
-            ''',(colname,)).fetchall()}
+            """,
+                    (colname,),
+                ).fetchall()
+            }
             # We only want unique aliases
             unique_aliases = []
-            alias_counts = Counter([x for x in alias_dict.keys()]) 
-            for alias,count in alias_counts.items():
+            alias_counts = Counter([x for x in alias_dict.keys()])
+            for alias, count in alias_counts.items():
                 if count > 1 or alias in cur_names:
                     self.log.warning(f"Cannot use {alias} as it is not unique")
                 elif len(alias) < min_alias_length:
-                    self.log.warning(f"Skipping {alias} as it is too short (<{min_alias_length})")
+                    self.log.warning(
+                        f"Skipping {alias} as it is too short (<{min_alias_length})"
+                    )
                 else:
-                    unique_aliases.append((alias,alias_dict[alias]))
+                    unique_aliases.append((alias, alias_dict[alias]))
 
-            cur.executemany('''
+            cur.executemany(
+                """
                 INSERT INTO aliases (alias,AID) VALUES (?,?)      
-            ''',unique_aliases)
+            """,
+                unique_aliases,
+            )
 
     @invalidates_AID_cache
     def drop_aliases(self):
-        '''
+        """
             Clear the aliases from the database
-        '''
-        self._db.cursor().execute('DELETE FROM aliases')
+        """
+        self.m80.db.cursor().execute("DELETE FROM aliases")
 
     def drop_accessions(self):
-       with self._bulk_transaction() as cur:
-            cur.execute('''
+        with self.m80.db.bulk_transaction() as cur:
+            cur.execute(
+                """
                 DELETE FROM accessions;
                 DELETE FROM aliases;
                 DELETE FROM metadata;
                 DELETE FROM aid_files;
-            ''')
+            """
+            )
 
-    def assimilate_files(self,files,best_only=True):
-        '''
+    def assimilate_files(self, files, best_only=True):
+        """
             Take a list of files and assign them to Accessions
-        '''
+        """
         results = defaultdict(set)
         for f in files:
             matches = self.search_accessions(os.path.basename(f))
             if len(matches) == 0:
-                results['unmatched'].add(f)
+                results["unmatched"].add(f)
             elif best_only:
                 results[matches[0]].add(f)
             else:
@@ -390,13 +475,15 @@ class Cohort(Freezable):
                     results[m].add(f)
         return results
 
-    async def _info_worker(self, url_queue,pbar=None):
-        '''
+    async def _info_worker(self, url_queue, pbar=None):
+        """
         Given a queue of URLs, this worker will calculate the md5 checksums
         and commit them to the 'raw_files' database table
-        '''
+        """
+
         def backoff_hdlr(details):
-            print("Backing off {wait:0.1f} seconds afters {tries} tries "
+            print(
+                "Backing off {wait:0.1f} seconds afters {tries} tries "
                 "calling function {target} with args {args} and kwargs "
                 "{kwargs}".format(**details)
             )
@@ -409,27 +496,27 @@ class Cohort(Freezable):
         async def get_info(url):
             current_info = self.get_fileinfo(url)
             purl = urllib.parse.urlparse(url)
-            async with asyncssh.connect(purl.hostname,username=purl.username) as conn:
+            async with asyncssh.connect(purl.hostname, username=purl.username) as conn:
                 if current_info.canonical_path is None:
-                    readlink = await conn.run(f'readlink -f {purl.path}',check=False)
+                    readlink = await conn.run(f"readlink -f {purl.path}", check=False)
                     if readlink.exit_status == 0:
                         readlink = readlink.stdout.strip()
                         current_info = current_info._replace(canonical_path=readlink)
-                if current_info.md5 is None: 
-                    md5sum = await conn.run(f'md5sum {purl.path}',check=False)
+                if current_info.md5 is None:
+                    md5sum = await conn.run(f"md5sum {purl.path}", check=False)
                     if md5sum.exit_status == 0:
                         md5sum = md5sum.stdout.strip().split()[0]
                         current_info = current_info._replace(md5=md5sum)
                 if current_info.size is None:
-                    size = await conn.run(f'stat -c "%s" {purl.path}',check=False)
+                    size = await conn.run(f'stat -c "%s" {purl.path}', check=False)
                     if size.exit_status == 0:
                         size = int(size.stdout.strip())
                         current_info = current_info._replace(size=size)
             return current_info
 
-        results = [] 
+        results = []
         # Define the coro here so we can decorate with a backoff
-        # while there is work to do, loop 
+        # while there is work to do, loop
         while not url_queue.empty():
             url = await url_queue.get()
             info = await get_info(url)
@@ -442,20 +529,20 @@ class Cohort(Freezable):
         pbar.update(len(results))
         self.update_fileinfo(results)
 
-    async def _calculate_fileinfo(self,files,max_tasks=7):
+    async def _calculate_fileinfo(self, files, max_tasks=7):
         # Get a url  queue and fill it
         url_queue = asyncio.Queue()
         hosts = set()
         for f in files:
             url_queue.put_nowait(f)
-            hosts.add(urllib.parse.urlparse(f).hostname)  
-        self.log.info(f'There are {url_queue.qsize()} urls to process')
+            hosts.add(urllib.parse.urlparse(f).hostname)
+        self.log.info(f"There are {url_queue.qsize()} urls to process")
         # Create a progress bar
         with tqdm(total=url_queue.qsize()) as pbar:
             # Get the event loop and control flow
             tasks = []
             for i in range(max_tasks):
-                task = asyncio.create_task(self._info_worker(url_queue,pbar=pbar))
+                task = asyncio.create_task(self._info_worker(url_queue, pbar=pbar))
                 await asyncio.sleep(3)
                 tasks.append(task)
             await url_queue.join()
@@ -463,107 +550,112 @@ class Cohort(Freezable):
         for task in tasks:
             task.cancel()
         # wait until all tasks cancel
-        await asyncio.gather(*tasks,return_exceptions=True)
+        await asyncio.gather(*tasks, return_exceptions=True)
 
-    def interactive_ignore_pattern(self,pattern,n=20):
-        '''
+    def interactive_ignore_pattern(self, pattern, n=20):
+        """
             Start an interactive prompt to ignore patterns
             in file names (e.g. "test")
-        '''
+        """
         from pprint import pprint
         import click
+
         matched_files = self.search_files(pattern)
-        for i in range(0,len(matched_files),n):
-            subset = matched_files[i:i+n]
-            print('Ignore the following?')
+        for i in range(0, len(matched_files), n):
+            subset = matched_files[i : i + n]
+            print("Ignore the following?")
             pprint(subset)
-            if input("[Y/n]:").upper() == 'Y': 
-                self.ignore_files(subset) 
+            if input("[Y/n]:").upper() == "Y":
+                self.ignore_files(subset)
             click.clear()
 
-    def ignore_files(self,files):
-        '''
+    def ignore_files(self, files):
+        """
             ignore files
-        '''
-        with self._bulk_transaction() as cur:
-            cur.executemany('''
+        """
+        with self.m80.db.bulk_transaction() as cur:
+            cur.executemany(
+                """
                 UPDATE raw_files SET ignore = 1 
                 WHERE url = ?
-            ''',[(x,) for x in files])
+            """,
+                [(x,) for x in files],
+            )
 
-    def search_files(self,url):
-        '''
+    def search_files(self, url):
+        """
             Perform a search of files names (url/path)
-        '''
-        cur = self._db.cursor()
-        name = f'%{url}%'
+        """
+        cur = self.m80.db.cursor()
+        name = f"%{url}%"
         names = cur.execute(
-            'SELECT url FROM raw_files WHERE url LIKE ? and ignore != 1',(name,)        
+            "SELECT url FROM raw_files WHERE url LIKE ? and ignore != 1", (name,)
         ).fetchall()
         return [x[0] for x in names]
 
-    def search_accessions(self,name,include_scores=False,recurse=True):
-        '''
+    def search_accessions(self, name, include_scores=False, recurse=True):
+        """
             Performs a search of accession names 
-        '''
-        cur = self._db.cursor()
-        sql_name = f'%{name}%'
+        """
+        cur = self.m80.db.cursor()
+        sql_name = f"%{name}%"
         names = cur.execute(
-            'SELECT name FROM accessions WHERE name LIKE ?',(sql_name,)
+            "SELECT name FROM accessions WHERE name LIKE ?", (sql_name,)
         ).fetchall()
         aliases = cur.execute(
-            'SELECT alias FROM aliases WHERE alias LIKE ?',(sql_name,)
+            "SELECT alias FROM aliases WHERE alias LIKE ?", (sql_name,)
         ).fetchall()
-        results = [(x[0],100) for x in names + aliases]
+        results = [(x[0], 100) for x in names + aliases]
         # Find and Subset matches. e.g. Fat_shoulder_1 would
         # match 'M7956_Fat_shoulder_1'
         if len(results) == 0 and recurse == True:
             matches = [
-                SequenceMatcher(None,name,x).find_longest_match(0,len(name),0,len(x)) \
+                SequenceMatcher(None, name, x).find_longest_match(
+                    0, len(name), 0, len(x)
+                )
                 for x in self.names
-            ] 
-            best = sorted(matches,key=lambda x:x.size,reverse=True)[0]
-            best = name[best.a:best.a+best.size]
-            best = self.search_accessions(best,include_scores=True,recurse=False)[0]
+            ]
+            best = sorted(matches, key=lambda x: x.size, reverse=True)[0]
+            best = name[best.a : best.a + best.size]
+            best = self.search_accessions(best, include_scores=True, recurse=False)[0]
             if len(best) > 0:
                 results.append(best)
-        results = sorted(results,key=lambda x:x[1],reverse=True)
+        results = sorted(results, key=lambda x: x[1], reverse=True)
         if include_scores == False:
             results = [x[0] for x in results]
         return results
 
-    def search_metadata(self,**kwargs):
-        '''
-        '''
+    def search_metadata(self, **kwargs):
+        """
+        """
         n_crit = 0
         criteria = []
-        for k,v in kwargs.items():
+        for k, v in kwargs.items():
             criteria.append(f"(key = '{k}' AND val = '{v}')")
             n_crit += 1
         criteria = " OR ".join(criteria)
         # Build the query
-        query = f'''
+        query = f"""
             SELECT AID FROM (
                 SELECT AID, COUNT(*) as count FROM metadata 
                 WHERE {criteria}
                 GROUP BY AID
             )
             WHERE count = {n_crit}
-        '''
-        return [self[x] for (x,) in \
-                self._db.cursor().execute(query).fetchall()
-        ]
-       
-    async def crawl_host(self,hostname='localhost',path='/',
-                         username=None,glob='*.fastq'):
-        '''
+        """
+        return [self[x] for (x,) in self.m80.db.cursor().execute(query).fetchall()]
+
+    async def crawl_host(
+        self, hostname="localhost", path="/", username=None, glob="*.fastq"
+    ):
+        """
             Use SSH to crawl a host looking for raw files
-        '''
+        """
         if username is None:
             username = getpass.getuser()
         find_command = f'find -L {path} ! -readable -prune -o -name "{glob}" '
-        async with asyncssh.connect(hostname,username=username) as conn:
-            result = await conn.run(find_command,check=False)
+        async with asyncssh.connect(hostname, username=username) as conn:
+            result = await conn.run(find_command, check=False)
         if result.exit_status == 0:
             files = result.stdout.split("\n")
         else:
@@ -571,65 +663,73 @@ class Cohort(Freezable):
         # add new files
         added = 0
         for f in files:
-            if not f.startswith('/'):
-                f = path + f 
-            added += self.add_raw_file(f,scheme='ssh',username=username,
-                    hostname=hostname)
-        self.log.info(f'Found {added} new raw files')
+            if not f.startswith("/"):
+                f = path + f
+            added += self.add_raw_file(
+                f, scheme="ssh", username=username, hostname=hostname
+            )
+        self.log.info(f"Found {added} new raw files")
 
-    def add_raw_file(self,url,scheme='ssh',
-        username=None,hostname=None):
-        '''
+    def add_raw_file(self, url, scheme="ssh", username=None, hostname=None):
+        """
             Add a raw file to the Cohort
-        '''
+        """
         url = urllib.parse.urlparse(url)
         # Override parsed url values with keywords
         if scheme is not None:
             url = url._replace(scheme=scheme)
         # check if URL parameters were provided via path
-        if url.netloc == '':
+        if url.netloc == "":
             if username is None:
                 username = getpass.getuser()
             if hostname is None:
                 hostname = socket.gethostname()
-            netloc = f'{username}@{hostname}'
+            netloc = f"{username}@{hostname}"
             url = url._replace(netloc=netloc)
         # Convert to absolute path
-        if url.path.startswith('./') or url.path.startswith('../'):
-            raise ValueError(f'url cannot be relative ({url.path})')
+        if url.path.startswith("./") or url.path.startswith("../"):
+            raise ValueError(f"url cannot be relative ({url.path})")
         url = urllib.parse.urlunparse(url)
-        cur = self._db.cursor()
-        cur.execute('''
+        cur = self.m80.db.cursor()
+        cur.execute(
+            """
             INSERT OR IGNORE INTO raw_files (url) VALUES (?)
-        ''',(url,))
+        """,
+            (url,),
+        )
         # Return the num of db changes
         return self._db.changes()
 
-    #------------------------------------------------------#
+    # ------------------------------------------------------#
     #               Magic Methods                          #
-    #------------------------------------------------------#
+    # ------------------------------------------------------#
 
     def __repr__(self):
-        return (f'Cohort("{self.name}") -- \n'
-            f'\tcontains {len(self)} Accessions\n'
-            f'\t{len(self.files)} files ({len(self.unassigned_files)} unassigned)')
+        return (
+            f'Cohort("{self.m80.name}") -- \n'
+            f"\tcontains {len(self)} Accessions\n"
+            f"\t{len(self.files)} files ({len(self.unassigned_files)} unassigned)"
+        )
 
     @invalidates_AID_cache
     def __delitem__(self, name):
-        '''
+        """
             Remove a sample by name (or by composition)
-        '''
+        """
         # First try
         AID = self._get_AID(name)
 
-        self._db.cursor().execute('''
+        self.m80.db.cursor().execute(
+            """
             DELETE FROM accessions WHERE AID = ?;
             DELETE FROM metadata WHERE AID = ?;
             DELETE FROM aid_files WHERE AID = ?;
-        ''', (AID, AID, AID))
+        """,
+            (AID, AID, AID),
+        )
 
     def __getitem__(self, name):
-        '''
+        """
             Get an accession from the database the pythonic way.
 
             Paremeters
@@ -638,34 +738,56 @@ class Cohort(Freezable):
                 Can be a string, i.e. the name or alias of an Accession,
                 it can be an Actual Accession OR the AID which
                 is an internal ID for accession
-        '''
+        """
         AID = self._get_AID(name)
-        cur = self._db.cursor()
+        cur = self.m80.db.cursor()
         # Get the name based on AID
-        name, = cur.execute('SELECT name FROM accessions WHERE AID = ?',(AID,)).fetchone() 
+        name, = cur.execute(
+            "SELECT name FROM accessions WHERE AID = ?", (AID,)
+        ).fetchone()
         metadata = {
-            k: v for k, v in cur.execute('''
+            k: v
+            for k, v in cur.execute(
+                """
                 SELECT key, val FROM metadata WHERE AID = ?;
-                ''', (AID, )
+                """,
+                (AID,),
             ).fetchall()
         }
-        metadata['AID'] = AID
-        files = [x[0] for x in cur.execute('''
+        metadata["AID"] = AID
+        files = [
+            x[0]
+            for x in cur.execute(
+                """
                 SELECT url FROM files WHERE AID = ?;
-            ''', (AID, )
+            """,
+                (AID,),
             ).fetchall()
         ]
         return Accession(name, files=files, **metadata)
 
     def __len__(self):
-        return self._db.cursor().execute('''
+        return (
+            self.m80.db.cursor()
+            .execute(
+                """
             SELECT COUNT(*) FROM accessions;
-        ''').fetchone()[0]
+        """
+            )
+            .fetchone()[0]
+        )
 
     def __iter__(self):
-        for name in (x[0] for x in self._db.cursor().execute('''
+        for name in (
+            x[0]
+            for x in self.m80.db.cursor()
+            .execute(
+                """
                 SELECT name FROM accessions
-                ''').fetchall()):
+                """
+            )
+            .fetchall()
+        ):
             yield self[name]
 
     def __contains__(self, item):
@@ -680,26 +802,31 @@ class Cohort(Freezable):
         else:
             return True
 
-    #------------------------------------------------------#
+    # ------------------------------------------------------#
     #               Internal Methods                       #
-    #------------------------------------------------------#
+    # ------------------------------------------------------#
 
     def _initialize_tables(self):
-        cur = self._db.cursor()
-        cur.execute('''
+        cur = self.m80.db.cursor()
+        cur.execute(
+            """
             CREATE TABLE IF NOT EXISTS accessions (
                 AID INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL UNIQUE
             );
-        ''')
-        cur.execute('''
+        """
+        )
+        cur.execute(
+            """
             CREATE TABLE IF NOT EXISTS aliases (
                 alias TEXT UNIQUE,
                 AID INTEGER,
                 FOREIGN KEY(AID) REFERENCES accessions(AID)
             );
-        ''')
-        cur.execute('''
+        """
+        )
+        cur.execute(
+            """
             CREATE TABLE IF NOT EXISTS metadata (
                 AID NOT NULL,
                 key TEXT NOL NULL,
@@ -707,8 +834,10 @@ class Cohort(Freezable):
                 FOREIGN KEY(AID) REFERENCES accessions(AID)
                 UNIQUE(AID, key, val)
             );
-        ''')
-        cur.execute('''
+        """
+        )
+        cur.execute(
+            """
             CREATE TABLE IF NOT EXISTS raw_files (
                 -- Basic File Info
                 FID INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -719,8 +848,10 @@ class Cohort(Freezable):
                 md5 TEXT DEFAULT NULL,
                 size INT DEFAULT NULL
             );
-        ''')
-        cur.execute('''
+        """
+        )
+        cur.execute(
+            """
             CREATE TABLE IF NOT EXISTS aid_files (
                 AID INTEGER,
                 FID INTEGER,
@@ -728,16 +859,20 @@ class Cohort(Freezable):
                 FOREIGN KEY(AID) REFERENCES accessions(AID),
                 FOREIGN KEY(FID) REFERENCES raw_files(FID)
             );
-        ''')
+        """
+        )
         # Views ----------------------------------------------
-        cur.execute('''
+        cur.execute(
+            """
             CREATE VIEW IF NOT EXISTS files AS 
             SELECT AID,url
             FROM aid_files 
             JOIN raw_files 
                 ON aid_files.FID = raw_files.FID;
-        ''')
-        cur.execute('''
+        """
+        )
+        cur.execute(
+            """
             CREATE TRIGGER IF NOT EXISTS assign_FID INSTEAD OF INSERT ON files
             FOR EACH ROW
             BEGIN
@@ -746,59 +881,62 @@ class Cohort(Freezable):
                   SELECT NEW.AID, FID
                   FROM raw_files WHERE url=NEW.url;
             END;
-        ''')
+        """
+        )
 
-
-    def get_name(self,name):
+    def get_name(self, name):
         AID = self._get_AID(name)
-        name = self._db.cursor().execute(
-            'SELECT name FROM accessions WHERE AID = ?',(AID,)
-        ).fetchone()[0]
+        name = (
+            self.m80.db.cursor()
+            .execute("SELECT name FROM accessions WHERE AID = ?", (AID,))
+            .fetchone()[0]
+        )
         return name
 
-    def get_aliases(self,name):
+    def get_aliases(self, name):
         AID = self._get_AID(name)
-        aliases = [ x[0] for x in self._db.cursor().execute(
-            'SELECT alias FROM aliases WHERE AID = ?', (AID,)        
-        )]
+        aliases = [
+            x[0]
+            for x in self.m80.db.cursor().execute(
+                "SELECT alias FROM aliases WHERE AID = ?", (AID,)
+            )
+        ]
         return [self.get_name(name)] + aliases
-
 
     @lru_cache(maxsize=32768)
     def _get_AID(self, name):
-        '''
+        """
             Return a Sample ID (AID)
-        '''
+        """
         if isinstance(name, Accession):
             name = name.name
-        cur = self._db.cursor()
+        cur = self.m80.db.cursor()
         try:
             return cur.execute(
-                'SELECT AID FROM accessions WHERE name = ?', (name, )
+                "SELECT AID FROM accessions WHERE name = ?", (name,)
             ).fetchone()[0]
         except TypeError:
             pass
         try:
             return cur.execute(
-                'SELECT AID FROM aliases WHERE alias = ?', (name, )
+                "SELECT AID FROM aliases WHERE alias = ?", (name,)
             ).fetchone()[0]
         except TypeError:
             pass
         try:
             return cur.execute(
-                'SELECT AID FROM accessions WHERE AID = ?', (name,)
+                "SELECT AID FROM accessions WHERE AID = ?", (name,)
             ).fetchone()[0]
         except TypeError:
-            raise NameError(f'{name} not in Cohort')
+            raise NameError(f"{name} not in Cohort")
 
-
-    #------------------------------------------------------#
+    # ------------------------------------------------------#
     #               Class Methods                          #
-    #------------------------------------------------------#
+    # ------------------------------------------------------#
 
     @classmethod
     def from_accessions(cls, name, accessions):
-        '''
+        """
         Create a Cohort from an iterable of Accessions.
 
         Parameters
@@ -813,16 +951,14 @@ class Cohort(Freezable):
         -------
         A Cohort object
 
-        '''
+        """
         self = cls(name)
         self.add_accessions(accessions)
         return self
 
 
-
 class interactive_assign_files(object):
-
-    def __init__(self,cohort):
+    def __init__(self, cohort):
         # Global State Variables
         self.cohort = cohort
         self.fullpath = False
@@ -840,8 +976,9 @@ class interactive_assign_files(object):
     @property
     def commands(self):
         commands = [
-            x[0] for x in inspect.getmembers(interactive_assign_files) \
-            if x[0].endswith('_cmd') 
+            x[0]
+            for x in inspect.getmembers(interactive_assign_files)
+            if x[0].endswith("_cmd")
         ]
         return commands
 
@@ -849,38 +986,38 @@ class interactive_assign_files(object):
     def command_map(self):
         cmd_map = {}
         for cmd in self.commands:
-            long_form = cmd.replace('_cmd','')
+            long_form = cmd.replace("_cmd", "")
             short_form = cmd[0]
             cmd_map[long_form] = self.__getattribute__(cmd)
             cmd_map[short_form] = self.__getattribute__(cmd)
         return cmd_map
 
-    def __call__(self,fdict=None):
+    def __call__(self, fdict=None):
         if fdict is None:
             fdict = self.cohort.assimilate_files(self.cohort.unassigned_files)
         self.names = []
         self.files = []
-        for name,files in fdict.items():
+        for name, files in fdict.items():
             self.names.append(name)
-            self.files.append([(False,x) for x in files])
+            self.files.append([(False, x) for x in files])
         # Start at the beginning of the cursor
         self.update_cur(0)
         # Loop through the states
         self.done = False
         while not self.done:
             self.print_status()
-            cmd = input('Input Command (h for help): ')
+            cmd = input("Input Command (h for help): ")
             try:
                 self.command_map[cmd.strip()]()
             except KeyError as e:
-                print('Not a valid command')
+                print("Not a valid command")
                 self.help_cmd()
 
-    def update_cur(self,i):
-        i = min(max(0,i),len(self.names))
+    def update_cur(self, i):
+        i = min(max(0, i), len(self.names))
         self.cur = i
         self.cur_name = self.names[i]
-        # Update the files to exclude 
+        # Update the files to exclude
         self.stage_files()
         self.edited.add(i)
 
@@ -888,60 +1025,62 @@ class interactive_assign_files(object):
         # Get the current accession
         acc = self.cohort[self.cur_name]
         # Update files to be ones not present in the accession
-        cur_files = sorted([(m,f) for m,f in self.files[self.cur] if f not in acc.files])
+        cur_files = sorted(
+            [(m, f) for m, f in self.files[self.cur] if f not in acc.files]
+        )
         self.files[self.cur] = cur_files
-        # remove the 
+        # remove the
         if self.fullpath == False:
-            cur_files = [(m,os.path.basename(x)) for m,x in cur_files]
+            cur_files = [(m, os.path.basename(x)) for m, x in cur_files]
         self.cur_files = cur_files
 
     def print_status(self):
         if self.cur is None:
-            print('Currently no files to be assigned')
+            print("Currently no files to be assigned")
         else:
-            click.clear()   
+            click.clear()
             aliases = self.cohort.get_aliases(self.cur_name)
-            print(
-                f'On {self.cur}/{len(self.names)}: {self.cur_name}, aka:{aliases}'        
-            )
+            print(f"On {self.cur}/{len(self.names)}: {self.cur_name}, aka:{aliases}")
             print(self.cohort[self.cur_name])
-            pprint([f'{i}:{mask}:{filename}' for i,(mask,filename) in enumerate(self.cur_files)])
-
+            pprint(
+                [
+                    f"{i}:{mask}:{filename}"
+                    for i, (mask, filename) in enumerate(self.cur_files)
+                ]
+            )
 
     # Commands -----------------------------------
     def help_cmd(self):
-        '(h)elp: prints commands'
+        "(h)elp: prints commands"
         commands = [
-            x[0] for x in inspect.getmembers(interactive_assign_files) \
-            if x[0].endswith('_cmd') 
+            x[0]
+            for x in inspect.getmembers(interactive_assign_files)
+            if x[0].endswith("_cmd")
         ]
-        docstrs = [
-            inspect.getdoc(self.__getattribute__(cmd)) \
-            for cmd in commands
-        ] 
-        print("\n".join(filter(None,docstrs)))
-        input('Hit enter to continue')
+        docstrs = [inspect.getdoc(self.__getattribute__(cmd)) for cmd in commands]
+        print("\n".join(filter(None, docstrs)))
+        input("Hit enter to continue")
 
     def quit_cmd(self):
-        '(q)uit: quit the program'
+        "(q)uit: quit the program"
         self.print_status()
         x = input("Would you like to save your work? [y/n]:")
-        if x.lower() == 'y':
+        if x.lower() == "y":
             self.save_cmd()
         self.done = True
 
     def next_cmd(self):
-        '(n)ext: move to the next accession'
-        self.update_cur(self.cur+1)
+        "(n)ext: move to the next accession"
+        self.update_cur(self.cur + 1)
 
     def prev_cmd(self):
-        '(p)rev: move to the previous accession'
-        self.update_cur(self.cur-1)
+        "(p)rev: move to the previous accession"
+        self.update_cur(self.cur - 1)
 
     def goto_cmd(self):
-        '(g)oto: go to a specific accession index'
+        "(g)oto: go to a specific accession index"
         try:
-            i = int(input('Goto which index?:'))
+            i = int(input("Goto which index?:"))
         except Exception as e:
             self.print_status()
             print("Please provide a valid integer index")
@@ -949,17 +1088,17 @@ class interactive_assign_files(object):
         self.update_cur(i)
 
     def fullpath_cmd(self):
-        '(f)ullpath: toggle full paths for files'
+        "(f)ullpath: toggle full paths for files"
         self.fullpath = not self.fullpath
         self.stage_files()
 
     def save_cmd(self):
-        '(s)ave: save the assigned files'
+        "(s)ave: save the assigned files"
         updated_accessions = []
         for i in self.edited:
             files = self.files[i]
-            acc  = self.cohort[self.names[i]]
-            valid_files = [filename for mask,filename in files if mask is True]
+            acc = self.cohort[self.names[i]]
+            valid_files = [filename for mask, filename in files if mask is True]
             if len(valid_files) > 0:
                 acc.files.update(valid_files)
             updated_accessions.append(acc)
@@ -967,40 +1106,35 @@ class interactive_assign_files(object):
         self.stage_files()
 
     def add_cmd(self):
-        '(a)dd: toggle whether or not to add files based on ranges'
+        "(a)dd: toggle whether or not to add files based on ranges"
         while True:
             self.print_status()
             try:
-                rng = input('Enter Range :')
-                if rng == 'q':
+                rng = input("Enter Range :")
+                if rng == "q":
                     break
-                if rng == '':
-                    rng = ':'
-                if rng.endswith(':'):
+                if rng == "":
+                    rng = ":"
+                if rng.endswith(":"):
                     rng = rng + str(len(self.cur_files))
-                if rng.startswith(':'):
-                    rng = '0' + rng
-                rng = rng.split(',')
+                if rng.startswith(":"):
+                    rng = "0" + rng
+                rng = rng.split(",")
                 for r in rng:
-                    if ':' in r:
-                        r = r.split(':')
+                    if ":" in r:
+                        r = r.split(":")
                         if len(r) == 2:
-                            start,stop = map(int,r)
+                            start, stop = map(int, r)
                             step = 1
                         elif len(r) == 3:
-                            start,stop,step = map(int,r)
-                        indices = np.arange(start,stop,step)
+                            start, stop, step = map(int, r)
+                        indices = np.arange(start, stop, step)
                     else:
                         indices = [int(r)]
                     for ind in indices:
-                        m,f = self.cur_files[ind]
+                        m, f = self.cur_files[ind]
                         m = not m
-                        self.cur_files[ind] = (m,f)
+                        self.cur_files[ind] = (m, f)
             except Exception as e:
                 print(f"Invalid range: {rng}, use blank or 'q' to end")
-                input(f'Press enter to continue')
-
-
-
-        
-
+                input(f"Press enter to continue")
