@@ -3,6 +3,7 @@
 import os
 import json
 import click
+import random
 import minus80 as m80
 import minus80.Tools
 
@@ -27,10 +28,11 @@ class NaturalOrderGroup(click.Group):
     def list_commands(self, ctx):
         return self.commands.keys()
 
+cute_emojis = [ "⛷"  , "❄️"  , "🏔"  , "🏂" , "☃️"  ]
 
 @click.group(
     cls=NaturalOrderGroup,
-    epilog=f"Made with 🥶 in Denver, Colorado"
+    epilog=f"Made with {random.choice(cute_emojis)}  in Denver, Colorado"
 )
 def cli():
     """
