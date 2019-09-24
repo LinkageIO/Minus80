@@ -400,8 +400,12 @@ class Cohort(Freezable):
                 "calling function {target} with args {args} and kwargs "
                 "{kwargs}".format(**details)
             )
-        @backoff.on_exception(backoff.expo,asyncssh.DisconnectError,max_tries=8,
-                            on_backoff=backoff_hdlr)
+        @backoff.on_exception(
+            backoff.expo,
+            asyncssh.DisconnectError,
+            max_tries=8,
+            on_backoff=backoff_hdlr
+        )
         async def get_info(url):
             current_info = self.get_fileinfo(url)
             purl = urllib.parse.urlparse(url)
