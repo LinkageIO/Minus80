@@ -299,8 +299,6 @@ class FreezableAPI(object):
 
     # Class static methods---------------------------------------------
 
-
-
     @staticmethod
     def tmpfile(*args, **kwargs):
         # returns a handle to a tmp file
