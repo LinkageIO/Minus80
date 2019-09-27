@@ -265,30 +265,6 @@ class Cohort(Freezable):
         )
         return self.fileinfo(*info)
 
-    def update_fileinfo(self, info):
-        """
-            Update the fileinfo 
-        """
-        info_list = []
-        if isinstance(info, self.fileinfo):
-            info = [info]
-        for x in info:
-            url = x.url
-            info_list.append((x.ignore, x.canonical_path, x.md5, x.size, x.url))
-        # Update the info
-        self.m80.db.cursor().executemany(
-            """
-            UPDATE raw_files SET
-                ignore = ?,
-                canonical_path = ?,
-                md5 = ?,
-                size = ?
-            WHERE
-                url = ?
-        """,
-            info_list,
-        )
-
     def add_accessions(self, accessions):
         """
             Add multiple Accessions at once
@@ -474,83 +450,6 @@ class Cohort(Freezable):
                 for m in matches:
                     results[m].add(f)
         return results
-
-    async def _info_worker(self, url_queue, pbar=None):
-        """
-        Given a queue of URLs, this worker will calculate the md5 checksums
-        and commit them to the 'raw_files' database table
-        """
-
-        def backoff_hdlr(details):
-            print(
-                "Backing off {wait:0.1f} seconds afters {tries} tries "
-                "calling function {target} with args {args} and kwargs "
-                "{kwargs}".format(**details)
-            )
-        @backoff.on_exception(
-            backoff.expo,
-            asyncssh.DisconnectError,
-            max_tries=8,
-            on_backoff=backoff_hdlr
-        )
-        async def get_info(url):
-            current_info = self.get_fileinfo(url)
-            purl = urllib.parse.urlparse(url)
-            async with asyncssh.connect(purl.hostname, username=purl.username) as conn:
-                if current_info.canonical_path is None:
-                    readlink = await conn.run(f"readlink -f {purl.path}", check=False)
-                    if readlink.exit_status == 0:
-                        readlink = readlink.stdout.strip()
-                        current_info = current_info._replace(canonical_path=readlink)
-                if current_info.md5 is None:
-                    md5sum = await conn.run(f"md5sum {purl.path}", check=False)
-                    if md5sum.exit_status == 0:
-                        md5sum = md5sum.stdout.strip().split()[0]
-                        current_info = current_info._replace(md5=md5sum)
-                if current_info.size is None:
-                    size = await conn.run(f'stat -c "%s" {purl.path}', check=False)
-                    if size.exit_status == 0:
-                        size = int(size.stdout.strip())
-                        current_info = current_info._replace(size=size)
-            return current_info
-
-        results = []
-        # Define the coro here so we can decorate with a backoff
-        # while there is work to do, loop
-        while not url_queue.empty():
-            url = await url_queue.get()
-            info = await get_info(url)
-            results.append(info)
-            url_queue.task_done()
-            if len(results) >= 50:
-                self.update_fileinfo(results)
-                pbar.update(len(results))
-                results = []
-        pbar.update(len(results))
-        self.update_fileinfo(results)
-
-    async def _calculate_fileinfo(self, files, max_tasks=7):
-        # Get a url  queue and fill it
-        url_queue = asyncio.Queue()
-        hosts = set()
-        for f in files:
-            url_queue.put_nowait(f)
-            hosts.add(urllib.parse.urlparse(f).hostname)
-        self.log.info(f"There are {url_queue.qsize()} urls to process")
-        # Create a progress bar
-        with tqdm(total=url_queue.qsize()) as pbar:
-            # Get the event loop and control flow
-            tasks = []
-            for i in range(max_tasks):
-                task = asyncio.create_task(self._info_worker(url_queue, pbar=pbar))
-                await asyncio.sleep(3)
-                tasks.append(task)
-            await url_queue.join()
-        # cancel tasks
-        for task in tasks:
-            task.cancel()
-        # wait until all tasks cancel
-        await asyncio.gather(*tasks, return_exceptions=True)
 
     def interactive_ignore_pattern(self, pattern, n=20):
         """
@@ -803,7 +702,7 @@ class Cohort(Freezable):
             return True
 
     # ------------------------------------------------------#
-    #               Internal Methods                       #
+    #               Internal Methods                        #
     # ------------------------------------------------------#
 
     def _initialize_tables(self):
@@ -844,9 +743,7 @@ class Cohort(Freezable):
                 url TEXT NOT NULL UNIQUE,
                 -- MetaData
                 ignore INT DEFAULT 0,
-                canonical_path TEXT DEFAULT NULL,
-                md5 TEXT DEFAULT NULL,
-                size INT DEFAULT NULL
+                canonical_path TEXT DEFAULT NULL
             );
         """
         )
@@ -955,186 +852,3 @@ class Cohort(Freezable):
         self = cls(name)
         self.add_accessions(accessions)
         return self
-
-
-class interactive_assign_files(object):
-    def __init__(self, cohort):
-        # Global State Variables
-        self.cohort = cohort
-        self.fullpath = False
-        self.names = None
-        self.files = None
-        self.fmask = None
-        self.done = False
-        self.edited = set()
-        # Local State Variables
-        self.cur = None
-        self.cur_name = None
-        self.cur_files = None
-        self.cur_fmask = None
-
-    @property
-    def commands(self):
-        commands = [
-            x[0]
-            for x in inspect.getmembers(interactive_assign_files)
-            if x[0].endswith("_cmd")
-        ]
-        return commands
-
-    @property
-    def command_map(self):
-        cmd_map = {}
-        for cmd in self.commands:
-            long_form = cmd.replace("_cmd", "")
-            short_form = cmd[0]
-            cmd_map[long_form] = self.__getattribute__(cmd)
-            cmd_map[short_form] = self.__getattribute__(cmd)
-        return cmd_map
-
-    def __call__(self, fdict=None):
-        if fdict is None:
-            fdict = self.cohort.assimilate_files(self.cohort.unassigned_files)
-        self.names = []
-        self.files = []
-        for name, files in fdict.items():
-            self.names.append(name)
-            self.files.append([(False, x) for x in files])
-        # Start at the beginning of the cursor
-        self.update_cur(0)
-        # Loop through the states
-        self.done = False
-        while not self.done:
-            self.print_status()
-            cmd = input("Input Command (h for help): ")
-            try:
-                self.command_map[cmd.strip()]()
-            except KeyError as e:
-                print("Not a valid command")
-                self.help_cmd()
-
-    def update_cur(self, i):
-        i = min(max(0, i), len(self.names))
-        self.cur = i
-        self.cur_name = self.names[i]
-        # Update the files to exclude
-        self.stage_files()
-        self.edited.add(i)
-
-    def stage_files(self):
-        # Get the current accession
-        acc = self.cohort[self.cur_name]
-        # Update files to be ones not present in the accession
-        cur_files = sorted(
-            [(m, f) for m, f in self.files[self.cur] if f not in acc.files]
-        )
-        self.files[self.cur] = cur_files
-        # remove the
-        if self.fullpath == False:
-            cur_files = [(m, os.path.basename(x)) for m, x in cur_files]
-        self.cur_files = cur_files
-
-    def print_status(self):
-        if self.cur is None:
-            print("Currently no files to be assigned")
-        else:
-            click.clear()
-            aliases = self.cohort.get_aliases(self.cur_name)
-            print(f"On {self.cur}/{len(self.names)}: {self.cur_name}, aka:{aliases}")
-            print(self.cohort[self.cur_name])
-            pprint(
-                [
-                    f"{i}:{mask}:{filename}"
-                    for i, (mask, filename) in enumerate(self.cur_files)
-                ]
-            )
-
-    # Commands -----------------------------------
-    def help_cmd(self):
-        "(h)elp: prints commands"
-        commands = [
-            x[0]
-            for x in inspect.getmembers(interactive_assign_files)
-            if x[0].endswith("_cmd")
-        ]
-        docstrs = [inspect.getdoc(self.__getattribute__(cmd)) for cmd in commands]
-        print("\n".join(filter(None, docstrs)))
-        input("Hit enter to continue")
-
-    def quit_cmd(self):
-        "(q)uit: quit the program"
-        self.print_status()
-        x = input("Would you like to save your work? [y/n]:")
-        if x.lower() == "y":
-            self.save_cmd()
-        self.done = True
-
-    def next_cmd(self):
-        "(n)ext: move to the next accession"
-        self.update_cur(self.cur + 1)
-
-    def prev_cmd(self):
-        "(p)rev: move to the previous accession"
-        self.update_cur(self.cur - 1)
-
-    def goto_cmd(self):
-        "(g)oto: go to a specific accession index"
-        try:
-            i = int(input("Goto which index?:"))
-        except Exception as e:
-            self.print_status()
-            print("Please provide a valid integer index")
-            self.goto_cmd()
-        self.update_cur(i)
-
-    def fullpath_cmd(self):
-        "(f)ullpath: toggle full paths for files"
-        self.fullpath = not self.fullpath
-        self.stage_files()
-
-    def save_cmd(self):
-        "(s)ave: save the assigned files"
-        updated_accessions = []
-        for i in self.edited:
-            files = self.files[i]
-            acc = self.cohort[self.names[i]]
-            valid_files = [filename for mask, filename in files if mask is True]
-            if len(valid_files) > 0:
-                acc.files.update(valid_files)
-            updated_accessions.append(acc)
-        self.cohort.add_accessions(updated_accessions)
-        self.stage_files()
-
-    def add_cmd(self):
-        "(a)dd: toggle whether or not to add files based on ranges"
-        while True:
-            self.print_status()
-            try:
-                rng = input("Enter Range :")
-                if rng == "q":
-                    break
-                if rng == "":
-                    rng = ":"
-                if rng.endswith(":"):
-                    rng = rng + str(len(self.cur_files))
-                if rng.startswith(":"):
-                    rng = "0" + rng
-                rng = rng.split(",")
-                for r in rng:
-                    if ":" in r:
-                        r = r.split(":")
-                        if len(r) == 2:
-                            start, stop = map(int, r)
-                            step = 1
-                        elif len(r) == 3:
-                            start, stop, step = map(int, r)
-                        indices = np.arange(start, stop, step)
-                    else:
-                        indices = [int(r)]
-                    for ind in indices:
-                        m, f = self.cur_files[ind]
-                        m = not m
-                        self.cur_files[ind] = (m, f)
-            except Exception as e:
-                print(f"Invalid range: {rng}, use blank or 'q' to end")
-                input(f"Press enter to continue")
