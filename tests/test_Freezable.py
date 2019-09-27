@@ -91,7 +91,7 @@ def test_delete_m80():
     c = Cohort("DeleteMe")
     dbFile = os.path.join(c.m80.basedir,"thawed/db.sqlite")
     assert os.path.exists(dbFile) == True
-    delete("Cohort", "DeleteMe", force=True)
+    delete("Cohort", "DeleteMe")
     assert os.path.exists(dbFile) == False
 
 
@@ -103,8 +103,8 @@ def test_delete_missing():
     dbFile = os.path.join(c.m80.basedir,"thawed/db.sqlite")
     assert os.path.exists(dbFile) == True
     # Giving the wrong information shouldnt do anything
-    delete("Cohort", "DeleteMeee", force=True)
+    delete("Cohort", "DeleteMeee")
     assert os.path.exists(dbFile) == True
-    delete("Cohort", "DeleteMe", force=True)
+    delete("Cohort", "DeleteMe")
     assert os.path.exists(dbFile) == False
 
