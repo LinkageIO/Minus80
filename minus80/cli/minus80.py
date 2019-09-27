@@ -116,6 +116,7 @@ cli.add_command(list)
 # ----------------------------
 @click.command(help="Delete a minus80 dataset")
 @click.argument("slug", metavar="<slug>")
+@click.confirmation_option(prompt='Are you sure you want to drop the db?')
 def delete(slug):
     # Validate the input
     try:
