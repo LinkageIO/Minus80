@@ -1,23 +1,18 @@
 language: python
 matrix:
   include:
-  - python: 3.7
-    dist: xenial
-    sudo: true
-before_install:
-- openssl aes-256-cbc -K $encrypted_4dd1145140b6_key -iv $encrypted_4dd1145140b6_iv
-  -in credentials.tar.gz.enc -out credentials.tar.gz -d
-- tar -xzf credentials.tar.gz
-- export GOOGLE_APPLICATION_CREDENTIALS=$(pwd)'/gcp_creds.json'
+    - python: 3.7
+        dist: xenial
+        sudo: true
 install:
-- pip install -e .
+    - pip install -e .
 script:
-- pip install 'pytest>=3.6' pytest-cov
-- cd tests
-- py.test -v --cov=minus80
+    - pip install 'pytest>=3.6' pytest-coveralls
+    - cd tests
+    - py.test -v --cov=minus80
 after_success:
-- coveralls
-- cd ../
+    - coveralls
+    - cd ../
 deploy:
   provider: pypi
   user: schae234
