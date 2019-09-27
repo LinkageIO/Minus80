@@ -134,7 +134,7 @@ def available(dtype=None, name=None, tags=False):
                         print(f"   └──{t['tag']} {csum} ({timestamp})")
 
 
-def delete(dtype=None, name=None, force=False):
+def delete(dtype=None, name=None):
     """ 
         Deletes files associated with Minus80 datasets.
 
@@ -146,10 +146,6 @@ def delete(dtype=None, name=None, force=False):
             Each dataset has a datatype associated with it. E.g.:
             `Cohort`. If no dtype is specified, all available dtypes
             will be returned.
-        force : bool, default: False
-            If False, the function will list off the files it wants to delete.
-            If True, it will do what you tell it to do and just delete things
-            (not recommended).
 
         Returns
         -------
@@ -164,11 +160,6 @@ def delete(dtype=None, name=None, force=False):
     # Get a filecard for all the minus80 filenames that match the
     # type and the name
     files = get_files(name=name, dtype=dtype)
-    if force != True:  # pragma: no cover
-        print(f"Are you sure you want to delete {dtype}.{name}?:\n")
-        if input("[y/n]: ").upper() != "Y":
-            print("Nothing deleted.")
-            return 0
     # delete them
     num_deleted = 0
     for filename in files:
