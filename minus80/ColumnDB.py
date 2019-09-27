@@ -86,12 +86,15 @@ class hdf5_db(ColumnarDB):
             return name in hdf
 
     def __setitem__(self, name, val):
+        # Handle normal numpy datatypes
         if isinstance(val, numpy.ndarray):
-            # check if exists and if so, delete
+            # Handle numeric data
             if name in self:
+                # check if exists and if so, delete
                 self.remove(name)
             with h5py.File(self.filename, "a") as hdf:
                 hdf[name] = val
+        # Handle data frames
         elif isinstance(val, pandas.DataFrame):
             val.to_hdf(self.filename, key=name, mode="a")
         else:
