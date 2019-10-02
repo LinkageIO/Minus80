@@ -148,7 +148,7 @@ class FireBaseCloudData(BaseCloudData):
             'slug' : f'{dtype}/{name}:{tag}',
             'tag' : tag_data
         }
-        req_url = 'https://us-central1-minus80.cloudfunctions.net/function-1'
+        req_url = 'https://us-central1-minus80.cloudfunctions.net/push'
 
     def pull(self, dtype, name, tag):
         raise NotImplementedError("This engine does not support pulling")
