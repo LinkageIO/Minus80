@@ -2,6 +2,7 @@ import os
 import json
 import getpass
 import pyrebase
+import requests
 
 from pathlib import Path
 from tinydb import TinyDB, where
@@ -17,23 +18,6 @@ from .Exceptions import (
 )
 
 from minus80 import SLUG_VERSION
-
-def ensure_valid_user(fn):
-    from functools import wraps
-
-    @wraps(fn)
-    def  wrapped(self, *args, **kwargs):
-        # make sure logged in
-        if os.path.exists(self._token_file):
-            self._load_token()
-            self._refresh_token()
-        else:
-            raise NotLoggedInError
-        # execute the function
-        result = fn(self, *args, **kwargs)
-        return result
-    return wrapped
-
 
 class FireBaseCloudData(BaseCloudData):
 
@@ -125,8 +109,9 @@ class FireBaseCloudData(BaseCloudData):
             Parameters
             ----------
             email: str
-                 
-
+                The email the user signed up with
+            password: str
+                The password the user signed up with
         '''
         try:
             user = self.auth.sign_in_with_email_and_password(email,password)
@@ -141,14 +126,27 @@ class FireBaseCloudData(BaseCloudData):
         tag_data = manifest.get(where('tag') == tag)
         if tag_data is None:
             raise TagDoesNotExistError 
-        # build the REST query
-        headers = {"content-type": "application/json; charset=UTF-8"}
-        data = {
-            'user' : self.user,
-            'slug' : f'{dtype}/{name}:{tag}',
-            'tag' : tag_data
+        # build the REST call
+        headers = {
+            "content-type": "application/json",
+            "Authorization": f"Bearer {self.user['idToken']}"
         }
-        req_url = 'https://us-central1-minus80.cloudfunctions.net/push'
+        data = {
+            'dtype': dtype,
+            'name': name,
+            'tag' : tag,
+            'data' : tag_data
+        }
+        return data
+        url = 'https://us-central1-minus80.cloudfunctions.net/push'
+        # Create a requests session so we can send data
+        req = requests.Session()
+        res = req.post(
+            url,
+            headers=headers,
+            json=data
+        )        
+        return res
 
     def pull(self, dtype, name, tag):
         raise NotImplementedError("This engine does not support pulling")
