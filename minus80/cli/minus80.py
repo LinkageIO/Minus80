@@ -116,7 +116,7 @@ cli.add_command(list)
 # ----------------------------
 @click.command(help="Delete a minus80 dataset")
 @click.argument("slug", metavar="<slug>")
-@click.confirmation_option(prompt='Are you sure you want to drop the db?')
+@click.option("--force",is_flag=True,default=False,help='Force delete without confirmation prompt',)
 def delete(slug):
     # Validate the input
     try:
@@ -280,6 +280,7 @@ def login(username,password,force,reset_password):
             error_code = json.loads(e.args[1])['error']['message']
             if error_code == 'INVALID_EMAIL':
                 click.secho('Error logging in. Invalid email address!.',fg='red')
+                click.secho('Sign up for an account at https://minus80.linkage.io')
             elif error_code == 'INVALID_PASSWORD':
                 click.secho('Error logging in. Incorrect Password!',fg='red')
             else:
