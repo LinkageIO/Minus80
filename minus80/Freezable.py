@@ -60,16 +60,6 @@ class Freezable(object):
         dtype = guess_type(self)
         self.m80 = FreezableAPI(dtype, name, basedir)
 
-    def __freezable_delete_cleanup__(self):
-        """
-            This method gets called when intefaces delete datasets.
-            It is up to the interface to call this method after all
-            the internal minus80 files are deleted. E.g. deleting
-            any files outside of the base minus80 directory
-        """
-        pass
-
-
 class FreezableAPI(object):
     def __init__(self, dtype, name, basedir=None):
         """
@@ -105,7 +95,6 @@ class FreezableAPI(object):
 
 
     # Class Properties --------------------------------------------------
-
     @property
     def _manifest(self):
         return TinyDB(self.basedir / 'MANIFEST.json')
