@@ -33,58 +33,87 @@ def push(request):
     """
     data = request.get_json()
     # Get the uid from the token
-    token = request.headers['Authorization'].replace('Bearer ','')
-    userId = auth.verify_id_token(token)['uid']
+    dtype = data['dtype']
+    name = data['name']
+    uid = get_uid(request) 
     # Fire up firestore
     db = firestore.client()
-    rack = db.collection('rack').document(data['dtype'])
-    # Get the dataset 
-    dataset = list(
-        rack.collection('datasets')
-        .where('owner','==',userId)
-        .where('name','==',data['name'])
-        .stream()
+    dataset_ref = db.document(
+        f"Frozen/{uid}/DatasetType/{dtype}/Dataset/{name}"
+    ) 
+    dataset = dataset_ref.get()
+    # Create a new dataset if needed
+    if not dataset.exists:
+        dataset = create_dataset(data['dtype'],data['name'],uid)
+    #  Check if the tag exists
+    if data['tag'] in dataset.get('tags'):
+        return abort(409,'tag exists')
+    # Otherwise
+    dataset_ref.document(f"tags/{data['tag']}").set(
+        data['tag_data']
     )
-    # the dataset does not exist, add it
-    if len(dataset) == 0:
-        dataset = add_dataset(rack, data['name'], userId)
-    else:
-        # we need to pop this 
-        dataset = dataset[0]    
-
-    if user_ref.collection('tags').document()
-    # set the tag
-    tag_ref.set(data['data'])
-
+    return json.dumps(data,200)
 
 # Helper Methods -------------------
 
-def add_dataset(rack,name,owner):
+def create_dataset(dtype,name,owner_uid):
     '''
-        Adds a dataset to a rack
+        creates a dataset
 
         Parameters
         ----------
+        dtype : str
+            The minus80 dataset type (e.g. Project,Cohort,etc)
         name : str
             The name of the dataset to add
-        owner : uid
-            The uid of the owner of the dataset
+        owner_uid : str
+            The UID of the project owner
 
         Returns
         -------
         <google.cloud.firestore_v1.document.DocumentSnapshot>
             A snapshot of the added document 
     '''
-    rack.collection('datasets').add({
-        'name'  : data['name'],
-        'owner' : userId,
+    dataset_ref = firestore.client().document(
+        f"Frozen/{owner_uid}/DatasetType/{dtype}/Dataset/{name}"
+    )
+    dataset = dataset_ref.get()
+    if dataset.exists:
+        raise ValueError('Dataset exists')
+    dataset_ref.set({
+        'dtype' : data['dtype'],
+        'name' : data['name'],
+        'onwer' : uid,
         'files' : [],
-    })
-    # return a reference to the new dataset
-    return list(
-        rack.collection('datasets')
-        .where('owner','==',userId)
-        .where('name','==',data['name'])
-        .stream()
-    ).pop()
+        'collaborators': [],
+        'tags' : []
+    })    
+    return dataset_ref.get()
 
+
+
+def get_uid(request):
+    '''
+    Extracts the UID from the Bearer token
+    sent with the Authorization header
+
+    Parameters
+    -----------
+    request : a Flask request object
+
+    Returns
+    -------
+    str containing the user uid
+
+    Raises
+    ------
+    ValueError
+    '''
+    try:
+        # Extract the firebase token from the HTTP header
+        token = request.headers['Authorization'].replace('Bearer ','')
+        # Validate the token 
+        uid = auth.verify_id_token(token)['uid']
+    except Exception as e:
+        raise ValueError('Unable to extract uid')
+    return uid
