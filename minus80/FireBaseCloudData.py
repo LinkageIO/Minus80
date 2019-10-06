@@ -17,7 +17,7 @@ from .Exceptions import (
     UserNotVerifiedError
 )
 
-from minus80 import SLUG_VERSION
+from minus80 import API_VERSION
 
 class FireBaseCloudData(BaseCloudData):
 
@@ -137,7 +137,7 @@ class FireBaseCloudData(BaseCloudData):
     
         '''
         manifest = TinyDB(
-            Path(cf.options.basedir)/'datasets'/SLUG_VERSION/f'{dtype}.{name}'/'MANIFEST.json'
+            Path(cf.options.basedir)/'datasets'/API_VERSION/f'{dtype}.{name}'/'MANIFEST.json'
         )
         tag_data = manifest.get(where('tag') == tag)
         if tag_data is None:

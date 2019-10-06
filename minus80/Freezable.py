@@ -17,7 +17,7 @@ from datetime import datetime
 
 from minus80.RelationalDB import relational_db
 from minus80.ColumnDB import columnar_db
-from minus80 import SLUG_VERSION
+from minus80 import API_VERSION
 
 
 from .Config import cf
@@ -77,7 +77,7 @@ class FreezableAPI(object):
 
         # Default to the basedir in the config file
         if basedir is None:
-            basedir = Path(cf.options.basedir).expanduser() / 'datasets' / SLUG_VERSION
+            basedir = Path(cf.options.basedir).expanduser() / 'datasets' / API_VERSION
         else:
             basedir = Path(basedir).expanduser()
         # Create the base dir

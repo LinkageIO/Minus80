@@ -13,7 +13,8 @@ from datetime import datetime
 from .Config import cf
 from .Exceptions import (TagInvalidError,
                          FreezableNameInvalidError)
-from minus80 import SLUG_VERSION 
+
+from minus80 import API_VERSION 
 
 __all__ = ["available", "delete"]
 
@@ -65,7 +66,7 @@ def get_files(dtype=None, name=None, fullpath=False):
         name = "*"
     if dtype is None:
         dtype = "*"
-    data_dir = Path(bdir)/"datasets"/SLUG_VERSION/f"{dtype}.{name}"
+    data_dir = Path(bdir)/"datasets"/API_VERSION/f"{dtype}.{name}"
     files = sorted(glob(str(data_dir)))
     if fullpath:
         files = files
@@ -124,7 +125,7 @@ def available(dtype=None, name=None, tags=False):
                 print(f"  └──{name}")
                 # Print tag data
                 if tags:
-                    manifest = TinyDB(Path(bdir)/'datasets'/SLUG_VERSION/f'{dtype}.{name}'/'MANIFEST.json') 
+                    manifest = TinyDB(Path(bdir)/'datasets'/API_VERSION/f'{dtype}.{name}'/'MANIFEST.json') 
                     tags = [x for x in manifest.table().all() if x['tag'] != 'thawed']
                     tags.sort(key= lambda x: x['timestamp'])
                     # print thawed info first
@@ -164,7 +165,7 @@ def delete(dtype=None, name=None):
     num_deleted = 0
     for filename in files:
         bdir = os.path.expanduser(cf.options.basedir)
-        data_dir = Path(bdir)/"datasets"/SLUG_VERSION
+        data_dir = Path(bdir)/"datasets"/API_VERSION
         filename = os.path.join(data_dir, filename)
         # delete it
         shutil.rmtree(filename)

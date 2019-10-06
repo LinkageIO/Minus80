@@ -1,6 +1,6 @@
 __version__ = "1.0.0"
 
-SLUG_VERSION = 'v1'
+API_VERSION = 'v1'
 
 from .Freezable import Freezable
 from .Accession import Accession
