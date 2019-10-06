@@ -117,8 +117,10 @@ cli.add_command(list)
 @click.command(help="Delete a minus80 dataset")
 @click.argument("slug", metavar="<slug>")
 @click.option("--force",is_flag=True,default=False,help='Force delete without confirmation prompt',)
-def delete(slug):
+def delete(slug,force):
     # Validate the input
+    if force is False:
+        click.confirm(f'Are you sure you want to delete "{slug}"')
     try:
         dtype,name,tag = minus80.Tools.parse_slug(slug) 
         if tag is not None:
