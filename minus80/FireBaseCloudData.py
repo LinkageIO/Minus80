@@ -21,6 +21,8 @@ from minus80 import SLUG_VERSION
 
 class FireBaseCloudData(BaseCloudData):
 
+    URL_BASE = 'https://us-central1-minus80.cloudfunctions.net/'
+
     config = {
         "apiKey": "AIzaSyCK8ItbVKqvBfwgBU74_EjvKHtl0Pi8r04",
         "authDomain": "minus80.firebaseapp.com",
@@ -33,6 +35,7 @@ class FireBaseCloudData(BaseCloudData):
         self.firebase = pyrebase.initialize_app(self.config)
         self.auth = self.firebase.auth()
         self._user = None
+        self._req = requests.Session()
 
     @property
     def user(self):
@@ -120,6 +123,19 @@ class FireBaseCloudData(BaseCloudData):
             raise e
 
     def push(self, dtype, name, tag):
+        '''
+        Pushes frozen tag data to the cloud.
+
+        Parameters
+        ----------
+        dtype: str 
+            The primary data type of the frozen dataset.
+        name: str
+            The name of the frozen dataset
+        tag: str
+            The tag of the frozen dataset
+    
+        '''
         manifest = TinyDB(
             Path(cf.options.basedir)/'datasets'/SLUG_VERSION/f'{dtype}.{name}'/'MANIFEST.json'
         )
@@ -131,17 +147,16 @@ class FireBaseCloudData(BaseCloudData):
             "content-type": "application/json",
             "Authorization": f"Bearer {self.user['idToken']}"
         }
+        # Fetch the info for the user project
         data = {
             'dtype': dtype,
             'name': name,
             'tag' : tag,
-            'data' : tag_data
+            'tag_data' : tag_data
         }
-        return data
         url = 'https://us-central1-minus80.cloudfunctions.net/push'
         # Create a requests session so we can send data
-        req = requests.Session()
-        res = req.post(
+        res = self._req.post(
             url,
             headers=headers,
             json=data
