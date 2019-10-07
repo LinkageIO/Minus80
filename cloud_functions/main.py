@@ -35,6 +35,7 @@ def push(request):
     # Get the uid from the token
     dtype = data['dtype']
     name = data['name']
+    tag = data['tag']
     uid = get_uid(request) 
     # Fire up firestore
     db = firestore.client()
@@ -52,11 +53,16 @@ def push(request):
     tag_data = data['tag_data']
     # Set the status to pending
     tag_data['status'] = 'PENDING'
-    dataset_ref.document(f"tags/{data['tag']}").set(
+
+    # Grab the tag document and add the new tag data
+    tag_ref = db.document(
+        f"Frozen/{uid}/DatasetType/{dtype}/Dataset/{name}/tags/{tag}"
+    )
+    tag_ref.set(
         tag_data
     )
     # Figure out which files need to be uploaded
-    files = dataset.get('files')     
+    files = dataset.get('files') 
     return json.dumps(data,200)
 
 # Helper Methods -------------------
