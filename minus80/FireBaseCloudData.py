@@ -149,6 +149,7 @@ class FireBaseCloudData(BaseCloudData):
         }
         # Fetch the info for the user project
         data = {
+            'api_version' : API_VERSION, 
             'dtype': dtype,
             'name': name,
             'tag' : tag,
