@@ -48,10 +48,15 @@ def push(request):
     #  Check if the tag exists
     if data['tag'] in dataset.get('tags'):
         return abort(409,'tag exists')
-    # Otherwise
+    # Otherwise add the tag data
+    tag_data = data['tag_data']
+    # Set the status to pending
+    tag_data['status'] = 'PENDING'
     dataset_ref.document(f"tags/{data['tag']}").set(
-        data['tag_data']
+        tag_data
     )
+    # Figure out which files need to be uploaded
+    files = dataset.get('files')     
     return json.dumps(data,200)
 
 # Helper Methods -------------------
@@ -81,10 +86,10 @@ def create_dataset(dtype,name,owner_uid):
     if dataset.exists:
         raise ValueError('Dataset exists')
     dataset_ref.set({
-        'dtype' : data['dtype'],
-        'name' : data['name'],
-        'onwer' : uid,
-        'files' : [],
+        'dtype' : dtype,
+        'name' : name,
+        'owner' : owner_uid,
+        'files' : {},
         'collaborators': [],
         'tags' : []
     })    
