@@ -7,6 +7,11 @@ def test_init(simpleCohort, RNACohort):
     x = simpleCohort
     assert isinstance(x, Cohort)
 
+def test_init_different_basedir():
+    import tempfile
+    tmpdir = basedir=tempfile.TemporaryDirectory()
+    x = Cohort('tmpCohort',basedir=tmpdir.name)
+    assert str(x.m80.basedir).startswith(tmpdir.name)
 
 def test_repr(simpleCohort):
     x = repr(simpleCohort)

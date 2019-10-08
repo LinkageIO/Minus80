@@ -1,20 +1,14 @@
 import pytest
 from minus80 import Accession
 from minus80 import Cohort
+from minus80 import Project
 #from minus80 import CloudData
 from minus80.Tools import *
-
-
-#@pytest.fixture(scope="module")
-#def simpleCloudData():
-#    return CloudData()
-
 
 @pytest.fixture(scope="module")
 def simpleAccession():
     # Create a simple Accession
     return Accession("Sample1", files=["file1.txt", "file2.txt"], type="sample")
-
 
 @pytest.fixture(scope="module")
 def RNAAccession1():
@@ -52,8 +46,8 @@ def RNACohort(RNAAccession1, RNAAccession2):
     x = Cohort("RNACohort")
     x.add_accession(RNAAccession1)
     x.add_accession(RNAAccession2)
-    return x
-
+    yield x
+    delete(x.m80.dtype,x.m80.name)
 
 @pytest.fixture(scope="module")
 def simpleCohort():
@@ -67,4 +61,5 @@ def simpleCohort():
     x = Cohort("TestCohort")
     for acc in [a, b, c, d]:
         x.add_accession(acc)
-    return x
+    yield x
+    delete(x.m80.dtype,x.m80.name)

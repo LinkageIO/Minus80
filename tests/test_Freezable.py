@@ -83,6 +83,11 @@ def test_m80_name(simpleCohort):
 def test_m80_dtype(simpleCohort):
     assert simpleCohort.m80.dtype == "Cohort"
 
+def test_manifest(simpleCohort):
+    assert isinstance(
+        simpleCohort.m80._manifest.all(),
+        list
+    )
 
 def test_delete_m80():
     import os
