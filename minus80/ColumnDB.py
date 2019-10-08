@@ -6,14 +6,14 @@ import pandas
 __all__ = ["columnar_db"]
 
 
-def columnar_db(basedir, engine="hdf5"):
+def columnar_db(basedir, engine="hdf5"): #pragma: no cover 
     if engine == "hdf5":
         return hdf5_db(basedir)
     else:
         raise ValueError("Engine must be one of ['hdf5']")
 
 
-class ColumnarDB(object):
+class ColumnarDB(object):  #pragma: no cover 
     "Abstract Base Class for Colmnar DBs engines"
 
     def __init__(self, basedir, engine=None):
@@ -35,7 +35,7 @@ class ColumnarDB(object):
         raise NotImplementedError()
 
 
-class bcolz_db(ColumnarDB):
+class bcolz_db(ColumnarDB): #pragma: no cover 
     def __init__(self, basedir, engine=None):
         raise NotImplementedError()
 
