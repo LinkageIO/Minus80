@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
+import os 
 import re
 import shutil
 import hashlib
 import logging
 import tempfile
 
-import os as os
 import numpy as np
 import pandas as pd
 
@@ -37,8 +37,8 @@ log = logging.getLogger('minus80')
 
 class Freezable(object):
     """
-    Freezable is an base class. Things that inherit from Freezable can
-    be loaded and unloaded from the Minus80.
+    Freezable is a base class. Things that inherit from Freezable can
+    be loaded(frozen) and unloaded(thawed) from Minus80.
 
     A freezable object is a persistant object that lives in a known directory
     aimed to make expensive to build objects and databases loadable from
@@ -138,7 +138,7 @@ class FreezableAPI(object):
         if tag['parent'] is None:
             raise TagDoesNotExistError('parent tag is None') 
         parent = self._manifest.get(where('tag') == tag['parent']) 
-        if parent is None:
+        if parent is None: # pragma: no cover
             raise TagDoesNotExistError('parent tag "{tag["parent"]} is not in manifest"')
         return parent
 
@@ -172,13 +172,17 @@ class FreezableAPI(object):
                 rel_path = full_path.replace(str(self.thawed_dir)+'/','')
                 # calculate and store the checksums
                 phash = file_hash(full_path)
-                checksums['files'][rel_path] = phash
+                filesize = os.path.getsize(full_path)
+                checksums['files'][rel_path] = { 
+                    'checksum': phash,
+                    'size': filesize,
+                }
         # calculate the total
         total = hashlib.sha256(checksums['slug'].encode('utf-8'))
         # Iterate over filenames AND hashes and update checksum
-        for filename,csum in checksums['files'].items():
+        for filename,data in checksums['files'].items():
             total.update(filename.encode('utf-8'))
-            total.update(csum.encode('utf-8'))
+            total.update(data['checksum'].encode('utf-8'))
         checksums['total'] = total.hexdigest()
         return checksums
 
@@ -200,7 +204,9 @@ class FreezableAPI(object):
         tag.update(self.checksum)
 
         # Check to see what files need to be frozen
-        for relative_path,phash in tag['files'].items():
+        for relative_path,file_dict in tag['files'].items():
+            phash = file_dict['checksum']
+
             if not (self.basedir / 'frozen' / phash).exists():
                 log.info(f'Found a new file: {relative_path}')
                 shutil.copyfile(
@@ -218,6 +224,40 @@ class FreezableAPI(object):
         # Update the current thawed tag
         self._update_thawed_tag({'parent':tagname})
 
+    def file_changes(self):
+        '''
+            Calculate the files that are "new", "changed", or "deleted" compared
+            to the last frozen tag (parent tag)
+        
+            Paremeters
+            ----------
+            None
+
+            Returns
+            -------
+            dictionary with keys: new, changed, deleted and 
+            values containing the list of files in each category
+        '''
+        new = []
+        changed = []
+        deleted = []
+        parent = self.parent_tag
+        # Loop through the files and find the ones that have changed
+        for relative_path,file_dict in self.checksum['files'].items():
+            if relative_path not in parent['files']:
+                new.append(relative_path)
+            elif file_dict['checksum'] != parent['files'][relative_path]['checksum']:
+                changed.append(relative_path)
+        # Loop through the parent files and see which files have been deleted
+        for relative_path in parent['files'].keys():
+            if relative_path not in self.checksum['files']:
+                deleted.append(relative_path)
+        return {
+            'new' : new,
+            'changed' : changed,
+            'deleted' : deleted
+        }
+
     def thaw(self, tagname, force=False):
         # Validate tag name
         tagname = validate_tagname(tagname)
@@ -227,37 +267,29 @@ class FreezableAPI(object):
             raise TagDoesNotExistError(f'{tagname} is not in frozen datasets')
         # Check to see that current thawed dataset doesnt have unsaved work
         current_checksum = self.checksum['total']        
-        parent = self._manifest.get(
-            where('tag') == self.thawed_tag['parent']
-        )
+        parent = self.parent_tag        
+        # If we are not forcing a thaw and the thawed checksum is not
+        # the same as the last frozen tag (parent tag), we have 
+        # unsaved changes. 
         if not force and current_checksum != parent['total']:
-            new = []
-            changed = []
-            deleted = []
-            for f,c in self.checksum['files'].items():
-                if f not in parent['files']:
-                    new.append(f)
-                elif c != parent['files'][f]:
-                    changed.append(f)
-            for f,c in parent['files'].items():
-                if f not in self.checksum['files']:
-                    deleted.append(f)
-            # poppulate a list of files that changed
+            # populate a list of files that changed
+            delta = self.file_changes() 
             raise UnsavedChangesInThawedError(
                 'freeze your current changes or use "force" to dispose '
                 'of any unsaved changes in current thawed dataset',
-                new=new,changed=changed,deleted=deleted
+                new=delta['new'],changed=delta['changed'],deleted=delta['deleted']
             ) 
-        # Thaw it out ----------
-
+        
+        # Thaw it out
         # Remove the current files in the thawed directory 
         for root, dirs, files in os.walk(self.thawed_dir):
             for f in files:
                 os.unlink(os.path.join(root, f))
             for d in dirs:
                 shutil.rmtree(os.path.join(root, d))
-
-        for rel_path,phash in tag_data['files'].items():
+        
+        for rel_path,file_dict in tag_data['files'].items():
+            phash = file_dict['checksum']
             (self.thawed_dir/rel_path).parent.mkdir(parents=True,exist_ok=True)
             shutil.copyfile(
                 self.frozen_dir / phash,
