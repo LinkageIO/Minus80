@@ -1,4 +1,4 @@
-def CloudData(engine="firebase"):
+def CloudData(engine="firebase"): #pragma: no cover
     if engine == 'firebase':
         from .FireBaseCloudData import FireBaseCloudData
         return FireBaseCloudData()
