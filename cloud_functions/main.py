@@ -2,17 +2,13 @@ import json
 import requests
 import firebase_admin
 
-from flask import abort
+from flask import abort,Response
 from functools import wraps
 from firebase_admin import auth,firestore
+from google.cloud import storage
 
 firebase_admin.initialize_app()
 
-STAGE_BUCKET = 'minus80-staging'
-STAGE_URL = f'https://www.googleapis.com/upload/storage/v1/b/{STAGE_BUCKET}/o?uploadType=resumable'
-
-PRODUCTION_BUCKET = 'minus80'
-PROUCTION_URL =  f'https://www.googleapis.com/upload/storage/v1/b/{PRODUCTION_BUCKET}/o?uploadType=resumable'
 
 # Decorators ----------------------
 
@@ -42,7 +38,6 @@ def commit_tag(request):
    #    tag_data = tag_ref.get().to_dict()
    #    # If the tag already exists and the checksum is different, 
    #    # do not allow the push to happen
-   #    breakpoint()
    #    return abort(409,'tag exists')
 
    #    if tag_data['status'] == 'COMPLETE':
@@ -85,15 +80,23 @@ def commit_tag(request):
             pass
 
 @authenticated
-def stage_files(request):
-    '''
-    '''
+def stage_file(request):
     data = request.get_json()
     # Get the uid from the token
     dtype = data['dtype']
     name = data['name']
-    tag = data['tag']
     uid = get_uid(request) 
+
+    checksum = data['']
+
+@authenticated
+def stage_files(request):
+    data = request.get_json()
+    # Get the uid from the token
+    dtype = data['dtype']
+    name = data['name']
+    uid = get_uid(request) 
+
     # Fire up firestore
     db = firestore.client()
     dataset_ref = db.document(
@@ -105,30 +108,33 @@ def stage_files(request):
         dataset = create_dataset(data['dtype'],data['name'],uid)
     # Figure out which files need to be uploaded
     dataset_files = set(dataset.get('available_files'))
-    missing_files = []
+    missing_files = {}
+    url = (
+        f'https://www.googleapis.com/'
+        f'upload/storage/v1/b/'
+        f'minus80/o?uploadType=resumable'
+    )
+    client = storage.Client()
+    bucket = client.bucket('minus80')
     for file_data in data['tag_data']['files'].values():
         if file_data['checksum'] not in dataset_files:
-            # create a  resumable upload link
-            upload_link = generate_resumable_upload_link(
-                file_data['checksum'],
-                file_data['size']
+            blob = bucket.blob(
+                f'{uid}/{dtype}/{name}'
             )
-    breakpoint()    
-
-    return json.dumps(response)
+            url = blob.create_resumable_upload_session(
+                content_type = 'application/octet-stream'
+            )
+            missing_files[file_data['checksum']] = url
+    return Response(
+        response=json.dumps(missing_files),
+        status=200,
+        mimetype='application/json'
+    )
 
 # Helper Methods -------------------
 
-def generate_resumable_upload_link(checksum,size):
-    url = STAGE_URL + '&'
-    header = {
-        'X-Upload-Content-Type' : 'application/octet-stream',
-    }
-    breakpoint()
-    pass
-
 def create_dataset(dtype,name,owner_uid):
-    '''
+    ''':
         creates a dataset
 
         Parameters
