@@ -113,6 +113,7 @@ setup(
         "pyyaml >= 5.1.2",
         "click >= 7.0",
         "asyncssh >= 1.17.1",
+        "aiohttp >= 3.6.1",
         "networkx == 1.11",
         "urllib3 >= 1.24.2",
         "boto3 >= 1.9.99",
