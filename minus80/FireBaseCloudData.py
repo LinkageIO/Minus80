@@ -21,7 +21,9 @@ from minus80 import API_VERSION
 
 class FireBaseCloudData(BaseCloudData):
 
-    URL_BASE = 'https://us-central1-minus80.cloudfunctions.net/'
+    #URL_BASE = 'https://us-central1-minus80.cloudfunctions.net/'
+    URL_BASE = 'https://127.0.0.1:50000/'
+    VERIFY = False
 
     config = {
         "apiKey": "AIzaSyCK8ItbVKqvBfwgBU74_EjvKHtl0Pi8r04",
@@ -142,11 +144,6 @@ class FireBaseCloudData(BaseCloudData):
         tag_data = manifest.get(where('tag') == tag)
         if tag_data is None:
             raise TagDoesNotExistError 
-        # build the REST call
-        headers = {
-            "content-type": "application/json",
-            "Authorization": f"Bearer {self.user['idToken']}"
-        }
         # Fetch the info for the user project
         data = {
             'api_version' : API_VERSION, 
@@ -155,14 +152,42 @@ class FireBaseCloudData(BaseCloudData):
             'tag' : tag,
             'tag_data' : tag_data
         }
-        url = 'https://us-central1-minus80.cloudfunctions.net/push'
+        # Stage the tags files
+        self._stage_files(data)
         # Create a requests session so we can send data
+       #res = self._req.post(
+       #    url,
+       #    headers=headers,
+       #    json=data,
+       #    verify=self.VERIFY
+       #)        
+        return res
+
+    def _stage_files(self,tag_data):
+        '''
+        Stages a tags files for upload into the cloud. 
+
+        Parameters
+        ----------
+        tag_data : dict 
+            Contains the file info for the tag 
+        '''
+        headers = {
+            "content-type": "application/json",
+            "Authorization": f"Bearer {self.user['idToken']}"
+        }
+        url = self.URL_BASE + 'stage_files'
         res = self._req.post(
             url,
             headers=headers,
-            json=data
-        )        
+            json=tag_data,
+            verify=self.VERIFY
+        )
         return res
+
+    def _commit_tag(self,tag_data):
+        pass
+        url = self.URL_BASE + 'commit_tag'
 
     def pull(self, dtype, name, tag):
         raise NotImplementedError("This engine does not support pulling")

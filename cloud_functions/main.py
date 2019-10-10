@@ -1,4 +1,5 @@
 import json
+import requests
 import firebase_admin
 
 from flask import abort
@@ -6,6 +7,12 @@ from functools import wraps
 from firebase_admin import auth,firestore
 
 firebase_admin.initialize_app()
+
+STAGE_BUCKET = 'minus80-staging'
+STAGE_URL = f'https://www.googleapis.com/upload/storage/v1/b/{STAGE_BUCKET}/o?uploadType=resumable'
+
+PRODUCTION_BUCKET = 'minus80'
+PROUCTION_URL =  f'https://www.googleapis.com/upload/storage/v1/b/{PRODUCTION_BUCKET}/o?uploadType=resumable'
 
 # Decorators ----------------------
 
@@ -26,11 +33,61 @@ def authenticated(fn):
 # HTTP Methods --------------------
 
 @authenticated
-def push(request):
-    """
-    Push a tagged dataset to the cloud. This function gets activated
-    by the minus80.FireBaseCloudData.push method
-    """
+def commit_tag(request):
+    #  Check if the tag exists
+   #if data['tag'] in dataset.get('available_tags'):
+   #    tag_ref = db.document(
+   #        f"Frozen/{uid}/DatasetType/{dtype}/Dataset/{name}/Tags/{tag}"
+   #    )
+   #    tag_data = tag_ref.get().to_dict()
+   #    # If the tag already exists and the checksum is different, 
+   #    # do not allow the push to happen
+   #    breakpoint()
+   #    return abort(409,'tag exists')
+
+   #    if tag_data['status'] == 'COMPLETE':
+   #        return abort(409,'tag exists')
+   #else:
+   #    # Otherwise add the tag data
+   #    tag_data = data['tag_data']
+   #    # Set the status to pending
+   #    tag_data['status'] = 'PENDING'
+   #    # Grab the tag document and add the new tag data
+   #    tag_ref = db.document(
+   #        f"Frozen/{uid}/DatasetType/{dtype}/Dataset/{name}/Tags/{tag}"
+   #    )
+   #    tag_ref.set(
+   #        tag_data
+   #    )
+   #    # Add the tag data to the project entry
+   #    dataset_ref.update({
+   #        'available_tags' : firestore.ArrayUnion([tag,])
+   #    })
+    pass
+    for tagfile,fileinfo in tag_data['files'].items():
+        # Fetch the file document
+        file_ref = (
+            dataset_ref
+            .collection('Files')
+            .document(fileinfo['checksum'])
+        )
+        filedata = file_ref.get()
+        if not filedata.exists:
+            # create the document and add the file to the results
+            fields = fileinfo
+            fields.update({'url':None})
+            file_ref.create(fields)
+            missing_files.append(fileinfo)
+        elif filedata.get('url') is None:
+            # If the URL isn't set, try to upload
+            missing_files.append(fileinfo)
+        else:
+            pass
+
+@authenticated
+def stage_files(request):
+    '''
+    '''
     data = request.get_json()
     # Get the uid from the token
     dtype = data['dtype']
@@ -46,26 +103,29 @@ def push(request):
     # Create a new dataset if needed
     if not dataset.exists:
         dataset = create_dataset(data['dtype'],data['name'],uid)
-    #  Check if the tag exists
-    if data['tag'] in dataset.get('tags'):
-        return abort(409,'tag exists')
-    # Otherwise add the tag data
-    tag_data = data['tag_data']
-    # Set the status to pending
-    tag_data['status'] = 'PENDING'
-
-    # Grab the tag document and add the new tag data
-    tag_ref = db.document(
-        f"Frozen/{uid}/DatasetType/{dtype}/Dataset/{name}/tags/{tag}"
-    )
-    tag_ref.set(
-        tag_data
-    )
     # Figure out which files need to be uploaded
-    files = dataset.get('files') 
-    return json.dumps(data,200)
+    dataset_files = set(dataset.get('available_files'))
+    missing_files = []
+    for file_data in data['tag_data']['files'].values():
+        if file_data['checksum'] not in dataset_files:
+            # create a  resumable upload link
+            upload_link = generate_resumable_upload_link(
+                file_data['checksum'],
+                file_data['size']
+            )
+    breakpoint()    
+
+    return json.dumps(response)
 
 # Helper Methods -------------------
+
+def generate_resumable_upload_link(checksum,size):
+    url = STAGE_URL + '&'
+    header = {
+        'X-Upload-Content-Type' : 'application/octet-stream',
+    }
+    breakpoint()
+    pass
 
 def create_dataset(dtype,name,owner_uid):
     '''
@@ -95,13 +155,11 @@ def create_dataset(dtype,name,owner_uid):
         'dtype' : dtype,
         'name' : name,
         'owner' : owner_uid,
-        'files' : {},
         'collaborators': [],
-        'tags' : []
+        'available_tags' : [],
+        'available_files' : []
     })    
     return dataset_ref.get()
-
-
 
 def get_uid(request):
     '''
@@ -128,3 +186,22 @@ def get_uid(request):
     except Exception as e:
         raise ValueError('Unable to extract uid')
     return uid
+
+if __name__ == "__main__":
+    from flask import Flask, request
+    app = Flask(__name__)
+
+    @app.route('/push',methods=['POST'])
+    def do_push():
+        return push(request)
+
+    @app.route('/stage_files',methods=['POST'])
+    def do_stage_files():
+        return stage_files(request)
+
+    app.run(
+        '127.0.0.1', 
+        50000, 
+        debug=True,
+        ssl_context=('cert.pem', 'key.pem')
+    )

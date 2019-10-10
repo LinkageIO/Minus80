@@ -12,4 +12,5 @@ dist/
 *.swm
 *.swp
 *.swl
+*.pem
 tests/htmlcov
