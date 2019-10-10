@@ -1,11 +1,14 @@
 import os
 import json
+import asyncio
+import aiohttp
 import getpass
 import pyrebase
 import requests
 
 from pathlib import Path
 from tinydb import TinyDB, where
+from functools import wraps
 from requests.exceptions import HTTPError
 
 from .CloudData import BaseCloudData
@@ -19,11 +22,17 @@ from .Exceptions import (
 
 from minus80 import API_VERSION
 
+def async_entry_point(fn): 
+    @wraps(fn)
+    def wrapped(self,*args,**kwargs):
+        asyncio.run(fn(self,*args,**kwargs))
+    return wrapped
+
 class FireBaseCloudData(BaseCloudData):
 
-    #URL_BASE = 'https://us-central1-minus80.cloudfunctions.net/'
-    URL_BASE = 'https://127.0.0.1:50000/'
-    VERIFY = False
+    URL_BASE = 'https://us-central1-minus80.cloudfunctions.net/'
+    #URL_BASE = 'https://127.0.0.1:50000/'
+    VERIFY = True
 
     config = {
         "apiKey": "AIzaSyCK8ItbVKqvBfwgBU74_EjvKHtl0Pi8r04",
@@ -124,7 +133,8 @@ class FireBaseCloudData(BaseCloudData):
         except HTTPError as e:
             raise e
 
-    def push(self, dtype, name, tag):
+    @async_entry_point
+    async def push(self, dtype, name, tag):
         '''
         Pushes frozen tag data to the cloud.
 
@@ -141,10 +151,15 @@ class FireBaseCloudData(BaseCloudData):
         manifest = TinyDB(
             Path(cf.options.basedir)/'datasets'/API_VERSION/f'{dtype}.{name}'/'MANIFEST.json'
         )
+        # Fetch the tag
         tag_data = manifest.get(where('tag') == tag)
         if tag_data is None:
             raise TagDoesNotExistError 
-        # Fetch the info for the user project
+        # Add the additional information
+        headers = {
+            "content-type": "application/json",
+            "Authorization": f"Bearer {self.user['idToken']}"
+        }
         data = {
             'api_version' : API_VERSION, 
             'dtype': dtype,
@@ -152,18 +167,23 @@ class FireBaseCloudData(BaseCloudData):
             'tag' : tag,
             'tag_data' : tag_data
         }
-        # Stage the tags files
-        self._stage_files(data)
-        # Create a requests session so we can send data
-       #res = self._req.post(
-       #    url,
-       #    headers=headers,
-       #    json=data,
-       #    verify=self.VERIFY
-       #)        
-        return res
+        # Start asyncing
+        async with aiohttp.ClientSession() as session:
+            # Stage the tags files
+            res = await session.post(
+                url = self.URL_BASE + 'stage_files',
+                headers=headers,
+                json=data,
+                ssl=self.VERIFY
+            )
+            async with res:
+                if res.status == 200:
+                    data = await res.json()
+                    breakpoint()
+                    x = 1
 
-    def _stage_files(self,tag_data):
+
+    async def _stage_file(self,dtype,name,checksum,size):
         '''
         Stages a tags files for upload into the cloud. 
 
@@ -172,22 +192,7 @@ class FireBaseCloudData(BaseCloudData):
         tag_data : dict 
             Contains the file info for the tag 
         '''
-        headers = {
-            "content-type": "application/json",
-            "Authorization": f"Bearer {self.user['idToken']}"
-        }
-        url = self.URL_BASE + 'stage_files'
-        res = self._req.post(
-            url,
-            headers=headers,
-            json=tag_data,
-            verify=self.VERIFY
-        )
-        return res
-
-    def _commit_tag(self,tag_data):
         pass
-        url = self.URL_BASE + 'commit_tag'
 
     def pull(self, dtype, name, tag):
         raise NotImplementedError("This engine does not support pulling")
