@@ -10,9 +10,7 @@ from google.cloud import storage
 
 firebase_admin.initialize_app()
 
-
 # Decorators ----------------------
-
 def authenticated(fn):
     @wraps(fn)
     def wrapped(request):
@@ -27,69 +25,8 @@ def authenticated(fn):
         return fn(request)
     return wrapped
 
+
 # HTTP Methods --------------------
-
-@authenticated
-def commit_tag(request):
-    #  Check if the tag exists
-   #if data['tag'] in dataset.get('available_tags'):
-   #    tag_ref = db.document(
-   #        f"Frozen/{uid}/DatasetType/{dtype}/Dataset/{name}/Tags/{tag}"
-   #    )
-   #    tag_data = tag_ref.get().to_dict()
-   #    # If the tag already exists and the checksum is different, 
-   #    # do not allow the push to happen
-   #    return abort(409,'tag exists')
-
-   #    if tag_data['status'] == 'COMPLETE':
-   #        return abort(409,'tag exists')
-   #else:
-   #    # Otherwise add the tag data
-   #    tag_data = data['tag_data']
-   #    # Set the status to pending
-   #    tag_data['status'] = 'PENDING'
-   #    # Grab the tag document and add the new tag data
-   #    tag_ref = db.document(
-   #        f"Frozen/{uid}/DatasetType/{dtype}/Dataset/{name}/Tags/{tag}"
-   #    )
-   #    tag_ref.set(
-   #        tag_data
-   #    )
-   #    # Add the tag data to the project entry
-   #    dataset_ref.update({
-   #        'available_tags' : firestore.ArrayUnion([tag,])
-   #    })
-    pass
-    for tagfile,fileinfo in tag_data['files'].items():
-        # Fetch the file document
-        file_ref = (
-            dataset_ref
-            .collection('Files')
-            .document(fileinfo['checksum'])
-        )
-        filedata = file_ref.get()
-        if not filedata.exists:
-            # create the document and add the file to the results
-            fields = fileinfo
-            fields.update({'url':None})
-            file_ref.create(fields)
-            missing_files.append(fileinfo)
-        elif filedata.get('url') is None:
-            # If the URL isn't set, try to upload
-            missing_files.append(fileinfo)
-        else:
-            pass
-
-@authenticated
-def stage_file(request):
-    data = request.get_json()
-    # Get the uid from the token
-    dtype = data['dtype']
-    name = data['name']
-    uid = get_uid(request) 
-
-    checksum = data['']
-
 @authenticated
 def stage_files(request):
     data = request.get_json()
@@ -115,7 +52,7 @@ def stage_files(request):
     stage_uuid = str(uuid.uuid4())
     response = {
         'stage_uuid' : stage_uuid,
-        'missing_files' : {},
+        'missing_files' : [],
         'uploaded_files' : []
     }
     # figure out what files are missing 
@@ -125,12 +62,12 @@ def stage_files(request):
         if file_data['checksum'] not in dataset_files:
             # Create a staged blob and resumable url
             blob = bucket.blob(
-                f'{uid}/staged/{stage_uuid}/{dtype}/{name}'
+                f'staged/{uid}/{dtype}/{name}/{stage_uuid}/{file_data["checksum"]}'
             )
-            url = blob.create_resumable_upload_session(
+            file_data['upload_url'] = blob.create_resumable_upload_session(
                 content_type = 'application/octet-stream'
             )
-            response['missing_files'][file_data['checksum']] = url
+            response['missing_files'].append(file_data)
         else:
             response['uploaded_files'].append(file_data)
     return Response(
