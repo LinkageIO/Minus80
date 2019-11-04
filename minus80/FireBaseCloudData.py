@@ -31,9 +31,13 @@ def async_entry_point(fn):
 
 class FireBaseCloudData(BaseCloudData):
 
-    URL_BASE = 'https://us-central1-minus80.cloudfunctions.net/'
-    #URL_BASE = 'https://127.0.0.1:50000/'
-    VERIFY = True
+    # Production Options
+   #URL_BASE = 'https://us-central1-minus80.cloudfunctions.net/'
+   #VERIFY = False
+
+    # Debug Options
+    URL_BASE = 'https://127.0.0.1:50000/'
+    VERIFY = False
 
     config = {
         "apiKey": "AIzaSyCK8ItbVKqvBfwgBU74_EjvKHtl0Pi8r04",
@@ -179,28 +183,70 @@ class FireBaseCloudData(BaseCloudData):
             )
             async with res:
                 if res.status != 200:
-                    raise PushFailedError()
+                    raise PushFailedError(res)
                 response = await res.json()
                 # Create tasks to upload files
                 sem = asyncio.Semaphore(max_conc_upload)
                 upload_tasks = []
-                for checksum,url in response['missing_files'].items():
+                for file_data in response['missing_files']:
                     upload_tasks.append(
-                        asyncio.create_task(self._upload_file(checksum,url,sem))
+                        asyncio.create_task(self._upload_file(
+                            dtype,
+                            name,
+                            file_data['checksum'],
+                            file_data['size'],
+                            file_data['upload_url'],
+                            sem
+                        ))
                     )
                 # wait on the uploads
                 await asyncio.gather(*upload_tasks)
 
-    async def _upload_file(self,checksum,size,url,sem):
+    async def _upload_file(
+        self,
+        dtype,
+        name,
+        checksum,
+        size,
+        url,
+        sem,
+        chunk_size=1024*512
+    ):
         '''
         Asynchronously upload a file to a google cloud storage bucket
-        using a resumable upload url
+        using a resumable upload url.
         '''
-        async with sem:
-            # Upload file 
-            asyncio.sleep(1)
+        from contextlib import AsyncExitStack
+        # await on the semaphore
+        cur_byte = 0   
+        file_path=Path(cf.options.basedir)/'datasets'/API_VERSION/f'{dtype}.{name}'/'frozen'/checksum
+        # enter some async contexts
+        async with AsyncExitStack() as stack:
+            await stack.enter_async_context(sem)
+            session = await stack.enter_async_context(aiohttp.ClientSession())
+            # You can use non async contexts too!
+            f = stack.enter_context(open(file_path,'rb'))
+            # Seek to the current byte
+            f.seek(cur_byte)
+            # Read in the chunk_size
+            b = f.read(chunk_size)
+            # Send it!
+            headers={
+                'Content-Length': f'{len(b)}',
+                'Content-Type'  : 'application/octet-stream',
+            }
+            if size != 0:
+                headers['Content-Range'] = f'bytes {cur_byte}-{max(cur_byte,cur_byte+len(b)-1)}/{size}'
+            async with session.put(
+                url,
+                data=b,
+                headers=headers
+            ) as resp:
+                resp_text = await resp.text()
+                breakpoint()
 
-    async def _commit_staged(self)::
+
+    async def _commit_staged(self):
         pass
 
     def pull(self, dtype, name, tag):
