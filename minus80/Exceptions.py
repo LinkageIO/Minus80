@@ -3,6 +3,9 @@ class M80Error(Exception):
     def __init__(self,msg=''):
         self.message = msg
 
+class PushFailedError(M80Error):
+    pass
+
 class TagExistsError(M80Error):
     pass
 
