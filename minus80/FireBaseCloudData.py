@@ -17,7 +17,8 @@ from .Config import cf
 from .Exceptions import (
     TagDoesNotExistError,
     UserNotLoggedInError,
-    UserNotVerifiedError
+    UserNotVerifiedError,
+    PushFailedError
 )
 
 from minus80 import API_VERSION
@@ -134,7 +135,7 @@ class FireBaseCloudData(BaseCloudData):
             raise e
 
     @async_entry_point
-    async def push(self, dtype, name, tag):
+    async def push(self, dtype, name, tag, max_conc_upload=5):
         '''
         Pushes frozen tag data to the cloud.
 
@@ -174,24 +175,32 @@ class FireBaseCloudData(BaseCloudData):
                 url = self.URL_BASE + 'stage_files',
                 headers=headers,
                 json=data,
-                ssl=self.VERIFY
+                ssl=self.VERIFY # here for debugging on localhost
             )
             async with res:
-                if res.status == 200:
-                    data = await res.json()
-                    breakpoint()
-                    x = 1
+                if res.status != 200:
+                    raise PushFailedError()
+                response = await res.json()
+                # Create tasks to upload files
+                sem = asyncio.Semaphore(max_conc_upload)
+                upload_tasks = []
+                for checksum,url in response['missing_files'].items():
+                    upload_tasks.append(
+                        asyncio.create_task(self._upload_file(checksum,url,sem))
+                    )
+                # wait on the uploads
+                await asyncio.gather(*upload_tasks)
 
-
-    async def _stage_file(self,dtype,name,checksum,size):
+    async def _upload_file(self,checksum,size,url,sem):
         '''
-        Stages a tags files for upload into the cloud. 
-
-        Parameters
-        ----------
-        tag_data : dict 
-            Contains the file info for the tag 
+        Asynchronously upload a file to a google cloud storage bucket
+        using a resumable upload url
         '''
+        async with sem:
+            # Upload file 
+            asyncio.sleep(1)
+
+    async def _commit_staged(self)::
         pass
 
     def pull(self, dtype, name, tag):
