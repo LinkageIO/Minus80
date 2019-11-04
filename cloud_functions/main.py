@@ -1,4 +1,5 @@
 import json
+import uuid
 import requests
 import firebase_admin
 
@@ -108,25 +109,32 @@ def stage_files(request):
         dataset = create_dataset(data['dtype'],data['name'],uid)
     # Figure out which files need to be uploaded
     dataset_files = set(dataset.get('available_files'))
-    missing_files = {}
-    url = (
-        f'https://www.googleapis.com/'
-        f'upload/storage/v1/b/'
-        f'minus80/o?uploadType=resumable'
-    )
+    
+    # create a response object to let client know what to upload
+    # create a uuid for the staged files
+    stage_uuid = str(uuid.uuid4())
+    response = {
+        'stage_uuid' : stage_uuid,
+        'missing_files' : {},
+        'uploaded_files' : []
+    }
+    # figure out what files are missing 
     client = storage.Client()
     bucket = client.bucket('minus80')
     for file_data in data['tag_data']['files'].values():
         if file_data['checksum'] not in dataset_files:
+            # Create a staged blob and resumable url
             blob = bucket.blob(
-                f'{uid}/{dtype}/{name}'
+                f'{uid}/staged/{stage_uuid}/{dtype}/{name}'
             )
             url = blob.create_resumable_upload_session(
                 content_type = 'application/octet-stream'
             )
-            missing_files[file_data['checksum']] = url
+            response['missing_files'][file_data['checksum']] = url
+        else:
+            response['uploaded_files'].append(file_data)
     return Response(
-        response=json.dumps(missing_files),
+        response=json.dumps(response),
         status=200,
         mimetype='application/json'
     )
