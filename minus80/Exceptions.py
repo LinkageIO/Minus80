@@ -3,9 +3,6 @@ class M80Error(Exception):
     def __init__(self,msg=''):
         self.message = msg
 
-class PushFailedError(M80Error):
-    pass
-
 class TagExistsError(M80Error):
     pass
 
@@ -30,3 +27,7 @@ class UserNotLoggedInError(M80Error):
 
 class UserNotVerifiedError(M80Error):
     pass
+
+class PushFailedError(M80Error):
+    pass
+
