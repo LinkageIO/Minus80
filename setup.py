@@ -116,7 +116,6 @@ setup(
         "aiohttp >= 3.6.1",
         "networkx == 1.11",
         "urllib3 >= 1.24.2",
-        "boto3 >= 1.9.99",
         "requests >= 2.11.1",
         "pyrebase4 >=4.3.0",
         "fuzzywuzzy >= 0.17.0",
@@ -124,7 +123,16 @@ setup(
         "tqdm >= 4.32.2",
         "backoff >= 1.8.0",
     ],
-    extras_require={"docs": ["ipython>=6.5.0", "matplotlib>=2.2.3"]},
+    extras_require={
+        "docs": [
+            "ipython>=6.5.0", 
+            "matplotlib>=2.2.3"
+        ],
+        "local_install" : [
+            "flask>=1.1.1",
+            "firebase-admin>=3.1.0"
+        ]
+    },
     # dependency_links = [
     #    'git+https://github.com/rogerbinns/apsw'
     # ],
