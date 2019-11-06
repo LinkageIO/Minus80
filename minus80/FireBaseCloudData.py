@@ -1,10 +1,13 @@
 import os
+import re
 import json
 import asyncio
 import aiohttp
 import getpass
 import pyrebase
 import requests
+import random
+import logging
 
 from pathlib import Path
 from tinydb import TinyDB, where
@@ -52,6 +55,9 @@ class FireBaseCloudData(BaseCloudData):
         self.auth = self.firebase.auth()
         self._user = None
         self._req = requests.Session()
+        # set up the log
+        self.log = logging.getLogger(f"minus80.CloudData")
+
 
     @property
     def user(self):
@@ -185,22 +191,32 @@ class FireBaseCloudData(BaseCloudData):
                 if res.status != 200:
                     raise PushFailedError(res)
                 response = await res.json()
+                # Log what the server found
+                self.log.info(f'For tag: {data}, server says we need: {response}')
                 # Create tasks to upload files
                 sem = asyncio.Semaphore(max_conc_upload)
                 upload_tasks = []
                 for file_data in response['missing_files']:
                     upload_tasks.append(
-                        asyncio.create_task(self._upload_file(
-                            dtype,
-                            name,
-                            file_data['checksum'],
-                            file_data['size'],
-                            file_data['upload_url'],
-                            sem
+                        asyncio.create_task(
+                            self._upload_file(
+                                dtype,
+                                name,
+                                file_data['checksum'],
+                                file_data['size'],
+                                file_data['upload_url'],
+                                sem # Semaphore
                         ))
                     )
                 # wait on the uploads
+                self.log.info(f'Uploading {len(upload_tasks)} files')
                 await asyncio.gather(*upload_tasks)
+
+    async def _display_upload_progress(
+        self,
+        progress
+    ):
+        pass
 
     async def _upload_file(
         self,
@@ -210,41 +226,98 @@ class FireBaseCloudData(BaseCloudData):
         size,
         url,
         sem,
-        chunk_size=1024*512
+        chunk_size=20*1024*1024,
+        max_tries=10,
+        progress=None,
+        debug=True
     ):
         '''
         Asynchronously upload a file to a google cloud storage bucket
         using a resumable upload url.
         '''
         from contextlib import AsyncExitStack
-        # await on the semaphore
+        # Set some state variables
+        upload_complete = False
         cur_byte = 0   
-        file_path=Path(cf.options.basedir)/'datasets'/API_VERSION/f'{dtype}.{name}'/'frozen'/checksum
+        cur_tries = 1
         # enter some async contexts
         async with AsyncExitStack() as stack:
+            # await on the semaphore
             await stack.enter_async_context(sem)
             session = await stack.enter_async_context(aiohttp.ClientSession())
             # You can use non async contexts too!
+            file_path=Path(cf.options.basedir)/'datasets'/API_VERSION/f'{dtype}.{name}'/'frozen'/checksum
             f = stack.enter_context(open(file_path,'rb'))
-            # Seek to the current byte
-            f.seek(cur_byte)
-            # Read in the chunk_size
-            b = f.read(chunk_size)
-            # Send it!
-            headers={
-                'Content-Length': f'{len(b)}',
-                'Content-Type'  : 'application/octet-stream',
-            }
-            if size != 0:
-                headers['Content-Range'] = f'bytes {cur_byte}-{max(cur_byte,cur_byte+len(b)-1)}/{size}'
-            async with session.put(
-                url,
-                data=b,
-                headers=headers
-            ) as resp:
-                resp_text = await resp.text()
-                breakpoint()
+            self.log.info(f'Uploading {checksum}')
+            # Loop and send the necessary Data
+            while not upload_complete and cur_tries < max_tries:
+                if cur_byte is not None:
+                    # Seek to the current byte
+                    f.seek(cur_byte)
+                    # Read in the chunk_size
+                    b = f.read(chunk_size)
+                    # Send it!
+                    headers={
+                        'Content-Length': f'{len(b)}',
+                        'Content-Type'  : 'application/octet-stream',
+                    }
+                    # If the size of the file is not zero, calculate
+                    # the Content-Range
+                    if size != 0:
+                        start = cur_byte
+                        stop = max(cur_byte, (cur_byte+len(b)-1))
+                        headers['Content-Range'] = f'bytes {start}-{stop}/{size}'
+                        self.log.info(f'Uploading: {headers["Content-Range"]}')
+                else:
+                    # Exponentially back-off
+                    self.log.info(f'Backing off for {2**cur_tries} seconds on {checksum}')
+                    await asyncio.sleep(2 ** cur_tries)
+                    cur_tries += 1
+                    data=None
+                    headers={
+                        'Content-Length' : '0',
+                        'Content-Type'  : 'application/octet-stream',
+                        'Content-Range':f'bytes */{size}'
+                    }
+                # Make our request and process the output
+                async with session.put(
+                    url,
+                    data=b,
+                    headers=headers
+                ) as resp:
+                    resp_text = await resp.text() # useful for debugging
+                    if resp.status == 200 or resp.status == 201:
+                        # The file was successfully uploaded!
+                        upload_complete = True
+                    elif resp.status == 308:
+                        try:
+                            # add some debug code to simulate a resumed upload
+                            if debug:
+                                if random.randint(0, 10) == 0:
+                                    self.log.info(f"DEBUG: simulating a weird bug! on {checksum}")
+                                    raise Exception
+                            # Fetch the bounds of the uploaded bytes
+                            m = re.fullmatch('bytes=(\d+)-(\d+)',resp.headers['Range'])
+                            self.log.info(f"Successful upload of bytes {m[0]} on {checksum}")
+                            stop = m[2]
+                            # Reset the current byte to what ever google wants
+                            cur_byte = int(stop) + 1
+                            # Reset the exponential backoff to 0
+                            cur_tries = 1
+                        except Exception as e:
+                            # If for some reason the header is weird
+                            # Try to recover by initiatine a resume
+                            cur_byte = None
+                    else:
+                        # Something bad happened! Try to resume next loop
+                        cur_byte = None
 
+            if upload_complete:
+                self.log.info(f'Successfully uploaded {size} bytes of {checksum}')
+                return True
+            else:
+                self.log.info('Upload failed after {max_tries} times')
+                return False
 
     async def _commit_staged(self):
         pass
