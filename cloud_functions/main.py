@@ -28,12 +28,16 @@ def authenticated(fn):
 
 # HTTP Methods --------------------
 @authenticated
+def commit_files(request):
+    data = request.get_json()
+
+@authenticated
 def stage_files(request):
     data = request.get_json()
     # Get the uid from the token
+    uid = get_uid(request) 
     dtype = data['dtype']
     name = data['name']
-    uid = get_uid(request) 
 
     # Fire up firestore
     db = firestore.client()
@@ -57,12 +61,12 @@ def stage_files(request):
     }
     # figure out what files are missing 
     client = storage.Client()
-    bucket = client.bucket('minus80')
+    bucket = client.bucket('minus80-staging')
     for file_data in data['tag_data']['files'].values():
         if file_data['checksum'] not in dataset_files:
             # Create a staged blob and resumable url
             blob = bucket.blob(
-                f'staged/{uid}/{dtype}/{name}/{stage_uuid}/{file_data["checksum"]}'
+                f'{uid}/{dtype}/{name}/{stage_uuid}/{file_data["checksum"]}'
             )
             file_data['upload_url'] = blob.create_resumable_upload_session(
                 content_type = 'application/octet-stream'
