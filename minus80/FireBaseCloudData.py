@@ -8,6 +8,7 @@ import pyrebase
 import requests
 import random
 import logging
+import hashlib
 
 from pathlib import Path
 from tinydb import TinyDB, where
@@ -226,7 +227,7 @@ class FireBaseCloudData(BaseCloudData):
         size,
         url,
         sem,
-        chunk_size=20*1024*1024,
+        chunk_size=1*1024*1024, # Megabytes
         max_tries=10,
         progress=None,
         debug=True
@@ -255,17 +256,23 @@ class FireBaseCloudData(BaseCloudData):
                     # Seek to the current byte
                     f.seek(cur_byte)
                     # Read in the chunk_size
-                    b = f.read(chunk_size)
+                    chunk = f.read(chunk_size)
+                    # Get the md5 of the chunk
+                    chunk_checksum = hashlib.md5(chunk).hexdigest()
+                    if debug and random.randint(0,2):
+                        self.log.info(f'DEBUG: Simulating a bad checksum for {checksum}')
+                        chunk_checksum = 'x' + chunk_checksum[1:]
                     # Send it!
                     headers={
-                        'Content-Length': f'{len(b)}',
+                        'Content-Length': f'{len(chunk)}',
                         'Content-Type'  : 'application/octet-stream',
+                        'Content-MD5'   : chunk_checksum,
                     }
                     # If the size of the file is not zero, calculate
                     # the Content-Range
                     if size != 0:
                         start = cur_byte
-                        stop = max(cur_byte, (cur_byte+len(b)-1))
+                        stop = max(cur_byte, (cur_byte+len(chunk)-1))
                         headers['Content-Range'] = f'bytes {start}-{stop}/{size}'
                         self.log.info(f'Uploading: {headers["Content-Range"]}')
                 else:
@@ -282,7 +289,7 @@ class FireBaseCloudData(BaseCloudData):
                 # Make our request and process the output
                 async with session.put(
                     url,
-                    data=b,
+                    data=chunk,
                     headers=headers
                 ) as resp:
                     resp_text = await resp.text() # useful for debugging
