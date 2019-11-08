@@ -13,6 +13,7 @@ from .Cohort import Cohort
 import minus80.Tools as tools
 
 log = logging.getLogger('minus80')
+# One of DEBUG, INFO, WARNING, ERROR, CRITICAL
 log.setLevel(logging.DEBUG)
 # Set up the console handler
 ch = logging.StreamHandler()
