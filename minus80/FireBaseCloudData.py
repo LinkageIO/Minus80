@@ -1,18 +1,19 @@
 import os
 import re
 import json
+import random
 import asyncio
 import aiohttp
 import getpass
-import pyrebase
-import requests
-import random
 import logging
 import hashlib
+import pyrebase
+import requests
 
+from tqdm import tqdm
 from pathlib import Path
-from tinydb import TinyDB, where
 from functools import wraps
+from tinydb import TinyDB, where
 from requests.exceptions import HTTPError
 
 from .CloudData import BaseCloudData
@@ -30,14 +31,15 @@ from minus80 import API_VERSION
 def async_entry_point(fn): 
     @wraps(fn)
     def wrapped(self,*args,**kwargs):
-        asyncio.run(fn(self,*args,**kwargs))
+        root_task = fn(self,*args,**kwargs)
+        asyncio.run(root_task)
     return wrapped
 
 class FireBaseCloudData(BaseCloudData):
 
     # Production Options
-   #URL_BASE = 'https://us-central1-minus80.cloudfunctions.net/'
-   #VERIFY = False
+    #URL_BASE = 'https://us-central1-minus80.cloudfunctions.net/'
+    #VERIFY = False
 
     # Debug Options
     URL_BASE = 'https://127.0.0.1:50000/'
@@ -55,10 +57,9 @@ class FireBaseCloudData(BaseCloudData):
         self.firebase = pyrebase.initialize_app(self.config)
         self.auth = self.firebase.auth()
         self._user = None
-        self._req = requests.Session()
+        self._session = aiohttp.ClientSession()
         # set up the log
         self.log = logging.getLogger(f"minus80.CloudData")
-
 
     @property
     def user(self):
@@ -146,7 +147,14 @@ class FireBaseCloudData(BaseCloudData):
             raise e
 
     @async_entry_point
-    async def push(self, dtype, name, tag, max_conc_upload=5):
+    async def push(
+        self, 
+        dtype, 
+        name, 
+        tag, 
+        max_conc_upload=5,
+        progress=True
+    ):
         '''
         Pushes frozen tag data to the cloud.
 
@@ -179,45 +187,46 @@ class FireBaseCloudData(BaseCloudData):
             'tag' : tag,
             'tag_data' : tag_data
         }
-        # Start asyncing
-        async with aiohttp.ClientSession() as session:
-            # Stage the tags files
-            res = await session.post(
-                url = self.URL_BASE + 'stage_files',
-                headers=headers,
-                json=data,
-                ssl=self.VERIFY # here for debugging on localhost
+        # Stage the tags files
+        async with self._session.post(
+            url = self.URL_BASE + 'stage_files',
+            headers=headers,
+            json=data,
+            ssl=self.VERIFY # here for debugging on localhost
+        ) as resp:
+        # Process the results
+            if resp.status != 200:
+                raise PushFailedError(resp)
+            response = await resp.json()
+        # Log what the server found
+        self.log.info(f'For tag: {data}, server says we need: {response}')
+        # Create tasks to upload files
+        sem = asyncio.Semaphore(max_conc_upload)
+        upload_tasks = []
+        for i,file_data in enumerate(response['missing_files']):
+            # set up progress bars
+            pbar = None
+            if progress and self.log.getEffectiveLevel() > logging.DEBUG:
+                pbar = tqdm(
+                    desc = file_data['checksum'][0:10],
+                    total = file_data['size'],
+                    position = i
+                )
+            upload_tasks.append(
+                asyncio.create_task(
+                    self._upload_file(
+                        dtype,
+                        name,
+                        file_data['checksum'],
+                        file_data['size'],
+                        file_data['upload_url'],
+                        sem, # Semaphore
+                        pbar=pbar
+                ))
             )
-            async with res:
-                if res.status != 200:
-                    raise PushFailedError(res)
-                response = await res.json()
-                # Log what the server found
-                self.log.info(f'For tag: {data}, server says we need: {response}')
-                # Create tasks to upload files
-                sem = asyncio.Semaphore(max_conc_upload)
-                upload_tasks = []
-                for file_data in response['missing_files']:
-                    upload_tasks.append(
-                        asyncio.create_task(
-                            self._upload_file(
-                                dtype,
-                                name,
-                                file_data['checksum'],
-                                file_data['size'],
-                                file_data['upload_url'],
-                                sem # Semaphore
-                        ))
-                    )
-                # wait on the uploads
-                self.log.info(f'Uploading {len(upload_tasks)} files')
-                await asyncio.gather(*upload_tasks)
-
-    async def _display_upload_progress(
-        self,
-        progress
-    ):
-        pass
+        # wait on the uploads
+        self.log.info(f'Uploading {len(upload_tasks)} files')
+        await asyncio.gather(*upload_tasks,return_exceptions=True)
 
     async def _upload_file(
         self,
@@ -227,10 +236,10 @@ class FireBaseCloudData(BaseCloudData):
         size,
         url,
         sem,
-        chunk_size=1*1024*1024, # Megabytes
+        chunk_size=1*(1024*1024), # Megabytes
         max_tries=10,
-        progress=None,
-        debug=True
+        pbar=None,
+        debug=False
     ):
         '''
         Asynchronously upload a file to a google cloud storage bucket
@@ -245,11 +254,10 @@ class FireBaseCloudData(BaseCloudData):
         async with AsyncExitStack() as stack:
             # await on the semaphore
             await stack.enter_async_context(sem)
-            session = await stack.enter_async_context(aiohttp.ClientSession())
             # You can use non async contexts too!
-            file_path=Path(cf.options.basedir)/'datasets'/API_VERSION/f'{dtype}.{name}'/'frozen'/checksum
+            file_path = Path(cf.options.basedir)/'datasets'/API_VERSION/f'{dtype}.{name}'/'frozen'/checksum
             f = stack.enter_context(open(file_path,'rb'))
-            self.log.info(f'Uploading {checksum}')
+            self.log.debug(f'Uploading {checksum}')
             # Loop and send the necessary Data
             while not upload_complete and cur_tries < max_tries:
                 if cur_byte is not None:
@@ -259,7 +267,7 @@ class FireBaseCloudData(BaseCloudData):
                     chunk = f.read(chunk_size)
                     # Get the md5 of the chunk
                     chunk_checksum = hashlib.md5(chunk).hexdigest()
-                    if debug and random.randint(0,2):
+                    if debug and random.randint(0,10):
                         self.log.info(f'DEBUG: Simulating a bad checksum for {checksum}')
                         chunk_checksum = 'x' + chunk_checksum[1:]
                     # Send it!
@@ -287,7 +295,7 @@ class FireBaseCloudData(BaseCloudData):
                         'Content-Range':f'bytes */{size}'
                     }
                 # Make our request and process the output
-                async with session.put(
+                async with self._session.put(
                     url,
                     data=chunk,
                     headers=headers
@@ -296,6 +304,8 @@ class FireBaseCloudData(BaseCloudData):
                     if resp.status == 200 or resp.status == 201:
                         # The file was successfully uploaded!
                         upload_complete = True
+                        if pbar is not None:
+                            pbar.update(size)
                     elif resp.status == 308:
                         try:
                             # add some debug code to simulate a resumed upload
@@ -305,7 +315,9 @@ class FireBaseCloudData(BaseCloudData):
                                     raise Exception
                             # Fetch the bounds of the uploaded bytes
                             m = re.fullmatch('bytes=(\d+)-(\d+)',resp.headers['Range'])
-                            self.log.info(f"Successful upload of bytes {m[0]} on {checksum}")
+                            self.log.info(f"Successful upload {m[0]} bytes on {checksum}")
+                            if pbar is not None:
+                                pbar.update(int(m[2]))
                             stop = m[2]
                             # Reset the current byte to what ever google wants
                             cur_byte = int(stop) + 1
@@ -318,16 +330,41 @@ class FireBaseCloudData(BaseCloudData):
                     else:
                         # Something bad happened! Try to resume next loop
                         cur_byte = None
-
-            if upload_complete:
-                self.log.info(f'Successfully uploaded {size} bytes of {checksum}')
-                return True
-            else:
+            if not upload_complete: # We got here because cur_tries > max_tries
                 self.log.info('Upload failed after {max_tries} times')
                 return False
+            else:
+                self.log.info(f'Successfully staged {size} bytes of {checksum}')
+                result = await(self._commit_staged())
 
-    async def _commit_staged(self):
-        pass
+    async def _commit_staged_file(self,dtype,name,checksum):
+        headers = {
+            "content-type": "application/json",
+            "Authorization": f"Bearer {self.user['idToken']}"
+        }
+        data = {
+            "api_version" : API_VERSION,
+            'dtype' : dtype,
+            'name' : name,
+            'checksum' : checksum,
+        }
+        async with self._session.post(
+            self.URL_BASE + 'commit_file',
+            headers=headers,
+            json=data,
+            ssl=self.VERIFY
+        ) as resp:
+            if resp.status != 200:
+                raise PushFailedError(resp)
+            resp_json = await resp.json()
+        self.log.info(f'File {checksum} committed to {dtype}.{name}')
+
+    async def _rollback_staged(self, url):
+        async with aiohttp.ClientSession() as session:
+            self.log.debug('rolling back upload of {checksum}')
+            res = await session.delete(url,headers={'Content-Length':'0'})
+        return True
+
 
     def pull(self, dtype, name, tag):
         raise NotImplementedError("This engine does not support pulling")
