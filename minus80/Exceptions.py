@@ -31,3 +31,5 @@ class UserNotVerifiedError(M80Error):
 class PushFailedError(M80Error):
     pass
 
+class PushFileFailedError(M80Error):
+    pass
