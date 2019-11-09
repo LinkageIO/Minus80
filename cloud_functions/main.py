@@ -1,5 +1,6 @@
 import json
 import uuid
+import hashlib
 import requests
 import firebase_admin
 
@@ -28,16 +29,13 @@ def authenticated(fn):
 
 # HTTP Methods --------------------
 @authenticated
-def commit_files(request):
-    data = request.get_json()
-
-@authenticated
 def stage_files(request):
     data = request.get_json()
     # Get the uid from the token
     uid = get_uid(request) 
     dtype = data['dtype']
     name = data['name']
+    tag = data['tag']
 
     # Fire up firestore
     db = firestore.client()
@@ -48,36 +46,118 @@ def stage_files(request):
     # Create a new dataset if needed
     if not dataset.exists:
         dataset = create_dataset(data['dtype'],data['name'],uid)
-    # Figure out which files need to be uploaded
-    dataset_files = set(dataset.get('available_files'))
-    
-    # create a response object to let client know what to upload
-    # create a uuid for the staged files
-    stage_uuid = str(uuid.uuid4())
-    response = {
-        'stage_uuid' : stage_uuid,
-        'missing_files' : [],
-        'uploaded_files' : []
-    }
-    # figure out what files are missing 
-    client = storage.Client()
-    bucket = client.bucket('minus80-staging')
-    for file_data in data['tag_data']['files'].values():
-        if file_data['checksum'] not in dataset_files:
-            # Create a staged blob and resumable url
-            blob = bucket.blob(
-                f'{uid}/{dtype}/{name}/{stage_uuid}/{file_data["checksum"]}'
-            )
-            file_data['upload_url'] = blob.create_resumable_upload_session(
-                content_type = 'application/octet-stream'
-            )
-            response['missing_files'].append(file_data)
-        else:
-            response['uploaded_files'].append(file_data)
+
+    available_tags = set(dataset.get('available_tags'))
+    if tag in available_tags:
+        status = 409
+        response = {}
+    else:
+        # Figure out which files need to be uploaded
+        dataset_files = set(dataset.get('available_files'))
+        
+        # create a response object to let client know what to upload
+        # create a uuid for the staged files
+        stage_uuid = str(uuid.uuid4())
+        response = {
+            'stage_uuid' : stage_uuid,
+            'missing_files' : [],
+            'uploaded_files' : []
+        }
+        status = 200
+        # figure out what files are missing 
+        client = storage.Client()
+        bucket = client.bucket('minus80-staging')
+        for file_data in data['tag_data']['files'].values():
+            if file_data['checksum'] not in dataset_files:
+                # Create a staged blob and resumable url
+                blob = bucket.blob(
+                    f'{uid}/{dtype}/{name}/{stage_uuid}/{file_data["checksum"]}'
+                )
+                file_data['upload_url'] = blob.create_resumable_upload_session(
+                    content_type = 'application/octet-stream'
+                )
+                response['missing_files'].append(file_data)
+            else:
+                response['uploaded_files'].append(file_data)
     return Response(
         response=json.dumps(response),
-        status=200,
+        status=status,
         mimetype='application/json'
+    )
+
+@authenticated
+def commit_file(request):
+    data = request.get_json()
+    # Get the uid from the token
+    uid = get_uid(request) 
+    dtype = data['dtype']
+    name = data['name']
+    stage_uuid = data['stage_uuid']
+    checksum = data['checksum']
+
+    client = storage.Client()
+    staged_bucket = client.bucket('minus80-staging')
+    staged_blob = staged_bucket.blob(
+        f'{uid}/{dtype}/{name}/{stage_uuid}/{checksum}'
+    )
+    # Calculate the checksum to verify that the data was uploaded right
+    assert hashlib.sha256(staged_blob.download_as_string()).hexdigest() == checksum
+    # Set up the target blob and transfer
+    target_bucket = client.bucket('minus80')
+    target_blob = target_bucket.blob(
+        f'{uid}/{dtype}/{name}/{checksum}'                
+    )
+    target_blob.rewrite(staged_blob)
+    # add the file name to the firebase document 
+    db = firestore.client()
+    dataset_ref = db.document(
+        f"Frozen/{uid}/DatasetType/{dtype}/Dataset/{name}"
+    ) 
+    dataset_ref.set({
+            'available_files':firestore.ArrayUnion([checksum])
+        },
+        merge=True
+    )
+    data = {}
+    # delete the staged file blob
+    staged_blob.delete()
+
+    # return a success
+    return Response(
+        response=data,
+        mimetype='application/json',
+        status=200, 
+    )
+
+@authenticated
+def commit_tag(request):
+    data = request.get_json()
+    uid = get_uid(request) 
+    dtype = data['dtype']
+    name = data['name']
+    tag = data['tag']
+    tag_data = data['tag_data']
+
+    # update firestore
+    db = firestore.client()
+    dataset_ref = db.document(
+        f"Frozen/{uid}/DatasetType/{dtype}/Dataset/{name}"
+    ) 
+    dataset_ref.set({
+            'available_tags':firestore.ArrayUnion([tag])
+        },
+        merge=True
+    )
+    tag_ref = db.document(
+        f"Frozen/{uid}/DatasetType/{dtype}/Dataset/{name}/Tag/{tag}"
+    )
+    tag_ref.set(
+        tag_data 
+    )
+    return Response(
+        response=json.dumps({}),
+        mimetype='application/json',
+        status=200
     )
 
 # Helper Methods -------------------
@@ -153,6 +233,14 @@ if __name__ == "__main__":
     @app.route('/stage_files',methods=['POST'])
     def do_stage_files():
         return stage_files(request)
+
+    @app.route('/commit_file', methods=['POST'])
+    def do_commit_file():
+        return commit_file(request)
+
+    @app.route('/commit_tag', methods=['POST'])
+    def do_commit_tag():
+        return commit_tag(request)
 
     app.run(
         '127.0.0.1', 
