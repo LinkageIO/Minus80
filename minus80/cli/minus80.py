@@ -4,8 +4,10 @@ import os
 import json
 import click
 import random
-import minus80 as m80
+import asyncio
 import minus80.Tools
+
+import minus80 as m80
 
 from pathlib import Path
 
@@ -34,7 +36,8 @@ cute_emojis = [ "⛷"  , "❄️"  , "🏔"  , "🏂" , "☃️"  ]
     cls=NaturalOrderGroup,
     epilog=f"Made with {random.choice(cute_emojis)}  in Denver, Colorado"
 )
-def cli():
+@click.option('--debug/--no-debug', default=False)
+def cli(debug):
     """
     \b
         __  ____                  ____  ____
@@ -50,6 +53,15 @@ def cli():
     for more details.
     """
 
+    if debug:
+        click.echo("Debug mode is on")
+        import sys
+        from IPython.core import ultratb
+        sys.excepthook = ultratb.FormattedTB(mode='Verbose',
+            color_scheme='Linux', call_pdb=1)
+        import logging
+        log = logging.getLogger('minus80')
+        log.setLevel(logging.DEBUG)
 
 # ----------------------------
 #    init Commands
@@ -342,9 +354,14 @@ def push(slug):
         return 0
     else:
         try:
-            cloud.push(dtype, name, tag)
+            # run the push method in an event loop
+            asyncio.run(cloud.push(dtype, name, tag))
         except TagDoesNotExistError as e:
             click.echo(f'tag "{tag}" does not exist for {dtype}.{name}')
+        except TagExistsError as e:
+            click.echo(f'Cannot push {dtype}.{name}:{tag} to the cloud.')
+            click.echo(f'The tag already exists there.')
+            click.secho('Note! Local dataset may differ from Cloud dataset!',fg='red')
 
 @click.command()
 @click.argument("dtype", metavar="<dtype>")
