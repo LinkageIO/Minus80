@@ -9,6 +9,7 @@ import logging
 import hashlib
 import pyrebase
 import requests
+import aiofiles
 
 from tqdm import tqdm
 from pathlib import Path
@@ -21,6 +22,7 @@ from .Config import cf
 
 from .Exceptions import (
     TagExistsError,
+    TagConflictError,
     TagDoesNotExistError,
     UserNotLoggedInError,
     UserNotVerifiedError,
@@ -196,25 +198,35 @@ class FireBaseCloudData(BaseCloudData):
                 ssl=self.VERIFY # here for debugging on localhost
             )
             # Process the results
+            resp_json = await resp.json()
             if resp.status == 409:
-                raise TagExistsError('Tag already exists')
+                if resp_json['tag_checksum'] == tag_data['total']:
+                    # The data set already is in the cloud
+                    raise TagExistsError('Tag already exists')
+                else:
+                    # The tag exists but the checksums differ
+                    raise TagConflictError('Tag exists, checksums differ')
             elif resp.status != 200:
                 raise PushFailedError(resp)
-            resp = await resp.json()
             # Log what the server found
-            self.log.debug(f'For tag: {data}, server says we need: {resp}')
+            self.log.debug(f'For tag: {data}, server says we need: {resp_json}')
             # Create tasks to upload files
             sem = asyncio.Semaphore(max_conc_upload)
             upload_tasks = []
-            for i,file_data in enumerate(resp['missing_files']):
+            self.log.info(f'Need to upload {len(resp_json["missing_files"])} files')
+            for i,file_data in enumerate(resp_json['missing_files']):
                 # set up progress bars
                 pbar = None
                 if progress and self.log.getEffectiveLevel() > logging.DEBUG:
                     pbar = tqdm(
                         desc = file_data['checksum'][0:10],
-                        total = file_data['size'],
+                        total = int(file_data['size'])+1,
                         position = i,
-                        leave=False
+                        bar_format="{l_bar}{bar}{postfix:>30}", # float-right, pad 30 chars
+                        leave=True
+                    )
+                    pbar.set_postfix(
+                        status='PENDING'
                     )
                 upload_tasks.append(
                     asyncio.create_task(
@@ -224,13 +236,12 @@ class FireBaseCloudData(BaseCloudData):
                             file_data['checksum'],
                             file_data['size'],
                             file_data['upload_url'],
-                            resp['stage_uuid'],
+                            resp_json['stage_uuid'],
                             sem, # Semaphore
                             pbar=pbar
                     ))
                 )
             # wait on the uploads
-            self.log.info(f'Need to upload {len(upload_tasks)} files')
             await asyncio.gather(*upload_tasks,return_exceptions=True)
             
             # Process the results and report back the results
@@ -238,7 +249,7 @@ class FireBaseCloudData(BaseCloudData):
             for task in upload_tasks:
                 result = task.result()
                 if result['status'] == 'SUCCESS':
-                    self.log.info(f'Success uploading {result["checksum"]}')
+                    self.log.debug(f'Success uploading {result["checksum"]}')
                 elif results['status'] == 'FAIL':
                     self.log.warning(f'Failed uploading {result["checksum"]}: {result["exception"]}')
                     upload_success = False 
@@ -252,7 +263,6 @@ class FireBaseCloudData(BaseCloudData):
                     ssl=self.VERIFY # here for debugging on localhost
                 )
                 if resp.status != 200:
-                    breakpoint()
                     self.log.warning(
                         f'Failed to push tag "{dtype}.{name}:{tag}" to the cloud. '
                         f'See above error messages or try again later.'
@@ -274,7 +284,7 @@ class FireBaseCloudData(BaseCloudData):
         url,
         stage_uuid,
         sem,
-        chunk_size=1*(1024*1024), # Megabytes
+        chunk_size=10*(1024*1024), # Megabytes
         max_tries=10,
         pbar=None,
         debug=False
@@ -301,15 +311,21 @@ class FireBaseCloudData(BaseCloudData):
                 await stack.enter_async_context(sem)
                 # You can use non async contexts too!
                 file_path = Path(cf.options.basedir)/'datasets'/API_VERSION/f'{dtype}.{name}'/'frozen'/checksum
-                f = stack.enter_context(open(file_path,'rb'))
+                f = await stack.enter_async_context(aiofiles.open(file_path,'rb'))
+                #f = stack.enter_context(open(file_path,'rb'))
                 self.log.debug(f'Uploading {checksum}')
+                if pbar is not None:
+                    pbar.set_postfix(
+                        status='UPLOADING',
+                        tries=f'{cur_tries}/{max_tries}',    
+                    )
                 # Loop and send the necessary Data
                 while not upload_complete and cur_tries < max_tries:
                     if cur_byte is not None:
                         # Seek to the current byte
-                        f.seek(cur_byte)
+                        await f.seek(cur_byte)
                         # Read in the chunk_size
-                        chunk = f.read(chunk_size)
+                        chunk = await f.read(chunk_size)
                         # Get the md5 of the chunk
                         chunk_checksum = hashlib.md5(chunk).hexdigest()
                         if debug and random.randint(0,10):
@@ -330,6 +346,10 @@ class FireBaseCloudData(BaseCloudData):
                             self.log.debug(f'Uploading: {headers["Content-Range"]}')
                     else:
                         # Exponentially back-off
+                        pbar.set_postfix(
+                            status='BACKING',
+                            tries=f'{cur_tries}/{max_tries}',    
+                        )
                         self.log.debug(f'Backing off for {2**cur_tries} seconds on {checksum}')
                         await asyncio.sleep(2 ** cur_tries)
                         cur_tries += 1
@@ -350,7 +370,12 @@ class FireBaseCloudData(BaseCloudData):
                             # The file was successfully uploaded!
                             upload_complete = True
                             if pbar is not None:
-                                pbar.update(size)
+                                pbar.update(int(size)+1)
+                                pbar.set_postfix(
+                                    status='DONE',
+                                    tries=f'{cur_tries}/{max_tries}',    
+                                )
+                                pbar.close()
                         elif resp.status == 308:
                             try:
                                 # add some debug code to simulate a resumed upload
@@ -363,6 +388,10 @@ class FireBaseCloudData(BaseCloudData):
                                 self.log.debug(f"Successful upload {m[0]} bytes on {checksum}")
                                 if pbar is not None:
                                     pbar.update(int(m[2]))
+                                    pbar.set_postfix(
+                                        status='UPLOADING',
+                                        tries=f'{cur_tries}/{max_tries}',    
+                                    )
                                 stop = m[2]
                                 # Reset the current byte to what ever google wants
                                 cur_byte = int(stop) + 1
@@ -377,7 +406,7 @@ class FireBaseCloudData(BaseCloudData):
                             cur_byte = None
                 if not upload_complete: # We got here because cur_tries > max_tries
                     self.log.debug('Upload failed after {max_tries} times')
-                    return False
+                    raise Exception
                 else:
                     self.log.debug(f'Successfully staged {size} bytes of {checksum}')
                     result = await self._commit_staged_file(
@@ -394,7 +423,7 @@ class FireBaseCloudData(BaseCloudData):
             status = {
                 'STATUS' : 'FAIL',
                 'checksum' : checksum,
-                'exception' : e
+                'exception:' : e
             }
         finally:
             return status
@@ -429,8 +458,8 @@ class FireBaseCloudData(BaseCloudData):
         raise NotImplementedError("This engine does not support pulling")
 
     def list(self, dtype=None, name=None):
-         
-
+        raise NotImplementedError("This engine does not support pulling")
+    
 
 
 
