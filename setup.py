@@ -114,6 +114,7 @@ setup(
         "click >= 7.0",
         "asyncssh >= 1.17.1",
         "aiohttp >= 3.6.1",
+        "aiofiles >= 0.4.0", 
         "networkx == 1.11",
         "urllib3 >= 1.24.2",
         "requests >= 2.11.1",
