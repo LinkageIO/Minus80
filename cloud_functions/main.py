@@ -113,10 +113,9 @@ def commit_file(request):
     dataset_ref = db.document(
         f"Frozen/{uid}/DatasetType/{dtype}/Dataset/{name}"
     ) 
-    dataset_ref.set({
+    dataset_ref.update({
             'available_files':firestore.ArrayUnion([checksum])
-        },
-        merge=True
+        }
     )
     data = {}
     # delete the staged file blob
@@ -143,17 +142,28 @@ def commit_tag(request):
     dataset_ref = db.document(
         f"Frozen/{uid}/DatasetType/{dtype}/Dataset/{name}"
     ) 
-    dataset_ref.set({
+    # Add the tag to the actual document
+    dataset_ref.update({
             'available_tags':firestore.ArrayUnion([tag])
-        },
-        merge=True
+        }
     )
     tag_ref = db.document(
         f"Frozen/{uid}/DatasetType/{dtype}/Dataset/{name}/Tag/{tag}"
     )
+    # Add the tad document
     tag_ref.set(
         tag_data 
     )
+    # update the listing in the base document
+    db.document(f"Frozen/{uid}").update({
+        'available_datasets': {
+            'Project:Test':{
+                'tags' : firestore.ArrayUnion(['v1'])
+            }
+        }
+    })
+
+    # Return a response
     return Response(
         response=json.dumps({}),
         mimetype='application/json',
@@ -180,7 +190,11 @@ def create_dataset(dtype,name,owner_uid):
         <google.cloud.firestore_v1.document.DocumentSnapshot>
             A snapshot of the added document 
     '''
-    dataset_ref = firestore.client().document(
+    db = firestore.client()
+    db.document(f'Frozen/{owner_uid}').set({
+        'available_datasets':{}           
+    })
+    dataset_ref = db.document(
         f"Frozen/{owner_uid}/DatasetType/{dtype}/Dataset/{name}"
     )
     dataset = dataset_ref.get()
