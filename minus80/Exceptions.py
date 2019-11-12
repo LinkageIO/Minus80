@@ -6,6 +6,9 @@ class M80Error(Exception):
 class TagExistsError(M80Error):
     pass
 
+class TagConflictError(M80Error):
+    pass
+
 class TagDoesNotExistError(M80Error):
     pass
 
