@@ -152,7 +152,7 @@ class FireBaseCloudData(BaseCloudData):
         dtype, 
         name, 
         tag, 
-        max_conc_upload=1,
+        max_conc_upload=5,
         progress=True
     ):
         '''
@@ -213,7 +213,8 @@ class FireBaseCloudData(BaseCloudData):
                     pbar = tqdm(
                         desc = file_data['checksum'][0:10],
                         total = file_data['size'],
-                        position = i
+                        position = i,
+                        leave=False
                     )
                 upload_tasks.append(
                     asyncio.create_task(
@@ -428,4 +429,9 @@ class FireBaseCloudData(BaseCloudData):
         raise NotImplementedError("This engine does not support pulling")
 
     def list(self, dtype=None, name=None):
-        raise NotImplementedError("This engine does not support listing")
+         
+
+
+
+
+
