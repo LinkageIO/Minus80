@@ -11,13 +11,16 @@ import minus80 as m80
 
 from pathlib import Path
 
-from minus80.Exceptions import (TagInvalidError,
-                                FreezableNameInvalidError,
-                                TagExistsError,
-                                TagDoesNotExistError,
-                                UserNotLoggedInError,
-                                UserNotVerifiedError,
-                                UnsavedChangesInThawedError)
+from minus80.Exceptions import (
+        TagInvalidError,
+        TagConflictError,
+        FreezableNameInvalidError,
+        TagExistsError,
+        TagDoesNotExistError,
+        UserNotLoggedInError,
+        UserNotVerifiedError,
+        UnsavedChangesInThawedError
+)
 from requests.exceptions import HTTPError
 
 
@@ -137,9 +140,13 @@ def delete(slug,force):
         dtype,name,tag = minus80.Tools.parse_slug(slug) 
         if tag is not None:
             raise TagInvalidError()
-    except (TagInvalidError, FreezableNameInvalidError):
+    except TagInvalidError as e:
+        click.echo(f'Cannot delete tags, only entire datasets.')
+        return 0
+    except FreezableNameInvalidError:
         click.echo(
-            f'Please provide a valid tag in "{slug}"'
+            f'Please provide a valid dataset name: <dtype>.<name>. E.g. Project.foobar'
+            f'Note: do not include tags'
         )
         return 0
     # Make sure that the dataset is available
@@ -192,7 +199,7 @@ def freeze(slug):
             dataset.m80.freeze(tag)
             click.echo(click.style("SUCCESS!",fg="green",bold=True))
         except TagExistsError:
-            click.echo(f'tag "{tag}" already exists for {dtype}.{name}')
+            click.echo(f'Tag "{tag}" already exists in the cloud for {dtype}.{name}')
 
 cli.add_command(freeze)
 
@@ -361,7 +368,14 @@ def push(slug):
         except TagExistsError as e:
             click.echo(f'Cannot push {dtype}.{name}:{tag} to the cloud.')
             click.echo(f'The tag already exists there.')
-            click.secho('Note! Local dataset may differ from Cloud dataset!',fg='red')
+        except TagConflictError as e:
+            click.echo(f'Cannot push {dtype}.{name}:{tag} to the cloud.')
+            click.echo(f'The tag already exists there.')
+            click.secho(
+                'Warning! The contents of the local tag and the cloud tag differ '
+                'Create a tag with a unique name and retry pushing',
+                fg='red'
+            )
 
 @click.command()
 @click.argument("dtype", metavar="<dtype>")
