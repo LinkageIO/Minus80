@@ -49,8 +49,16 @@ def stage_files(request):
 
     available_tags = set(dataset.get('available_tags'))
     if tag in available_tags:
+        # fetch the checksum of the tag to see if the user is 
+        # trying to push the same tag
+        tag_data = db.document(
+            f"Frozen/{uid}/DatasetType/{dtype}/Dataset/{name}/Tag/{tag}"
+        ).get().to_dict()
+        # set up the response variables
         status = 409
-        response = {}
+        response = {
+            'tag_checksum' : tag_data['total']
+        }
     else:
         # Figure out which files need to be uploaded
         dataset_files = set(dataset.get('available_files'))
@@ -156,9 +164,11 @@ def commit_tag(request):
     )
     # update the listing in the base document
     db.document(f"Frozen/{uid}").update({
-        'available_datasets': {
-            'Project:Test':{
-                'tags' : firestore.ArrayUnion(['v1'])
+        'available_datasets': { 
+            dtype : {
+                name : {
+                    'tags' : firestore.ArrayUnion([tag])
+                }
             }
         }
     })
