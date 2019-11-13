@@ -36,3 +36,6 @@ class PushFailedError(M80Error):
 
 class PushFileFailedError(M80Error):
     pass
+
+class CloudListFailed(M80Error):
+    pass
