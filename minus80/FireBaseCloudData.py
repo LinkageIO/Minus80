@@ -19,6 +19,7 @@ from async_timeout import timeout
 
 from .CloudData import BaseCloudData
 from .Config import cf
+from .Tools import human_sizeof
 
 from .Exceptions import (
     TagExistsError,
@@ -189,6 +190,7 @@ class FireBaseCloudData(BaseCloudData):
             'tag' : tag,
             'tag_data' : tag_data
         }
+
         # Stage the tags files
         async with self:
             resp = await self._session.post(
@@ -219,12 +221,13 @@ class FireBaseCloudData(BaseCloudData):
                 pbar = None
                 if progress and self.log.getEffectiveLevel() > logging.DEBUG:
                     pbar = tqdm(
-                        desc = file_data['checksum'][0:10],
-                        total = int(file_data['size'])+1,
-                        position = i,
+                        desc = f'{file_data["checksum"][0:6]}'+f'({human_sizeof(file_data["size"]):>6})',
+                        total = int(file_data['size']),
+                        #position = i,
                         bar_format="{l_bar}{bar}{postfix:>30}", # float-right, pad 30 chars
                         leave=True
                     )
+                    pbar.update(0)
                     pbar.set_postfix(
                         status='PENDING'
                     )
@@ -370,11 +373,12 @@ class FireBaseCloudData(BaseCloudData):
                             # The file was successfully uploaded!
                             upload_complete = True
                             if pbar is not None:
-                                pbar.update(int(size)+1)
+                                pbar.update(int(size))
                                 pbar.set_postfix(
                                     status='DONE',
                                     tries=f'{cur_tries}/{max_tries}',    
                                 )
+                                pbar.refresh()
                                 pbar.close()
                         elif resp.status == 308:
                             try:
