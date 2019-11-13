@@ -27,7 +27,8 @@ from .Exceptions import (
     TagDoesNotExistError,
     UserNotLoggedInError,
     UserNotVerifiedError,
-    PushFailedError
+    PushFailedError,
+    CloudListFailed
 )
 
 from minus80 import API_VERSION
@@ -190,7 +191,6 @@ class FireBaseCloudData(BaseCloudData):
             'tag' : tag,
             'tag_data' : tag_data
         }
-
         # Stage the tags files
         async with self:
             resp = await self._session.post(
@@ -461,8 +461,42 @@ class FireBaseCloudData(BaseCloudData):
     def pull(self, dtype, name, tag):
         raise NotImplementedError("This engine does not support pulling")
 
-    def list(self, dtype=None, name=None):
-        raise NotImplementedError("This engine does not support pulling")
+    async def list(self):
+        '''
+        List datasets (and tags) in the cloud.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        a Dict in the form of:
+        {<DTYPE> : {
+                <NAME> : [TAGS, ...],
+                ...
+            },
+            ... 
+        }
+        '''
+        headers = {
+            "content-type": "application/json",
+            "Authorization": f"Bearer {self.user['idToken']}"
+        }
+        async with self:
+            resp = await self._session.get(
+                url = self.URL_BASE + 'list_datasets', 
+                headers=headers,
+                ssl=self.VERIFY # here for debugging on localhost
+            )
+            if resp.status == 204:
+                resp_json = {}
+            elif resp.status == 200:
+                resp_json = await resp.json() 
+            else:
+                raise CloudListFailed('Could not list cloud datasets') 
+        return resp_json
+
     
 
 
