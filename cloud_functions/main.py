@@ -30,6 +30,27 @@ def authenticated(fn):
 
 
 # HTTP Methods --------------------
+
+@authenticated
+def list_datasets(request):
+    uid = get_uid(request)
+    db = firestore.client()
+    # fetch the doc
+    doc = db.document(
+        f'Frozen/{uid}'        
+    ).get()
+    # Create the response
+    datasets = {}
+    if doc.exists:
+        datasets = doc.to_dict().get('available_datasets',{})
+    return Response(
+        response=json.dumps(datasets),
+        status=200,
+        mimetype='application/json'
+    )
+
+    
+
 @authenticated
 def stage_files(request):
     data = request.get_json()
@@ -190,7 +211,10 @@ def commit_tag(request):
         'available_datasets': { 
             dtype : {
                 name : {
-                    'tags' : firestore.ArrayUnion([tag])
+                    tag : {
+                        'checksum': tag_data['total'],
+                        'created' : tag_data['timestamp']
+                    }
                 }
             }
         }
@@ -272,6 +296,10 @@ def get_uid(request):
 if __name__ == "__main__":
     from flask import Flask, request
     app = Flask(__name__)
+
+    @app.route('/list_datasets', methods=['GET'])
+    def do_list_datasets():
+        return list_datasets(request)
 
     @app.route('/push',methods=['POST'])
     def do_push():
