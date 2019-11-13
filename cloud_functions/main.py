@@ -9,6 +9,8 @@ from functools import wraps
 from firebase_admin import auth,firestore
 from google.cloud import storage
 
+from google.api_core.exceptions import NotFound
+
 firebase_admin.initialize_app()
 
 # Decorators ----------------------
@@ -62,6 +64,11 @@ def stage_files(request):
     else:
         # Figure out which files need to be uploaded
         dataset_files = set(dataset.get('available_files'))
+        # Keep a list of already staged files
+        # Sometimes the tag contains duplicates (aka there are
+        # copies of files) which is allowed, but only need to 
+        # be uploaded once
+        staged_files = set()
         
         # create a response object to let client know what to upload
         # create a uuid for the staged files
@@ -76,7 +83,8 @@ def stage_files(request):
         client = storage.Client()
         bucket = client.bucket('minus80-staging')
         for file_data in data['tag_data']['files'].values():
-            if file_data['checksum'] not in dataset_files:
+            if (file_data['checksum'] not in dataset_files and
+                file_data['checksum'] not in staged_files):
                 # Create a staged blob and resumable url
                 blob = bucket.blob(
                     f'{uid}/{dtype}/{name}/{stage_uuid}/{file_data["checksum"]}'
@@ -85,6 +93,8 @@ def stage_files(request):
                     content_type = 'application/octet-stream'
                 )
                 response['missing_files'].append(file_data)
+                # add checksum to the staged files set
+                staged_files.add(file_data['checksum'])
             else:
                 response['uploaded_files'].append(file_data)
     return Response(
@@ -109,31 +119,44 @@ def commit_file(request):
         f'{uid}/{dtype}/{name}/{stage_uuid}/{checksum}'
     )
     # Calculate the checksum to verify that the data was uploaded right
-    assert hashlib.sha256(staged_blob.download_as_string()).hexdigest() == checksum
-    # Set up the target blob and transfer
-    target_bucket = client.bucket('minus80')
-    target_blob = target_bucket.blob(
-        f'{uid}/{dtype}/{name}/{checksum}'                
-    )
-    target_blob.rewrite(staged_blob)
-    # add the file name to the firebase document 
-    db = firestore.client()
-    dataset_ref = db.document(
-        f"Frozen/{uid}/DatasetType/{dtype}/Dataset/{name}"
-    ) 
-    dataset_ref.update({
-            'available_files':firestore.ArrayUnion([checksum])
-        }
-    )
-    data = {}
+    # Try this twice before reporting a bad file
+    try:
+        if (hashlib.sha256(staged_blob.download_as_string()).hexdigest() == checksum or 
+            hashlib.sha256(staged_blob.download_as_string()).hexdigest() == checksum):
+            # Try again ... 
+            # Set up the target blob and transfer
+            target_bucket = client.bucket('minus80')
+            target_blob = target_bucket.blob(
+                f'{uid}/{dtype}/{name}/{checksum}'                
+            )
+            target_blob.rewrite(staged_blob)
+            # add the file name to the firebase document 
+            db = firestore.client()
+            dataset_ref = db.document(
+                f"Frozen/{uid}/DatasetType/{dtype}/Dataset/{name}"
+            ) 
+            dataset_ref.update({
+                    'available_files':firestore.ArrayUnion([checksum])
+                }
+            )
+            status = 200
+            data = {}
+        else:
+            status = 409
+            data = {
+                        
+            }
+    except NotFound as e:
+        breakpoint()
+
     # delete the staged file blob
     staged_blob.delete()
 
     # return a success
     return Response(
-        response=data,
         mimetype='application/json',
-        status=200, 
+        status=status, 
+        response=data,
     )
 
 @authenticated
