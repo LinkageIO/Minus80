@@ -324,8 +324,12 @@ def login(username,password,force,reset_password):
 def list(dtype, name):
     """List available datasets"""
     cloud = m80.CloudData()
-    cloud.list(dtype=dtype, name=name)
+    try:
+        cloud.user
+    except UserNotLoggedInError as e:
+        click.secho("Please log in to use this feature")
 
+    cloud.list(dtype=dtype, name=name)
 
 @click.command()
 @click.argument("slug", metavar="<slug>")
