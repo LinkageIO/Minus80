@@ -10,6 +10,7 @@ import minus80.Tools
 import minus80 as m80
 
 from pathlib import Path
+from datetime import datetime
 
 from minus80.Exceptions import (
         TagInvalidError,
@@ -321,7 +322,13 @@ def login(username,password,force,reset_password):
 @click.command()
 @click.option("--dtype", metavar="<dtype>", default=None)
 @click.option("--name", metavar="<name>", default=None)
-def list(dtype, name):
+@click.option(
+    '--tags',
+    default=False,
+    is_flag=True,
+    help=('List the available tags for the specified dataset')
+)
+def list(dtype, name, tags=False):
     """List available datasets"""
     cloud = m80.CloudData()
     try:
@@ -329,7 +336,24 @@ def list(dtype, name):
     except UserNotLoggedInError as e:
         click.secho("Please log in to use this feature")
 
-    cloud.list(dtype=dtype, name=name)
+    # Make the list call
+    datasets = asyncio.run(cloud.list())
+    if len(datasets) == 0:
+        click.echo("Nothing here yet!")
+    for avail_dtype,avail_names in datasets.items():
+        click.echo(f'{avail_dtype}:') 
+        if dtype and avail_dtype != dtype:
+            continue
+        for avail_name in avail_names.keys():
+            if name and avail_name != name:
+                continue
+            click.echo(f' └──{avail_name}:')
+            if tags:
+                for avail_tag,metadata in avail_names[avail_name].items():
+                    csum = metadata['checksum'][0:10]
+                    timestamp = datetime.fromtimestamp(metadata['created']).strftime('%I:%M%p - %b %d, %Y')
+                    click.echo(f'   └──{avail_tag} {csum} ({timestamp})')
+
 
 @click.command()
 @click.argument("slug", metavar="<slug>")
