@@ -20,7 +20,9 @@ from minus80.Exceptions import (
         TagDoesNotExistError,
         UserNotLoggedInError,
         UserNotVerifiedError,
-        UnsavedChangesInThawedError
+        UnsavedChangesInThawedError,
+        CloudDatasetDoesNotExistError,
+        CloudTagDoesNotExistError
 )
 from requests.exceptions import HTTPError
 
@@ -79,7 +81,10 @@ def cli(debug):
 @click.option(
     '--path',
     default=None,
-    help='If specified, the minus80 project directory for NAME will be created here'
+    help=(
+        'If specified, the minus80 project directory for NAME will be created here, '
+        'otherwise, it will be created in the current directory'
+    )
 )
 def init(name,path):
     x = m80.Project(name)
@@ -406,20 +411,59 @@ def push(slug):
             )
 
 @click.command()
-@click.argument("dtype", metavar="<dtype>")
-@click.argument("name", metavar="<name>")
-@click.option("--raw", is_flag=True, default=False, help="Flag to list raw data")
-@click.option(
-    "--output",
-    default=None,
-    help="Output filename, defaults to <name>. Only valid with --raw",
-)
-def pull(dtype, name, raw, output):
+@click.argument("slug", metavar="<slug>")
+def pull(slug):
     """
-    Pull a minus80 dataset from the cloud.
+    \b
+    Pull a frozen minus80 dataset from the cloud.
+
+    \b
+    Positional Arguments:
+    <slug> - The slug of the frozen minus80 dataset (e.g. Project.foo:v1)
     """
     cloud = m80.CloudData()
-    cloud.pull(dtype, name, raw=raw, output=output)
+    try:
+        cloud.user
+    except UserNotLoggedInError as e:
+        click.secho("Please log in to use this feature")
+        return 1
+    try:
+        dtype,name,tag = minus80.Tools.parse_slug(slug) 
+        if tag is None:
+            raise TagInvalidError()
+    except (TagInvalidError, FreezableNameInvalidError):
+        click.echo(
+            f'Please provide a valid tag in "{slug}"'
+        )
+        return 1
+    # Pull the files and tag from the cloud
+    try:
+        # run the push method in an event loop
+        asyncio.run(cloud.pull(dtype, name, tag))
+    except TagExistsError as e:
+        click.echo(
+            f'The tag ({tag}) already exists from {dtype}.{name}'        
+        )
+        return 1
+    except CloudDatasetDoesNotExistError as e:
+        click.echo(
+            f'The dataset "{dtype}.{name}" does not exist in the cloud'
+        )
+        return 1
+    except CloudTagDoesNotExistError as e:
+        click.echo(
+            f'The tag "{tag}" does not exist in the cloud'
+        )
+        return 1
+    except CloudPullFailedError as e:
+        click.echo(f'Failed to pull all data for tag "{tag}". ')
+        click.echo(f'This could be network issues, please try again later ')
+        click.echo(f'or report error to https://github.com/LinkageIO/minus80/issues ')
+
+        return 1
+
+    # Let the user know
+    click.echo(f'{dtype}.{name}:{tag} successfully pulled')
 
 
 @click.command()
@@ -428,16 +472,14 @@ def pull(dtype, name, raw, output):
 @click.option("--raw", is_flag=True, default=False, help="Flag to list raw data")
 def remove(dtype, name, raw):
     """
-    Delete a minus80 dataset from the cloud.
+    Delete a minus80 tag from the cloud.
     """
-    cloud = m80.CloudData()
-    cloud.remove(dtype, name, raw)
+    pass
 
 cloud.add_command(login)
 cloud.add_command(list)
 cloud.add_command(push)
 cloud.add_command(pull)
-cloud.add_command(remove)
 
 
 
