@@ -25,9 +25,12 @@ from .Tools import (guess_type,
                     validate_tagname,
                     validate_freezable_name)
 
-from .Exceptions import (TagExistsError, 
-                        TagDoesNotExistError, 
-                        UnsavedChangesInThawedError)
+from .Exceptions import (
+    DatasetDoesNotExistError,
+    TagExistsError, 
+    TagDoesNotExistError, 
+    UnsavedChangesInThawedError
+)
 
 
 __all__ = ["Freezable"]
@@ -52,7 +55,7 @@ class Freezable(object):
 
     """
 
-    def __init__(self, name, basedir=None):
+    def __init__(self, name, basedir=None, create=True):
         """
             Freezable object inherit an insance to the Freezable API.
         """
@@ -63,12 +66,15 @@ class Freezable(object):
 class FreezableAPI(object):
     def __init__(self, dtype, name, basedir=None):
         """
-        Initialize the Freezable Object.
+        Initialize the Freezable Object API.
 
         Parameters
         ----------
         name : str
             The name of the frozen object.
+        basedir : str
+            The base directory to store the files related to the dataset
+            If not specified, the default will be taken from the config file
         """
         # Set the m80 name
         self.name = validate_freezable_name(name)
@@ -80,8 +86,9 @@ class FreezableAPI(object):
             basedir = Path(cf.options.basedir).expanduser() / 'datasets' / API_VERSION
         else:
             basedir = Path(basedir).expanduser()
-        # Create the base dir
         self.basedir = basedir / self.slug
+
+        # Create the base dir
         os.makedirs(self.basedir, exist_ok=True)
         os.makedirs(self.thawed_dir, exist_ok=True)
         os.makedirs(self.frozen_dir, exist_ok=True)
