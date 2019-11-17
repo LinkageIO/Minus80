@@ -4,10 +4,12 @@ import hashlib
 import requests
 import firebase_admin
 
+
 from flask import abort,Response
 from functools import wraps
 from firebase_admin import auth,firestore
 from google.cloud import storage
+from datetime import timedelta
 
 from google.api_core.exceptions import NotFound
 
@@ -49,7 +51,64 @@ def list_datasets(request):
         mimetype='application/json'
     )
 
+@authenticated
+def stage_pull(request):
+    data = request.get_json()
+    # Get the uid from the token
+    uid = get_uid(request) 
+    dtype = data['dtype']
+    name = data['name']
+    tag = data['tag']
+    # Set up response variables
+    status = 500
+    response = {'message':"STAGE_FAILED"}
+
+    db = firestore.client()
+    dataset_ref = db.document(
+        f"Frozen/{uid}/DatasetType/{dtype}/Dataset/{name}"
+    )
+    dataset = dataset_ref.get()
+    # Create a new dataset if needed
+    if not dataset.exists:
+        status = 409
+        response['message'] = 'DATASET_DOES_NOT_EXIST'
+    else:
+        # Get the tag data
+        tag_ref = db.document(
+            f"Frozen/{uid}/DatasetType/{dtype}/Dataset/{name}/Tag/{tag}"
+        ).get()
+        # See if the tag document exists
+        if not tag_ref.exists:
+            status = 409
+            response['message'] = 'TAG_DOES_NOT_EXIST'
+        else:
+            # Convert to a dictionary
+            tag_data = tag_ref.to_dict() 
+            response['tag_data'] = tag_data
+            # Get a list of files that need to be downloaded
+            files_on_client = set(data['frozen_files'])
+            files_to_download = {}
+            client = storage.Client()
+            bucket = client.bucket('minus80')
+            for tag_file in tag_data['files'].values():
+                if tag_file['checksum'] not in files_on_client:
+                    blob = bucket.blob(
+                        f'{uid}/{dtype}/{name}/{tag_file["checksum"]}' 
+                    ) 
+                    url = blob.generate_signed_url(timedelta(hours=6))
+                    files_to_download[tag_file['checksum']] = url
+                else:
+                    pass
+            status = 200
+            response['message'] = 'STAGE_SUCCESS'
+            response['files_to_download'] = files_to_download
     
+    return Response(
+        response=json.dumps(response),
+        status=status,
+        mimetype='application/json'
+    )
+
 
 @authenticated
 def stage_files(request):
@@ -168,7 +227,8 @@ def commit_file(request):
                         
             }
     except NotFound as e:
-        breakpoint()
+        status = 500
+        data = {'message':'FILE_NOT_FOUND_IN_BUCKET'}
 
     # delete the staged file blob
     staged_blob.delete()
@@ -316,6 +376,10 @@ if __name__ == "__main__":
     @app.route('/commit_tag', methods=['POST'])
     def do_commit_tag():
         return commit_tag(request)
+
+    @app.route('/stage_pull', methods=['POST'])
+    def do_stage_pull():
+        return stage_pull(request)
 
     app.run(
         '127.0.0.1', 
