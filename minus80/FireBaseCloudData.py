@@ -2,6 +2,7 @@ import os
 import re
 import json
 import random
+import shutil
 import asyncio
 import aiohttp
 import getpass
@@ -16,10 +17,13 @@ from pathlib import Path
 from functools import wraps
 from tinydb import TinyDB, where
 from async_timeout import timeout
+from contextlib import AsyncExitStack
+from requests.exceptions import HTTPError
 
 from .CloudData import BaseCloudData
 from .Config import cf
-from .Tools import human_sizeof
+from .Tools import human_sizeof, available
+from .Freezable import FreezableAPI
 
 from .Exceptions import (
     TagExistsError,
@@ -28,7 +32,10 @@ from .Exceptions import (
     UserNotLoggedInError,
     UserNotVerifiedError,
     PushFailedError,
-    CloudListFailed
+    CloudListFailedError,
+    CloudDatasetDoesNotExistError,
+    CloudTagDoesNotExistError,
+    CloudPullFailedError
 )
 
 from minus80 import API_VERSION
@@ -170,7 +177,11 @@ class FireBaseCloudData(BaseCloudData):
             The name of the frozen dataset
         tag: str
             The tag of the frozen dataset
-    
+        max_conc_upload : int (default=5)
+            The maximum number of concurrently running
+            upload tasks.
+        progress : bool (True)
+            If true, print progress bars
         '''
         manifest = TinyDB(
             Path(cf.options.basedir)/'datasets'/API_VERSION/f'{dtype}.{name}'/'MANIFEST.json'
@@ -303,7 +314,6 @@ class FireBaseCloudData(BaseCloudData):
         checksum
         '''
         try:
-            from contextlib import AsyncExitStack
             # Set some state variables
             upload_complete = False
             cur_byte = 0   
@@ -315,7 +325,6 @@ class FireBaseCloudData(BaseCloudData):
                 # You can use non async contexts too!
                 file_path = Path(cf.options.basedir)/'datasets'/API_VERSION/f'{dtype}.{name}'/'frozen'/checksum
                 f = await stack.enter_async_context(aiofiles.open(file_path,'rb'))
-                #f = stack.enter_context(open(file_path,'rb'))
                 self.log.debug(f'Uploading {checksum}')
                 if pbar is not None:
                     pbar.set_postfix(
@@ -349,10 +358,11 @@ class FireBaseCloudData(BaseCloudData):
                             self.log.debug(f'Uploading: {headers["Content-Range"]}')
                     else:
                         # Exponentially back-off
-                        pbar.set_postfix(
-                            status='BACKING',
-                            tries=f'{cur_tries}/{max_tries}',    
-                        )
+                        if pbar is not None:
+                            pbar.set_postfix(
+                                status='BACKING',
+                                tries=f'{cur_tries}/{max_tries}',    
+                            )
                         self.log.debug(f'Backing off for {2**cur_tries} seconds on {checksum}')
                         await asyncio.sleep(2 ** cur_tries)
                         cur_tries += 1
@@ -425,7 +435,7 @@ class FireBaseCloudData(BaseCloudData):
                 }
         except Exception as e:
             status = {
-                'STATUS' : 'FAIL',
+                'status' : 'FAIL',
                 'checksum' : checksum,
                 'exception:' : e
             }
@@ -458,8 +468,185 @@ class FireBaseCloudData(BaseCloudData):
             resp_json = await resp.json()
         self.log.debug(f'File {checksum} committed to {dtype}.{name}')
 
-    def pull(self, dtype, name, tag):
-        raise NotImplementedError("This engine does not support pulling")
+    async def pull(
+        self, 
+        dtype, 
+        name, 
+        tag,
+        basedir=None,
+        max_conc_download=5,
+        progress=True
+    ):
+        '''
+        Pulls frozen tag data from the cloud.
+
+        Parameters
+        ----------
+        dtype: str 
+            The primary data type of the frozen dataset.
+        name: str
+            The name of the frozen dataset
+        tag: str
+            The tag of the frozen dataset
+        '''
+        # Get the frozen object
+        frozen_dataset = FreezableAPI(dtype,name,basedir=basedir)  
+        if tag in frozen_dataset.tags:
+            raise TagExistsError
+        frozen_files = [x.name for x in frozen_dataset.frozen_dir.glob('*')]
+        # Cross ref the frozen files with the web hub
+        headers = {
+            "content-type": "application/json",
+            "Authorization": f"Bearer {self.user['idToken']}"
+        }
+        data = {
+            'api_version' : API_VERSION, 
+            'dtype': dtype,
+            'name': name,
+            'tag' : tag,
+            'frozen_files' : frozen_files
+        }
+        async with self:
+            resp = await self._session.post(
+                url = self.URL_BASE + 'stage_pull',
+                headers=headers,
+                json=data,
+                ssl=self.VERIFY # here for debugging on localhost
+            )
+            resp_json = await resp.json()
+            # handle missing dataset/tags errors
+            if resp.status == 409:
+                if resp_json['message'] == 'DATASET_DOES_NOT_EXIST':
+                    raise CloudDatasetDoesNotExistError(resp_json['message'])
+                elif resp_json['message'] == 'TAG_DOES_NOT_EXIST':
+                    raise CloudTagDoesNotExistError(resp_json['message'])
+                else:
+                    raise Exception
+            elif resp.status != 200:
+                raise Exception
+            # If we get here, we have a status of 200 and 
+            # should process the downloads
+
+            # create a dict of checksums and sizes
+            checksum_sizes = {
+                x['checksum']:x['size'] \
+                for x in resp_json['tag_data']['files'].values()
+            }
+            sem = asyncio.Semaphore(max_conc_download)
+            download_tasks = [] 
+            self.log.info(f'need to download {len(resp_json["files_to_download"])}')
+            # loop through files to download and create download tasks 
+            for i,(checksum,url) in enumerate(resp_json["files_to_download"].items()):
+                # Set up the progress bars
+                if progress and self.log.getEffectiveLevel() > logging.DEBUG:
+                    pbar = tqdm(
+                        desc = f'{checksum[0:6]}'+f'({human_sizeof(checksum_sizes[checksum]):>6})',
+                        total = int(checksum_sizes[checksum]),
+                        bar_format="{l_bar}{bar}{postfix:>30}", # float-right, pad 30 chars
+                        leave=True
+                    )
+                    pbar.update(0)
+                    pbar.set_postfix(
+                        status='PENDING'
+                    )
+                download_tasks.append(
+                    asyncio.create_task(
+                        self._download_file(
+                            frozen_dataset,
+                            checksum,
+                            url,
+                            sem,
+                            pbar=pbar
+                        )    
+                    )        
+                )
+            # Await the downloads
+            await asyncio.gather(*download_tasks,return_exceptions=True)
+        download_success = True
+        for task in download_tasks:
+            result = task.result()
+            if result['status'] == 'SUCCESS':
+                self.log.debug(f'Success downloading {result["checksum"]}')
+            elif result['status'] == 'FAIL':
+                self.log.debug(f'Failed downloading {result["checksum"]}')
+                download_success = False
+
+        if download_success == True:
+            # If we get here, all of the frozen files were downloaded, 
+            # Its safe to add the tag to the project
+            frozen_dataset._manifest.insert(resp_json['tag_data'])
+        else:
+            raise CloudPullFailedError() 
+
+    async def _download_file(
+        self,
+        frozen_dataset,
+        checksum,
+        url,
+        sem,
+        pbar=None,
+        chunk_size=10*(1024*1024), # Megabytes
+    ):
+        try:    
+            tmpfile = frozen_dataset.tmpfile()
+            # Generate a named temp file
+            async with AsyncExitStack() as stack:
+                # Wait on the Semaphore
+                await stack.enter_async_context(sem)
+                # async open a file
+                f = await stack.enter_async_context(aiofiles.open(tmpfile.name,'wb'))
+                self.log.debug(f'Downloading {checksum}')
+                # enter the download async context manager
+                resp = await stack.enter_async_context(self._session.get(url))
+                # Read chunks and write to file
+                download_checksum = hashlib.sha256()
+                total_downloaded = 0
+                if pbar is not None:
+                    pbar.set_postfix(status='DOWNLOAD')
+                while True:
+                    chunk = await resp.content.read(chunk_size)
+                    if not chunk:
+                        break
+                    else:
+                        # update the checksum and write to file
+                        total_downloaded += len(chunk)
+                        if pbar is not None:
+                            pbar.update(int(total_downloaded))
+                        download_checksum.update(chunk)
+                        await f.write(chunk)
+            # Check the file checksum
+            download_checksum = download_checksum.hexdigest()
+            if download_checksum != checksum: 
+                raise ValueError(f'Download checksum ({download_checksum}) != file checksum ({checksum})')
+            # Move the file to the project
+            if pbar is not None:
+                pbar.set_postfix(status='COPYING')
+            if os.path.getsize(tmpfile.name) == 0:
+                open(frozen_dataset.frozen_dir/checksum,'a').close()
+            else:
+                shutil.copyfile(
+                    tmpfile.name,
+                    frozen_dataset.frozen_dir / checksum
+                )
+            status = {
+                'status' : 'SUCCESS',
+                'checksum' : checksum
+            }
+            if pbar is not None:
+                pbar.set_postfix(status='DONE')
+                pbar.update(pbar.n)
+                pbar.close()
+
+        except Exception as e:
+            status = {
+                'status' : 'FAIL',
+                'checksum' : checksum,
+                'exception' : e
+            }
+        finally:
+            return status
+
+
 
     async def list(self):
         '''
@@ -494,7 +681,7 @@ class FireBaseCloudData(BaseCloudData):
             elif resp.status == 200:
                 resp_json = await resp.json() 
             else:
-                raise CloudListFailed('Could not list cloud datasets') 
+                raise CloudListFailedError('Could not list cloud datasets') 
         return resp_json
 
     
