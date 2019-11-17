@@ -3,6 +3,21 @@ class M80Error(Exception):
     def __init__(self,msg=''):
         self.message = msg
 
+# Minus 80 related Exceptions
+class FreezableNameInvalidError(M80Error):
+    pass
+
+class UnsavedChangesInThawedError(M80Error):
+    def __init__(self,msg='',new=None,changed=None,deleted=None):
+        super().__init__(msg)
+        self.new = new
+        self.changed = changed
+        self.deleted = deleted
+
+class DatasetDoesNotExistError(M80Error):
+    pass
+
+# Tag Exceptions
 class TagExistsError(M80Error):
     pass
 
@@ -15,16 +30,7 @@ class TagDoesNotExistError(M80Error):
 class TagInvalidError(M80Error):
     pass
 
-class FreezableNameInvalidError(M80Error):
-    pass
-
-class UnsavedChangesInThawedError(M80Error):
-    def __init__(self,msg='',new=None,changed=None,deleted=None):
-        super().__init__(msg)
-        self.new = new
-        self.changed = changed
-        self.deleted = deleted
-
+# Cloud Exceptions
 class UserNotLoggedInError(M80Error):
     pass
 
@@ -37,5 +43,14 @@ class PushFailedError(M80Error):
 class PushFileFailedError(M80Error):
     pass
 
-class CloudListFailed(M80Error):
+class CloudListFailedError(M80Error):
+    pass
+
+class CloudDatasetDoesNotExistError(M80Error):
+    pass
+
+class CloudTagDoesNotExistError(M80Error):
+    pass
+
+class CloudPullFailedError(M80Error):
     pass
