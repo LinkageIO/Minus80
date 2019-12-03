@@ -361,10 +361,6 @@ if __name__ == "__main__":
     def do_list_datasets():
         return list_datasets(request)
 
-    @app.route('/push',methods=['POST'])
-    def do_push():
-        return push(request)
-
     @app.route('/stage_files',methods=['POST'])
     def do_stage_files():
         return stage_files(request)
