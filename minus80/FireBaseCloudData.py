@@ -43,12 +43,12 @@ from minus80 import API_VERSION
 class FireBaseCloudData(BaseCloudData):
 
     # Production Options
-    #URL_BASE = 'https://us-central1-minus80.cloudfunctions.net/'
-    #VERIFY = False
+    URL_BASE = 'https://us-central1-minus80.cloudfunctions.net/'
+    VERIFY = True
 
     # Debug Options
-    URL_BASE = 'https://127.0.0.1:50000/'
-    VERIFY = False
+    #URL_BASE = 'https://127.0.0.1:50000/'
+    #VERIFY = False
 
     config = {
         "apiKey": "AIzaSyCK8ItbVKqvBfwgBU74_EjvKHtl0Pi8r04",
