@@ -105,6 +105,7 @@ setup(
     install_requires=[
         "google-cloud >= 0.34.0",
         "google-cloud-storage >= 1.17.0",
+        "google-cloud-kms >= 1.2.1",
         "pandas>=0.23.4",
         "tinydb>=3.13.0",
         "tables >= 3.5.2",
