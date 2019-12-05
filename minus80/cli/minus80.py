@@ -22,7 +22,8 @@ from minus80.Exceptions import (
         UserNotVerifiedError,
         UnsavedChangesInThawedError,
         CloudDatasetDoesNotExistError,
-        CloudTagDoesNotExistError
+        CloudTagDoesNotExistError,
+        CloudPullFailedError
 )
 from requests.exceptions import HTTPError
 
