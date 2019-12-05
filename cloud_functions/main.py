@@ -1,9 +1,10 @@
+import os 
 import json
 import uuid
 import hashlib
+import pathlib
 import requests
 import firebase_admin
-
 
 from flask import abort,Response
 from functools import wraps
@@ -12,11 +13,16 @@ from google.cloud import storage
 from datetime import timedelta
 
 from google.api_core.exceptions import NotFound
+from google.cloud import kms_v1
 
 firebase_admin.initialize_app()
 
 # Decorators ----------------------
 def authenticated(fn):
+    '''
+    A wrapper function to check the bearer token before 
+    executing a function.
+    '''
     @wraps(fn)
     def wrapped(request):
         try:
@@ -27,6 +33,46 @@ def authenticated(fn):
         except Exception as e:
             return abort(401,f'Invalid Credentials:{e}')
         # Execute the authenticated function
+        return fn(request)
+    return wrapped
+
+def require_private_key(
+        fn,
+        keyfile='minus80-e3336a5699a7.json',
+        outdir='~'
+    ):
+    '''
+    Creating signed URLS requires a KEY ID, which the default 
+    service accound doesn't have access to. This function fetches
+    an encrypted JSON key file from a bucket, prints it to a local
+    file, then sets the default GOOGLE_APPLICATION_CREDENTIALS env
+    variable
+    '''
+    @wraps(fn)
+    def wrapped(request):
+        try:
+
+            # get the KMS client
+            kms_client = kms_v1.KeyManagementServiceClient()
+            # Get the text of the encrypted service account key
+            encrypted_key = storage.Client().bucket('minus80').blob(
+                keyfile + '.enc'        
+            ).download_as_string()
+            # Get the name of the KMS key path
+            name = kms_client.crypto_key_path(
+                'minus80','global',
+                'minus80_cloud_functions','service_account'
+            )
+            # decrypt the service account key
+            keyfile_path = pathlib.Path(outdir).expanduser() / keyfile
+            # write the key JSON to the outdir
+            with open(keyfile_path,'wb') as OUT:
+                OUT.write(kms_client.decrypt(name,encrypted_key).plaintext)
+            # Set the env variable to point to the credential path
+            os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = str(keyfile_path)
+        except Exception as e:
+            breakpoint()
+            return abort(500,f'Unable to load service account private key:{e}')
         return fn(request)
     return wrapped
 
@@ -52,6 +98,7 @@ def list_datasets(request):
     )
 
 @authenticated
+@require_private_key
 def stage_pull(request):
     data = request.get_json()
     # Get the uid from the token
@@ -352,6 +399,12 @@ def get_uid(request):
     except Exception as e:
         raise ValueError('Unable to extract uid')
     return uid
+
+   
+
+
+    
+
 
 if __name__ == "__main__":
     from flask import Flask, request
