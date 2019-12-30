@@ -353,7 +353,7 @@ def list(dtype, name, tags=False):
         for avail_name in avail_names.keys():
             if name and avail_name != name:
                 continue
-            click.echo(f' └──{avail_name}:')
+            click.echo(f' └──{avail_name}')
             if tags:
                 for avail_tag,metadata in avail_names[avail_name].items():
                     csum = metadata['checksum'][0:10]
