@@ -19,7 +19,7 @@ from minus80 import API_VERSION
 __all__ = ["available", "delete"]
 
 
-def install_apsw(method="pip", version="3.27.2", tag="-r1"):
+def install_apsw(method="pip", version="3.27.2", tag="-r1"): #pragma: no cover
     if method == "pip":
         print("Installing apsw from GitHub using ")
         version = "3.27.2"
@@ -183,13 +183,17 @@ def parse_slug(slug):
         rest,tag = slug,None
     if tag is not None:
         tag = validate_tagname(tag)    
+    if '.' not in rest:
+        raise FreezableNameInvalidError(
+            f'{rest} is not a valid freezable name'
+        )
     dtype,name = rest.split('.',1)
     name = validate_freezable_name(name)
     return (dtype,name,tag)
 
 def validate_freezable_name(name):
     '''
-    Cannot contain slashes, periods, or colons
+        Cannot contain slashes, periods, or colons
     '''
     import re
     if re.search('[./:]+',name) is None:
@@ -199,6 +203,7 @@ def validate_freezable_name(name):
 
 def validate_tagname(tagname):
     '''
+        Validate tagname: cannot be None or contain a colon (":")
     '''
     if tagname is None:
         raise TagInvalidError(f'Invalid Tag Name: "{tagname}"')
@@ -218,7 +223,7 @@ def guess_type(object):
     return classes[-1]
 
 
-def human_sizeof(num, suffix='B'):
+def human_sizeof(num, suffix='B'): #pragma: no cover
     # Courtesy of:
     # https://stackoverflow.com/questions/1094841/reusable-library-to-get-human-readable-version-of-file-size
     for unit in ['','K','M','G','T','P','E','Z']:
