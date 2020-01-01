@@ -132,7 +132,8 @@ setup(
         ],
         "local_install" : [
             "flask>=1.1.1",
-            "firebase-admin>=3.1.0"
+            "firebase-admin>=3.1.0",
+            "flask-cors>=3.0.8",
         ]
     },
     # dependency_links = [
