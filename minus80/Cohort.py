@@ -155,7 +155,7 @@ class Cohort(Freezable):
     def as_DataFrame(self):
         try:
             import pandas as pd
-        except ImportError as e:
+        except ImportError as e: #pragma: no cover
             raise ImportError("Pandas must be installed to use this feature")
         long_form = pd.DataFrame(
             self.m80.db.cursor()
@@ -256,9 +256,9 @@ class Cohort(Freezable):
             self.m80.db.cursor()
             .execute(
                 """
-            SELECT *
-            FROM raw_files WHERE url = ?
-        """,
+                SELECT *
+                FROM raw_files WHERE url = ?
+                """,
                 (url,),
             )
             .fetchone()
@@ -333,7 +333,7 @@ class Cohort(Freezable):
             )
         return self[accession]
 
-    def add_accessions_from_data_frame(self, df, name_col):
+    def add_accessions_from_DataFrame(self, df, name_col):
         """
             Add accessions from data frame. This assumes
             each row is an Accession and that the properties
@@ -355,7 +355,7 @@ class Cohort(Freezable):
                    ['S2'    30    'O+']],
                    columns =  ['Name','Age','Type']
                 )
-            >>> x = m80.add_accessions_from_data_frame(df,'Name')
+            >>> x = m80.add_accessions_from_DataFrame(df,'Name')
 
             Would yield two Accessions: S1 and S2 with Age and Type
             properties.
@@ -381,7 +381,7 @@ class Cohort(Freezable):
             accessions.append(Accession(name, files=None, **d))
         self.add_accessions(accessions)
 
-    def alias_column(self, colname, min_alias_length=3):
+    def alias_column(self, colname, min_alias_length=3):  #pragma: no cover
         """
             Assign an accession column as aliases
         """
@@ -418,13 +418,13 @@ class Cohort(Freezable):
             )
 
     @invalidates_AID_cache
-    def drop_aliases(self):
+    def drop_aliases(self): #pragma: no cover
         """
             Clear the aliases from the database
         """
         self.m80.db.cursor().execute("DELETE FROM aliases")
 
-    def drop_accessions(self):
+    def drop_accessions(self): #pragma: no cover
         with self.m80.db.bulk_transaction() as cur:
             cur.execute(
                 """
@@ -435,7 +435,7 @@ class Cohort(Freezable):
             """
             )
 
-    def assimilate_files(self, files, best_only=True):
+    def assimilate_files(self, files, best_only=True): #pragma: no cover
         """
             Take a list of files and assign them to Accessions
         """
@@ -451,7 +451,7 @@ class Cohort(Freezable):
                     results[m].add(f)
         return results
 
-    def interactive_ignore_pattern(self, pattern, n=20):
+    def interactive_ignore_pattern(self, pattern, n=20): #pragma: no cover
         """
             Start an interactive prompt to ignore patterns
             in file names (e.g. "test")
@@ -468,9 +468,9 @@ class Cohort(Freezable):
                 self.ignore_files(subset)
             click.clear()
 
-    def ignore_files(self, files):
+    def ignore_files(self, files): #pragma: no cover
         """
-            ignore files
+            Ignore files
         """
         with self.m80.db.bulk_transaction() as cur:
             cur.executemany(
@@ -507,7 +507,7 @@ class Cohort(Freezable):
         results = [(x[0], 100) for x in names + aliases]
         # Find and Subset matches. e.g. Fat_shoulder_1 would
         # match 'M7956_Fat_shoulder_1'
-        if len(results) == 0 and recurse == True:
+        if len(results) == 0 and recurse == True: #pragma: no cover
             matches = [
                 SequenceMatcher(None, name, x).find_longest_match(
                     0, len(name), 0, len(x)
@@ -546,7 +546,7 @@ class Cohort(Freezable):
 
     async def crawl_host(
         self, hostname="localhost", path="/", username=None, glob="*.fastq"
-    ):
+    ): #pragma: no cover
         """
             Use SSH to crawl a host looking for raw files
         """
@@ -597,7 +597,7 @@ class Cohort(Freezable):
             (url,),
         )
         # Return the num of db changes
-        return self._db.changes()
+        return self.m80.db.db.changes()
 
     # ------------------------------------------------------#
     #               Magic Methods                          #
@@ -782,6 +782,9 @@ class Cohort(Freezable):
         )
 
     def get_name(self, name):
+        '''
+            Inteligently get the name of an accession.
+        '''
         AID = self._get_AID(name)
         name = (
             self.m80.db.cursor()
