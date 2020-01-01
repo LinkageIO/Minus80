@@ -4,7 +4,7 @@ from contextlib import contextmanager
 
 try:
     import apsw
-except ModuleNotFoundError as e:
+except ModuleNotFoundError as e: #pragma: no cover
     from .Tools import install_apsw
 
     install_apsw()
@@ -36,13 +36,14 @@ class relational_db(object):
         cur.execute("SAVEPOINT m80_bulk_transaction")
         try:
             yield cur
-        except Exception as e:
+        except Exception as e: 
             cur.execute("ROLLBACK TO SAVEPOINT m80_bulk_transaction")
             raise e
         finally:
             cur.execute("RELEASE SAVEPOINT m80_bulk_transaction")
 
     def query(self, q):
+        import pandas as pd
         cur = self.db.cursor().execute(q)
         names = [x[0] for x in cur.description]
         rows = cur.fetchall()
