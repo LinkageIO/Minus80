@@ -12,7 +12,6 @@ from minus80.Freezable import guess_type
 def test_guess_type(simpleCohort):
     assert guess_type(simpleCohort) == "Cohort"
 
-
 def test_store_df(simpleCohort):
     df = pd.DataFrame([
         [1, 2, 3], 
@@ -59,12 +58,23 @@ def test_store_array(simpleCohort):
     arr = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9])
     simpleCohort.m80.col["testArray"] = arr
 
+def test_list_datasets(simpleCohort):
+    arr = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9])
+    simpleCohort.m80.col["testArray"] = arr
+    assert 'testArray' in simpleCohort.m80.col.list()
 
 def test_get_array(simpleCohort):
     arr = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9])
     simpleCohort.m80.col["testArray"] = arr
     arr2 = simpleCohort.m80.col["testArray"]
     assert all(arr == arr2)
+
+
+def test_bad_columnar_dataset(simpleCohort):
+    # Try to put a list in there
+    with pytest.raises(ValueError):
+        arr = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+        simpleCohort.m80.col["testArray"] = arr
 
 
 def test_tmpfile(simpleCohort):
@@ -78,7 +88,6 @@ def test_tmpfile(simpleCohort):
 
 def test_m80_name(simpleCohort):
     assert simpleCohort.m80.name == "TestCohort"
-
 
 def test_m80_dtype(simpleCohort):
     assert simpleCohort.m80.dtype == "Cohort"
@@ -112,4 +121,25 @@ def test_delete_missing():
     assert os.path.exists(dbFile) == True
     delete("Cohort", "DeleteMe")
     assert os.path.exists(dbFile) == False
+
+def test_db_query(simpleCohort):
+    import pandas as pd
+    assert isinstance(
+        simpleCohort.m80.db.query("SELECT * FROM accessions"),
+        pd.DataFrame
+    )
+
+def test_db_rollback(simpleCohort):
+    # Store the number of samples
+    num_samples = len(simpleCohort)
+    with pytest.raises(Exception):
+        # Start a transaction
+        with simpleCohort.m80.db.bulk_transaction():
+            # Delete a samples
+            del simpleCohort['Sample1']
+            assert len(simpleCohort) == num_samples -1 
+            # Raise an excpetion to trigger a rollback
+            raise Exception
+    # The number of samples should be as before
+    assert len(simpleCohort) == num_samples
 
