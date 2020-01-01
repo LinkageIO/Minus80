@@ -178,48 +178,6 @@ class Accession(object):
             "  files=[" + "\n\t".join(self.files) + "]\n)\n"
         )
 
-    @staticmethod
-    async def _check_file(url):  # pragma: no cover
-        """
-        asyncronously checks a URL
-        based in its scheme
-        """
-        # Parse the URL and connect
-        url = urllib.parse.urlparse(url)
-        async with asyncssh.connect(url.hostname, username=url.username) as conn:
-            return await conn.run(f'[[ -f {url.path} ]] && echo -n "Y" || echo -n "N"')
-
-    def _check_files(self):  # pragma: no cover
-        """
-        Check to see if files attached to an accession are 
-        accessible through ssh
-
-        Parameters
-        ----------
-        None
-
-        Returns
-        -------
-        Returns True if all files are accessible, otherwise 
-        returns a list of files that were unreachable.
-        """
-        # Set us up the loop
-        tasks = []
-        loop = asyncio.get_event_loop()
-        # loop through the files and create tasks
-        files = list(self.files)
-        for url in files:
-            tasks.append(self._check_file(url))
-        tasks = asyncio.gather(*tasks)
-        loop.run_until_complete(tasks)
-        unreachable = [i for i, r in enumerate(tasks.result()) if r.stdout != "Y"]
-        if len(unreachable) == 0:
-            return True
-        else:
-            return [files[x] for x in unreachable]
-
-
-
     @classmethod
     def from_yaml(cls,yaml_file):
         '''
@@ -230,7 +188,7 @@ class Accession(object):
                 - ssh://user@hostname.edu/path/to/file/10_F_S66_R1_001.fastq.gz
                 - ssh://user@hostname.edu/path/to/file/10_F_S66_R2_001.fastq.gz
             metadata:
-            seqtype: novaseq
+                seqtype: novaseq
         10M:
             files:
                 - ssh://user@hostname.edu/path/to/file/10_M_S10_R1_001.fastq.gz
