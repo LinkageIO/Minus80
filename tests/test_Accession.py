@@ -55,3 +55,6 @@ def test_accession_files_are_set(simpleAccession):
     len_files = len(simpleAccession.files)
     simpleAccession.add_file("/path/to/file.txt")
     assert len(simpleAccession.files) == len_files
+
+def test_load_from_yaml():
+    x = Accession.from_yaml('data/test_accession.yaml') 
