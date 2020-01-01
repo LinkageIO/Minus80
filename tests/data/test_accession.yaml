@@ -1,0 +1,12 @@
+10F:
+    files:
+        - ssh://user@hostname.edu/path/to/file/10_F_S66_R1_001.fastq.gz
+        - ssh://user@hostname.edu/path/to/file/10_F_S66_R2_001.fastq.gz
+    metadata:
+        seqtype: novaseq
+10M:
+    files:
+        - ssh://user@hostname.edu/path/to/file/10_M_S10_R1_001.fastq.gz
+        - ssh://user@hostname.edu/path/to/file/10_M_S10_R2_001.fastq.gz
+        - ssh://user@hostname.edu/path/to/file/10_M_S40_R1_001.fastq.gz
+        - ssh://user@hostname.edu/path/to/file/10_M_S40_R2_001.fastq.gz
