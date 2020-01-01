@@ -334,6 +334,10 @@ def commit_tag(request):
         status=200
     )
 
+def sign_up(request):
+    data = request.get_json()
+    breakpoint()
+
 # Helper Methods -------------------
 
 def create_dataset(dtype,name,owner_uid):
@@ -400,15 +404,22 @@ def get_uid(request):
         raise ValueError('Unable to extract uid')
     return uid
 
-   
-
-
-    
-
+# Included TEST SERVER  -------------------
 
 if __name__ == "__main__":
     from flask import Flask, request
+    from flask_cors import CORS, cross_origin
     app = Flask(__name__)
+    CORS(app)
+
+    if 'GOOGLE_APPLICATION_CREDENTIALS' not in os.environ:
+        raise ValueError("Please set the env variable for GOOGLE_APPLICATION_CREDENTIALS")
+    # Try to init the firestor client 
+    firestore.client()
+
+    # ------------------------------------------------- #
+    #               Python API                          #
+    # ------------------------------------------------- #
 
     @app.route('/list_datasets', methods=['GET'])
     def do_list_datasets():
@@ -429,6 +440,18 @@ if __name__ == "__main__":
     @app.route('/stage_pull', methods=['POST'])
     def do_stage_pull():
         return stage_pull(request)
+
+    # ------------------------------------------------- #
+    #               JS Web API                          #
+    # ------------------------------------------------- #
+    '''
+        The JS API requires additional handling of things
+        like CORS.
+    '''
+
+    @app.route('/sign_up', methods=['POST'])
+    def do_sign_up():
+        return sign_up(request)
 
     app.run(
         '127.0.0.1', 
