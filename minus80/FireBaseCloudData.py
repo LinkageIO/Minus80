@@ -47,7 +47,7 @@ class FireBaseCloudData(BaseCloudData):
     VERIFY = True
 
     # Debug Options
-    #URL_BASE = 'https://127.0.0.1:50000/'
+    #URL_BASE = 'https://localhost:50000/'
     #VERIFY = False
 
     config = {
@@ -233,7 +233,7 @@ class FireBaseCloudData(BaseCloudData):
                 if progress and self.log.getEffectiveLevel() > logging.DEBUG:
                     pbar = tqdm(
                         desc = f'{file_data["checksum"][0:6]}'+f'({human_sizeof(file_data["size"]):>6})',
-                        total = int(file_data['size']),
+                        total = 1+int(file_data['size']),
                         #position = i,
                         bar_format="{l_bar}{bar}{postfix:>30}", # float-right, pad 30 chars
                         leave=True
@@ -383,7 +383,7 @@ class FireBaseCloudData(BaseCloudData):
                             # The file was successfully uploaded!
                             upload_complete = True
                             if pbar is not None:
-                                pbar.update(int(size))
+                                pbar.update(1+int(size))
                                 pbar.set_postfix(
                                     status='DONE',
                                     tries=f'{cur_tries}/{max_tries}',    
@@ -401,7 +401,7 @@ class FireBaseCloudData(BaseCloudData):
                                 m = re.fullmatch('bytes=(\d+)-(\d+)',resp.headers['Range'])
                                 self.log.debug(f"Successful upload {m[0]} bytes on {checksum}")
                                 if pbar is not None:
-                                    pbar.update(int(m[2]))
+                                    pbar.update(1+int(m[2]))
                                     pbar.set_postfix(
                                         status='UPLOADING',
                                         tries=f'{cur_tries}/{max_tries}',    
@@ -545,7 +545,7 @@ class FireBaseCloudData(BaseCloudData):
                         bar_format="{l_bar}{bar}{postfix:>30}", # float-right, pad 30 chars
                         leave=True
                     )
-                    pbar.update(0)
+                    pbar.update(1)
                     pbar.set_postfix(
                         status='PENDING'
                     )
@@ -634,7 +634,7 @@ class FireBaseCloudData(BaseCloudData):
             }
             if pbar is not None:
                 pbar.set_postfix(status='DONE')
-                pbar.update(pbar.n)
+                pbar.update(pbar.n+1)
                 pbar.close()
 
         except Exception as e:
