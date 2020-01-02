@@ -60,7 +60,7 @@ def cli(debug):
     for more details.
     """
 
-    if debug:
+    if debug: #pragma: no cover
         click.echo("Debug mode is on")
         import sys
         from IPython.core import ultratb
@@ -95,7 +95,7 @@ def init(name,path):
         path = str(Path.cwd()/name)
     try:
         x.create_link(path)
-    except ValueError as e:
+    except ValueError as e: #pragma: no cover
         click.echo(f'cannot create project directroy at: "{path}", directory already exists')
 
 
