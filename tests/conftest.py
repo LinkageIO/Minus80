@@ -1,9 +1,12 @@
+import os
 import pytest
 from minus80 import Accession
 from minus80 import Cohort
 from minus80 import Project
+
 #from minus80 import CloudData
 from minus80.Tools import *
+from minus80.FireBaseCloudData import FireBaseCloudData
 
 @pytest.fixture(scope="module")
 def simpleAccession():
@@ -63,3 +66,16 @@ def simpleCohort():
         x.add_accession(acc)
     yield x
     delete(x.m80.dtype,x.m80.name)
+
+
+
+
+@pytest.fixture(scope="module")
+def cloud():
+    m80_username = os.environ['MINUS80_USERNAME']
+    m80_password = os.environ['MINUS80_PASSWORD']
+    # Login
+    cloud = FireBaseCloudData()
+    cloud.login(m80_username, m80_password)
+    return cloud
+
