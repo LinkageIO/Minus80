@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import os
+import sys
 import json
 import click
 import random
@@ -34,7 +35,7 @@ class NaturalOrderGroup(click.Group):
         in the order in which they are defined in the script
         **Ref** https://github.com/pallets/click/issues/513
     '''
-    def list_commands(self, ctx):
+    def list_commands(self, ctx): #pragma: no cover
         return self.commands.keys()
 
 cute_emojis = [ "⛷"  , "❄️"  , "🏔"  , "🏂" , "☃️"  ]
@@ -44,7 +45,7 @@ cute_emojis = [ "⛷"  , "❄️"  , "🏔"  , "🏂" , "☃️"  ]
     epilog=f"Made with {random.choice(cute_emojis)}  in Denver, Colorado"
 )
 @click.option('--debug/--no-debug', default=False)
-def cli(debug):
+def cli(debug): #pragma: no cover
     """
     \b
         __  ____                  ____  ____
@@ -60,7 +61,7 @@ def cli(debug):
     for more details.
     """
 
-    if debug: #pragma: no cover
+    if debug: 
         click.echo("Debug mode is on")
         import sys
         from IPython.core import ultratb
@@ -95,9 +96,10 @@ def init(name,path):
         path = str(Path.cwd()/name)
     try:
         x.create_link(path)
-    except ValueError as e: #pragma: no cover
+    except ValueError as e:
         click.echo(f'cannot create project directroy at: "{path}", directory already exists')
-
+        sys.exit(1)
+    sys.exit(0)
 
 cli.add_command(init)
 
@@ -130,6 +132,7 @@ cli.add_command(init)
 )
 def list(name, dtype, tags):
     minus80.Tools.available(dtype=dtype, name=name, tags=tags)
+    sys.exit(0)
 
 cli.add_command(list)
 
@@ -141,7 +144,7 @@ cli.add_command(list)
 @click.option("--force",is_flag=True,default=False,help='Force delete without confirmation prompt',)
 def delete(slug,force):
     # Validate the input
-    if force is False:
+    if force is False: #pragma: no cover
         click.confirm(f'Are you sure you want to delete "{slug}"')
     try:
         dtype,name,tag = minus80.Tools.parse_slug(slug) 
@@ -149,22 +152,23 @@ def delete(slug,force):
             raise TagInvalidError()
     except TagInvalidError as e:
         click.echo(f'Cannot delete tags, only entire datasets.')
-        return 0
+        sys.exit(1)
     except FreezableNameInvalidError:
         click.echo(
             f'Please provide a valid dataset name: <dtype>.<name>. E.g. Project.foobar'
             f'Note: do not include tags'
         )
-        return 0
+        sys.exit(1)
     # Make sure that the dataset is available
     if not minus80.Tools.available(dtype,name):
         click.echo(
             f'"{dtype}.{name}" not in minus80 datasets! '
             'check available datasets with the list command'
         )
-        return 0
+        sys.exit(1)
     else:
         minus80.Tools.delete(dtype, name)
+        sys.exit(0)
 
 
 cli.add_command(delete)
@@ -185,28 +189,30 @@ def freeze(slug):
         click.echo(
             f'Please provide a valid tag in "{slug}"'
         )
-        return 0
+        sys.exit(1)
     # Make sure that the dataset is available
     if not minus80.Tools.available(dtype,name):
         click.echo(
             f'"{dtype}.{name}" not in minus80 datasets! '
             'check available datasets with the list command'
         )
-        return 0
+        sys.exit(1)
     else:
         # Create the minus80 
         try:
             dataset = getattr(minus80,dtype)(name)
-        except Exception as e:
+        except Exception as e: #pragma: no cover
             click.echo(f'Could not build {dtype}.{name}')
             raise e
-            return 1
+            sys.exit(1)
         # Freeze with tag
         try:
             dataset.m80.freeze(tag)
             click.echo(click.style("SUCCESS!",fg="green",bold=True))
+            sys.exit(0)
         except TagExistsError:
             click.echo(f'Tag "{tag}" already exists in the cloud for {dtype}.{name}')
+            sys.exit(1)
 
 cli.add_command(freeze)
 
@@ -216,7 +222,7 @@ cli.add_command(freeze)
 def thaw(slug,force):
     try:
         cwd = Path.cwd().resolve()
-    except FileNotFoundError as e:
+    except FileNotFoundError as e: #pragma: no cover
         cwd = '/' 
     try:
         dtype,name,tag = minus80.Tools.parse_slug(slug) 
@@ -226,27 +232,28 @@ def thaw(slug,force):
         click.echo(
             f'Please provide a valid tag in "{slug}"'
         )
-        return 0
+        sys.exit(1)
     # Make sure that the dataset is available
     if not minus80.Tools.available(dtype,name):
         click.echo(
             f'"{dtype}.{name}" not in minus80 datasets! '
             'check available datasets with the list command'
         )
-        return 0
+        sys.exit(1)
     else:
         # Create the minus80 
         try:
             dataset = getattr(minus80,dtype)(name)
-        except Exception as e:
+        except Exception as e: #pragma: no cover
             click.echo(f'Could not build {dtype}.{name}')
         # Freeze with tag
         try:
             dataset.m80.thaw(tag,force=force)
             click.echo(click.style("SUCCESS!",fg="green",bold=True))
+            sys.exit(0)
         except TagDoesNotExistError:
             click.echo(f'tag "{tag}" does not exist for {dtype}.{name}')
-            return 0
+            sys.exit(1)
         except UnsavedChangesInThawedError as e:
             click.secho(
                 'freeze your current changes or use "force" to dispose of '
@@ -255,7 +262,7 @@ def thaw(slug,force):
             for status,files in {'Changed':e.changed,'New':e.new,'Deleted':e.deleted}.items(): 
                 for f in files:
                     click.secho(f"    {status}: {f}",fg='yellow')
-            return 0
+            sys.exit(1)
 
     # Warn the user if they are in a directory (cwd) that was deleted
     # in the thaw -- theres nothing we can do about this ...
@@ -272,7 +279,9 @@ cli.add_command(thaw)
 # ----------------------------
 #    Cloud Commands
 # ----------------------------
-@click.group()
+@click.group(
+    cls=NaturalOrderGroup,
+)
 def cloud():
     """
     Manage your frozen minus80 datasets in the cloud (minus80.linkage.io).
@@ -289,7 +298,14 @@ def login(username,password,force,reset_password):
         Log into your cloud account at minus80.linkage.io
     """
     cloud = m80.CloudData() 
-    if force:
+    # check to see if we are doing a reset
+    if reset_password == True:
+        if username is None: 
+            username = click.prompt('Username (email)',type=str)
+        cloud.auth.send_password_reset_email(username)
+        click.secho("Check your email to reset your password",fg='green')
+        sys.exit(0)
+    elif force:
         try:
             os.remove(cloud._token_file)
         except FileNotFoundError:
@@ -297,23 +313,37 @@ def login(username,password,force,reset_password):
     try:
         # See if currently logged in
         cloud.user
+    except HTTPError as e:
+        error_code = json.loads(e.args[1])['error']['message']
+        if error_code == 'TOKEN_EXPIRED':
+            click.secho('Current Session is EXPIRED. Use the --force option to re-login!',fg='red')
+        else:
+            click.secho('An error occurred trying to sign in. Try again shortly or use the --force option.',fg='red')
+        sys.exit(1)
     except UserNotLoggedInError:
-        if username is None:
-            username = click.prompt('Username (email)',type=str)
+        if username is None: 
+            if 'MINUS80_USERNAME' in os.environ:
+                username = os.environ['MINUS80_USERNAME']
+            else:
+                username = click.prompt('Username (email)',type=str)
         if password is None:
-            password = click.prompt('Password', hide_input=True, type=str)
+            if 'MINUS80_PASSWORD' in os.environ:
+                username = os.environ['MINUS80_PASSWORD']
+            else:
+                password = click.prompt('Password', hide_input=True, type=str)
         try:
             cloud.login(username,password)
         except HTTPError as e:
             error_code = json.loads(e.args[1])['error']['message']
             if error_code == 'INVALID_EMAIL':
                 click.secho('Error logging in. Invalid email address!.',fg='red')
-                click.secho('Sign up for an account at https://minus80.linkage.io')
+                #click.secho('Sign up for an account at https://minus80.linkage.io')
             elif error_code == 'INVALID_PASSWORD':
                 click.secho('Error logging in. Incorrect Password!',fg='red')
             else:
                 click.secho(f'Error logging in. {error_code}',fg='red')
-            return 0
+            sys.exit(1)
+
     account_info = cloud.auth.get_account_info(cloud.user['idToken'])
     # double check that the user is verified
     if account_info['users'][0]['emailVerified'] == False:
@@ -335,12 +365,21 @@ def login(username,password,force,reset_password):
     help=('List the available tags for the specified dataset')
 )
 def list(dtype, name, tags=False):
-    """List available datasets"""
+    """
+        List available datasets
+    """
     cloud = m80.CloudData()
     try:
         cloud.user
     except UserNotLoggedInError as e:
         click.secho("Please log in to use this feature")
+        sys.exit(1)
+    except HTTPError as e:
+        click.secho(
+            "An error occurred trying to login, please re-login using "
+            "the command:\n\t$ minus80 cloud login --force \n",fg='red'
+        )
+        sys.exit(1)
 
     # Make the list call
     datasets = asyncio.run(cloud.list())
