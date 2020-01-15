@@ -126,14 +126,19 @@ def available(dtype=None, name=None, tags=False):
                 # Print tag data
                 if tags:
                     manifest = TinyDB(Path(bdir)/'datasets'/API_VERSION/f'{dtype}.{name}'/'MANIFEST.json') 
-                    tags = [x for x in manifest.table().all() if x['tag'] != 'thawed']
+                    thawed_tag = None
+                    tags = []
+                    for t in manifest.table().all():
+                        if t['tag'] == 'thawed':
+                            thawed_tag = t
+                        else:
+                            tags.append(t)
                     tags.sort(key= lambda x: x['timestamp'])
                     # print thawed info first
                     for t in tags:
                         timestamp = datetime.fromtimestamp(t['timestamp']).strftime('%I:%M%p - %b %d, %Y')
                         csum = t['total'][0:10]
-                        print(f"   └──{t['tag']} {csum} ({timestamp})")
-
+                        print(f"     └──{t['tag']} {csum} ({timestamp})")
 
 def delete(dtype=None, name=None):
     """ 
