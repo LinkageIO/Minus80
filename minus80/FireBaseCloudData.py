@@ -541,7 +541,7 @@ class FireBaseCloudData(BaseCloudData):
                 if progress and self.log.getEffectiveLevel() > logging.DEBUG:
                     pbar = tqdm(
                         desc = f'{checksum[0:6]}'+f'({human_sizeof(checksum_sizes[checksum]):>6})',
-                        total = int(checksum_sizes[checksum]),
+                        total = int(checksum_sizes[checksum]) + 1,
                         bar_format="{l_bar}{bar}{postfix:>30}", # float-right, pad 30 chars
                         leave=True
                     )
@@ -611,7 +611,7 @@ class FireBaseCloudData(BaseCloudData):
                         # update the checksum and write to file
                         total_downloaded += len(chunk)
                         if pbar is not None:
-                            pbar.update(int(total_downloaded))
+                            pbar.update(int(total_downloaded)+1)
                         download_checksum.update(chunk)
                         await f.write(chunk)
             # Check the file checksum
@@ -634,7 +634,7 @@ class FireBaseCloudData(BaseCloudData):
             }
             if pbar is not None:
                 pbar.set_postfix(status='DONE')
-                pbar.update(pbar.n+1)
+                #pbar.update(pbar.n)
                 pbar.close()
 
         except Exception as e:
