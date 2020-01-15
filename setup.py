@@ -61,11 +61,9 @@ class InstallCommand(install):
     """
         Installation command that pre-installs APSW since its not on pypi
     """
-
     def run(self):
         install_apsw()
         install.run(self)
-
 
 setup(
     name="minus80",
