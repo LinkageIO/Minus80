@@ -1,6 +1,0 @@
-pandas
-bcolz
-blaze
-termcolor
-pyyaml
-coveralls
