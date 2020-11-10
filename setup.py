@@ -3,6 +3,7 @@
 import io
 import re
 import os
+import sys
 
 from setuptools import setup, find_packages
 from setuptools.command.develop import develop
@@ -27,24 +28,31 @@ def find_version(*file_paths):
 
 
 def install_apsw(method="pip", version="3.27.2", tag="-r1"):
-    if method == "pip":
-        print("Installing apsw from GitHub using ")
-        version = "3.27.2"
-        tag = "-r1"
-        check_call(
-            f"""\
-            pip install  \
-            https://github.com/rogerbinns/apsw/releases/download/{version}{tag}/apsw-{version}{tag}.zip \
-            --global-option=fetch \
-            --global-option=--version \
-            --global-option={version} \
-            --global-option=--all \
-            --global-option=build  \
-            --global-option=--enable=rtree \
-        """.split()
-        )
-    else:
-        raise ValueError(f"{method} not supported to install apsw")
+    try:
+        import apsw
+    except ImportError:
+        try:
+            print(f"Installing apsw from GitHub using {method}")
+            version = "3.27.2"
+            tag = "-r1"
+            check_call(
+                f"""\
+                pip install  \
+                https://github.com/rogerbinns/apsw/releases/download/{version}{tag}/apsw-{version}{tag}.zip \
+                --global-option=fetch \
+                --global-option=--version \
+                --global-option={version} \
+                --global-option=--all \
+                --global-option=build  \
+                --global-option=--enable=rtree \
+            """.split()
+            )
+        except Exception:
+            raise ValueError(
+                f"Unable to automatically install APSW using {method}. Please install apsw manually"
+                f" and re-run minus80 installation process.\n"
+                "https://rogerbinns.github.io/apsw/build.html#recommended",
+            )
 
 
 class DevelopCommand(develop):
@@ -53,8 +61,13 @@ class DevelopCommand(develop):
     """
 
     def run(self):
-        install_apsw()
-        develop.run(self)
+        try:
+            install_apsw()
+            develop.run(self)
+        except ValueError as e:
+            print(e,file=sys.stderr)
+            sys.exit(1)
+
 
 
 class InstallCommand(install):
@@ -62,8 +75,12 @@ class InstallCommand(install):
         Installation command that pre-installs APSW since its not on pypi
     """
     def run(self):
-        install_apsw()
-        install.run(self)
+        try:
+            install_apsw()
+            install.run(self)
+        except ValueError as e:
+            print(e,file=sys.stderr)
+            sys.exit(1)
 
 setup(
     name="minus80",
