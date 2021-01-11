@@ -8,7 +8,7 @@ import sys
 from setuptools import setup, find_packages
 from setuptools.command.develop import develop
 from setuptools.command.install import install
-from subprocess import check_call, CalledProcessError
+from subprocess import check_call
 
 
 def read(*names, **kwargs):
@@ -30,6 +30,8 @@ def find_version(*file_paths):
 def install_apsw(method="pip", version="3.27.2", tag="-r1"):
     try:
         import apsw
+
+        assert apsw
     except ImportError:
         try:
             print(f"Installing apsw from GitHub using {method}")
@@ -57,7 +59,7 @@ def install_apsw(method="pip", version="3.27.2", tag="-r1"):
 
 class DevelopCommand(develop):
     """
-        Installation (develop) command that pre-installs APSW since its not on pypi
+    Installation (develop) command that pre-installs APSW since its not on pypi
     """
 
     def run(self):
@@ -65,22 +67,23 @@ class DevelopCommand(develop):
             install_apsw()
             develop.run(self)
         except ValueError as e:
-            print(e,file=sys.stderr)
+            print(e, file=sys.stderr)
             sys.exit(1)
-
 
 
 class InstallCommand(install):
     """
-        Installation command that pre-installs APSW since its not on pypi
+    Installation command that pre-installs APSW since its not on pypi
     """
+
     def run(self):
         try:
             install_apsw()
             install.run(self)
         except ValueError as e:
-            print(e,file=sys.stderr)
+            print(e, file=sys.stderr)
             sys.exit(1)
+
 
 setup(
     name="minus80",
@@ -130,7 +133,7 @@ setup(
         "click >= 7.0",
         "asyncssh >= 1.17.1",
         "aiohttp >= 3.6.1",
-        "aiofiles >= 0.4.0", 
+        "aiofiles >= 0.4.0",
         "networkx == 1.11",
         "urllib3 >= 1.24.2",
         "requests >= 2.11.1",
@@ -141,15 +144,12 @@ setup(
         "backoff >= 1.8.0",
     ],
     extras_require={
-        "docs": [
-            "ipython>=6.5.0", 
-            "matplotlib>=2.2.3"
-        ],
-        "local_install" : [
+        "docs": ["ipython>=6.5.0", "matplotlib>=2.2.3"],
+        "local_install": [
             "flask>=1.1.1",
             "firebase-admin>=3.1.0",
             "flask-cors>=3.0.8",
-        ]
+        ],
     },
     # dependency_links = [
     #    'git+https://github.com/rogerbinns/apsw'
