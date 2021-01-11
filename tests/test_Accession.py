@@ -1,4 +1,3 @@
-import pytest
 from minus80 import Accession
 
 
@@ -56,5 +55,6 @@ def test_accession_files_are_set(simpleAccession):
     simpleAccession.add_file("/path/to/file.txt")
     assert len(simpleAccession.files) == len_files
 
+
 def test_load_from_yaml():
-    x = Accession.from_yaml('data/test_accession.yaml') 
+    Accession.from_yaml("data/test_accession.yaml")

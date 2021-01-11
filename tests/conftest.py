@@ -2,16 +2,18 @@ import os
 import pytest
 from minus80 import Accession
 from minus80 import Cohort
-from minus80 import Project
+from minus80.Freezable import FreezableAPI
 
-#from minus80 import CloudData
-from minus80.Tools import *
+
+# from minus80 import CloudData
 from minus80.FireBaseCloudData import FireBaseCloudData
+
 
 @pytest.fixture(scope="module")
 def simpleAccession():
     # Create a simple Accession
     return Accession("Sample1", files=["file1.txt", "file2.txt"], type="sample")
+
 
 @pytest.fixture(scope="module")
 def RNAAccession1():
@@ -45,16 +47,17 @@ def RNAAccession2():
 
 @pytest.fixture(scope="module")
 def RNACohort(RNAAccession1, RNAAccession2):
-    delete("Cohort", "RNACohort")
+    FreezableAPI.delete("Cohort", "RNACohort")
     x = Cohort("RNACohort")
     x.add_accession(RNAAccession1)
     x.add_accession(RNAAccession2)
     yield x
-    delete(x.m80.dtype,x.m80.name)
+    FreezableAPI.delete(x.m80.dtype, x.m80.name)
+
 
 @pytest.fixture(scope="module")
 def simpleCohort():
-    delete("Cohort", "TestCohort")
+    FreezableAPI.delete("Cohort", "TestCohort")
     # Create the simple cohort
     a = Accession("Sample1", files=["file1.txt", "file2.txt"], type="WGS")
     b = Accession("Sample2", files=["file1.txt", "file2.txt"], type="WGS")
@@ -65,17 +68,14 @@ def simpleCohort():
     for acc in [a, b, c, d]:
         x.add_accession(acc)
     yield x
-    delete(x.m80.dtype,x.m80.name)
-
-
+    FreezableAPI.delete(x.m80.dtype, x.m80.name)
 
 
 @pytest.fixture(scope="module")
 def cloud():
-    m80_username = os.environ['MINUS80_USERNAME']
-    m80_password = os.environ['MINUS80_PASSWORD']
+    m80_username = os.environ["MINUS80_USERNAME"]
+    m80_password = os.environ["MINUS80_PASSWORD"]
     # Login
     cloud = FireBaseCloudData()
     cloud.login(m80_username, m80_password)
     return cloud
-

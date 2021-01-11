@@ -1,4 +1,3 @@
-import pytest
 from minus80.Config import cf, Level
 
 
@@ -8,7 +7,7 @@ def test_get_attr():
 
 
 def test_get_item():
-    level = cf["options"]
+    assert cf["options"]
 
 
 def test_set_level_attr():
@@ -18,5 +17,5 @@ def test_set_level_attr():
 
 
 def test_pprint():
-    x = repr(cf)
+    repr(cf)
     assert True
