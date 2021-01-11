@@ -6,17 +6,17 @@ import pandas
 __all__ = ["columnar_db"]
 
 
-def columnar_db(basedir, engine="hdf5"): #pragma: no cover 
+def columnar_db(rootdir, engine="hdf5"):  # pragma: no cover
     if engine == "hdf5":
-        return hdf5_db(basedir)
+        return hdf5_db(rootdir)
     else:
-        raise ValueError("Engine must be one of ['hdf5']")
+        raise ValueError("Engine must be one of: ['hdf5']")
 
 
-class ColumnarDB(object):  #pragma: no cover 
+class ColumnarDB(object):  # pragma: no cover
     "Abstract Base Class for Colmnar DBs engines"
 
-    def __init__(self, basedir, engine=None):
+    def __init__(self, rootdir):
         raise NotImplementedError()
 
     def remove(self, name):
@@ -35,8 +35,8 @@ class ColumnarDB(object):  #pragma: no cover
         raise NotImplementedError()
 
 
-class bcolz_db(ColumnarDB): #pragma: no cover 
-    def __init__(self, basedir, engine=None):
+class bcolz_db(ColumnarDB):  # pragma: no cover
+    def __init__(self, rootdire):
         raise NotImplementedError()
 
     def remove(self, name):
@@ -57,25 +57,25 @@ class bcolz_db(ColumnarDB): #pragma: no cover
 
 class hdf5_db(ColumnarDB):
     """
-        An HDF5 engine for storing columnar data in Minus80
+    An HDF5 engine for storing columnar data in Minus80
     """
 
-    def __init__(self, basedir):
-        self.filename = os.path.expanduser(os.path.join(basedir, "db.hdf5"))
+    def __init__(self, rootdir):
+        self.filename = os.path.expanduser(os.path.join(rootdir, "db.hdf5"))
         # This creates an empty db if it doesnt exist
         with h5py.File(self.filename, "a") as hdf:
-            pass
+            assert hdf
 
     def remove(self, name):
         """
-            Remove a  dataframe/array from disk
+        Remove a  dataframe/array from disk
         """
         with h5py.File(self.filename, "a") as hdf:
             del hdf[name]
 
     def list(self):
         """
-            List the available bcolz datasets
+        List the available bcolz datasets
         """
         with h5py.File(self.filename, "r") as hdf:
             keys = list(hdf.keys())

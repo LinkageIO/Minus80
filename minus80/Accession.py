@@ -1,15 +1,7 @@
-import os
 import yaml
 import getpass
 import socket
 import urllib
-import asyncio
-import asyncssh
-import os
-
-from contextlib import contextmanager
-
-from .Config import cf
 
 
 class Accession(object):
@@ -81,34 +73,34 @@ class Accession(object):
         """
         Add a file that is associated with the accession.
         This method will attempt to determine where the file
-        is actually stored based on its path. Currently it 
+        is actually stored based on its path. Currently it
         supports three different protocols: local, ssh and
         s3. A local file will looks something like:
-        `/tmp/file1.fastq`.  
+        `/tmp/file1.fastq`.
 
         Parameters
         ----------
         path/URL: string
             The path/URL the the file. The string is parsed
-            for default information (e.g. 
+            for default information (e.g.
         scheme: string (default: ssh)
             Specifies the scheme/protocol for accessing the file.
             Defaults to ssh, also supports s3
         username : string (default: None)
             Defines a username that is authorized to access
-            `hostname` using `protocol`. Defaults to None 
+            `hostname` using `protocol`. Defaults to None
             in which case it will be determined by calling
             `getpass.getuser()`.
         hostname : sting (default: None)
             Defines the ostname that the file is accessible
             through. Defaults to None, where the hostname
-            will be determined 
+            will be determined
         port: int (default: 22)
             Port to access the file through. Defaults to 22,
             which is for ssh.
 
         NOTE: any keyword arguments passed in will override
-              the values parsed out of the path. 
+              the values parsed out of the path.
 
         Returns
         -------
@@ -127,8 +119,8 @@ class Accession(object):
             netloc = f"{username}@{hostname}"
             url = url._replace(netloc=netloc)
         # Convert to absolute path
-        #if not url.path.startswith('/'): #url.path.startswith('./') or url.path.startswith('../'):
-            #url._replace(path=os.path.abspath(path))
+        # if not url.path.startswith('/'): #url.path.startswith('./') or url.path.startswith('../'):
+        # url._replace(path=os.path.abspath(path))
         url = urllib.parse.urlunparse(url)
         self.files.add(url)
 
@@ -179,8 +171,8 @@ class Accession(object):
         )
 
     @classmethod
-    def from_yaml(cls,yaml_file):
-        '''
+    def from_yaml(cls, yaml_file):
+        """
         Create Accessions from a YAML file
         e.g.
         10F:
@@ -195,13 +187,12 @@ class Accession(object):
                 - ssh://user@hostname.edu/path/to/file/10_M_S10_R2_001.fastq.gz
                 - ssh://user@hostname.edu/path/to/file/10_M_S40_R1_001.fastq.gz
                 - ssh://user@hostname.edu/path/to/file/10_M_S40_R2_001.fastq.gz
-        '''
+        """
         accessions = []
-        with open(yaml_file,'r') as IN:
-            for name,v in yaml.safe_load(IN).items():
-                files = v['files'] if 'files' in v else []
-                metadata = v['metadata'] if 'metadata' in v else {}
-                a = cls(name,files=files,**metadata)
+        with open(yaml_file, "r") as IN:
+            for name, v in yaml.safe_load(IN).items():
+                files = v["files"] if "files" in v else []
+                metadata = v["metadata"] if "metadata" in v else {}
+                a = cls(name, files=files, **metadata)
                 accessions.append(a)
         return accessions
-

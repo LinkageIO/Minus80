@@ -1,6 +1,7 @@
-def CloudData(engine="firebase"): #pragma: no cover
-    if engine == 'firebase':
+def CloudData(engine="firebase"):  # pragma: no cover
+    if engine == "firebase":
         from .FireBaseCloudData import FireBaseCloudData
+
         return FireBaseCloudData()
     else:
         raise ValueError(f"Cannot use {engine} as a cloud engine.")

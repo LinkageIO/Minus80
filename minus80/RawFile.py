@@ -11,7 +11,7 @@ class RawFile(object):  # pragma: no cover
         elif filename.endswith("bz2"):
             self.handle = bz2.open(filename, "rt")
         elif filename.endswith("xz"):
-            self.handle = lzma.open(filenaem, "rt")
+            self.handle = lzma.open(filename, "rt")
         else:
             self.handle = open(filename, "r")
 

@@ -4,7 +4,7 @@ from contextlib import contextmanager
 
 try:
     import apsw
-except ModuleNotFoundError as e: #pragma: no cover
+except ModuleNotFoundError:  # pragma: no cover
     from .Tools import install_apsw
 
     install_apsw()
@@ -12,8 +12,8 @@ except ModuleNotFoundError as e: #pragma: no cover
 
 
 class relational_db(object):
-    def __init__(self, basedir):
-        self.filename = os.path.expanduser(os.path.join(basedir, "db.sqlite"))
+    def __init__(self, rootdir):
+        self.filename = os.path.expanduser(os.path.join(rootdir, "db.sqlite"))
         self.db = apsw.Connection(self.filename)
 
     def cursor(self):
@@ -22,13 +22,13 @@ class relational_db(object):
     @contextmanager
     def bulk_transaction(self):
         """
-            This is a context manager that handles bulk transaction.
-            i.e. this context will handle the BEGIN, END and appropriate
-            ROLLBACKS.
+        This is a context manager that handles bulk transaction.
+        i.e. this context will handle the BEGIN, END and appropriate
+        ROLLBACKS.
 
-            Usage:
-            >>> with x._bulk_transaction() as cur:
-                     cur.execute('INSERT INTO table XXX VALUES YYY')
+        Usage:
+        >>> with x._bulk_transaction() as cur:
+                 cur.execute('INSERT INTO table XXX VALUES YYY')
         """
         cur = self.db.cursor()
         cur.execute("PRAGMA synchronous = off")
@@ -36,7 +36,7 @@ class relational_db(object):
         cur.execute("SAVEPOINT m80_bulk_transaction")
         try:
             yield cur
-        except Exception as e: 
+        except Exception as e:
             cur.execute("ROLLBACK TO SAVEPOINT m80_bulk_transaction")
             raise e
         finally:
@@ -44,6 +44,7 @@ class relational_db(object):
 
     def query(self, q):
         import pandas as pd
+
         cur = self.db.cursor().execute(q)
         names = [x[0] for x in cur.description]
         rows = cur.fetchall()

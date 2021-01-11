@@ -3,20 +3,19 @@
 import os
 import yaml
 import pprint
-import getpass
 
 global cf
 
 default_config = """--- # YAML Minus80 Configuration File
 options:
-    basedir: ~/.minus80/
+    rootdir: ~/.minus80/
 
 """
 
 
 class Level(dict):
     """
-        access everything like an object.
+    access everything like an object.
     """
 
     def __init__(self, *args, **kwargs):
