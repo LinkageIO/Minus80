@@ -1,5 +1,7 @@
 """Utilities and tools for minus80."""
 
+import gzip
+import bz2
 from subprocess import check_call
 
 
@@ -32,3 +34,20 @@ def human_sizeof(num, suffix="B"):  # pragma: no cover
             return "%3.1f%s%s" % (num, unit, suffix)
         num /= 1024.0
     return "%.1f%s%s" % (num, "Yi", suffix)
+
+
+class rawFile(object):  # pragma no cover
+    def __init__(self, filename):  # pragma no cover
+        self.filename = filename
+        if filename.endswith(".gz"):  # pragma no cover
+            self.handle = gzip.open(filename, "rt")
+        elif filename.endswith("bz2"):  # pragma no cover
+            self.handle = bz2.open(filename, "rt")
+        else:
+            self.handle = open(filename, "r")
+
+    def __enter__(self):  # pragma no cover
+        return self.handle
+
+    def __exit__(self, type, value, traceback):  # pragma no cover
+        self.handle.close()
