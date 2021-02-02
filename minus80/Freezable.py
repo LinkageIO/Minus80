@@ -7,7 +7,6 @@ import tempfile
 import re
 
 from glob import glob
-from collections import defaultdict
 from pathlib import Path
 from tinydb import TinyDB
 from datetime import datetime
@@ -16,7 +15,6 @@ from .Config import cf
 from .Exceptions import (
     TagInvalidError,
     FreezableNameInvalidError,
-    DatasetDoesNotExistError
 )
 
 from minus80 import API_VERSION
