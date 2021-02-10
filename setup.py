@@ -121,6 +121,7 @@ setup(
     cmdclass={"develop": DevelopCommand, "install": InstallCommand},
     package_data={"": ["*.cyx"]},
     install_requires=[
+        "aiosqlite>=0.16.1",
         "google-cloud >= 0.34.0",
         "google-cloud-storage >= 1.17.0",
         "google-cloud-kms >= 1.2.1",
