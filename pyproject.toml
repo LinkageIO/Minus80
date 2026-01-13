@@ -1,0 +1,134 @@
+
+[project]
+name = "minus80"
+dynamic = ["version"]
+description = "A library for freezing, unfreezing and storing biological data."
+readme = "README.md"
+requires-python = ">=3.12"
+license = "LicenseRef-Proprietary"
+keywords = []
+authors = [
+    { name = "Rob Schaefer", email = "rob@linkage.io" },
+]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: Implementation :: CPython",
+  "Programming Language :: Python :: Implementation :: PyPy",
+]
+
+dependencies = [
+  "aiosqlite>=0.16.1",
+  "google-cloud >= 0.34.0",
+  "google-cloud-storage >= 1.17.0",
+  "google-cloud-kms >= 1.2.1",
+  "pandas>=0.23.4",
+  "tinydb>=3.13.0",
+  "tables >= 3.5.2",
+  "h5py >= 2.9.0",
+  "termcolor >= 1.1.0",
+  "pyyaml >= 5.1.2",
+  "click >= 7.0",
+  "asyncssh >= 1.17.1",
+  "aiohttp >= 3.6.1",
+  "aiofiles >= 0.4.0",
+  "networkx == 1.11",
+  "urllib3 >= 1.24.2",
+  "requests >= 2.11.1",
+  "pyrebase4 >=4.3.0",
+  "fuzzywuzzy >= 0.17.0",
+  "python-Levenshtein >= 0.12.0",
+  "tqdm >= 4.32.2",
+  "backoff >= 1.8.0",
+  "apsw >= 3.51.0",
+]
+
+[project.optional-dependencies]
+# Trying to use "compatible release" version specifiers
+# https://packaging.python.org/en/latest/specifications/version-specifiers/#id5
+
+spyder = [
+]
+
+dev = [
+    "assertpy ~= 1.1",
+    "autoflake ~= 2.3",
+    "black ~= 23.1",
+    "ipdb>=0.13.13",
+    "isort>=5.10",
+    "mamba ~= 0.11.3",
+    "pydocstyle>=6.0",
+    # test deps
+    "coverage[toml]>=6.5",
+    "pytest >= 8.3.5",
+    "pytest-cov",
+    "pytest-xprocess>=1.0.2",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.metadata]
+allow-direct-references = true  # allows us using packages with git+ssh URLs
+
+[tool.hatch.envs.default]
+path = ".hatch"
+features = ["dev"]
+# python = "3.12" # Uncomment the following if you want to force python 3.12 for dev (and not automatically go to 3.13)
+
+[project.urls]
+Documentation = "https://github.com/LinkageIO/minus80.git"
+Issues = "https://github.com/LinkageIO/minus80.git"
+Source = "https://github.com/LinkageIO/minus80.git"
+
+[project.scripts]
+minus80 = "minus80.cli.minus80:cli"
+
+[tool.hatch.version]
+path = "minus80/__about__.py"
+
+[tool.hatch.envs.default.scripts]
+test = "pytest {args:tests}"
+test-cov = "coverage run -m pytest {args:tests}"
+cov-report = [
+  "- coverage combine",
+  "coverage report",
+]
+cov = [
+  "test-cov",
+  "cov-report",
+]
+
+[[tool.hatch.envs.test.matrix]]
+python = ["3.13"]
+
+[tool.hatch.envs.types]
+dependencies = [
+  "mypy>=1.0.0",
+]
+[tool.hatch.envs.types.scripts]
+check = "mypy --install-types --non-interactive {args:minus80 tests}"
+
+[tool.coverage.run]
+source_pkgs = ["minus80", "tests"]
+branch = true
+parallel = true
+omit = [
+  "minus80/__about__.py",
+  "tests/*",
+]
+
+[tool.coverage.paths]
+minus80 = ["minus80"]
+tests = ["tests" ]
+
+[tool.coverage.report]
+exclude_lines = [
+  "no cov",
+  "if __name__ == .__main__.:",
+  "if TYPE_CHECKING:",
+]

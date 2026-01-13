@@ -53,9 +53,9 @@ def cli(debug):  # pragma: no cover
     \b
         __  ____                  ____  ____
        /  |/  (_)___  __  _______( __ )/ __ \\
-      / /|_/ / / __ \/ / / / ___/ /_/ / / / /
+      / /|_/ / / __ \\/ / / / ___/ /_/ / / / /
      / /  / / / / / / /_/ (__  ) /_/ / /_/ /
-    /_/  /_/_/_/ /_/\__,_/____/\____/\____/
+    /_/  /_/_/_/ /_/\\__,_/____/\\____/\\____/
 
 
     Track, tag, store, and share biological datasets. 
@@ -598,7 +598,8 @@ cloud.add_command(pull)
 
 @click.command(help="Additional information information")
 def version():
-    print(f"Version: {m80.__version__}")
+    from minus80 import __about__ as about
+    print(f"Version: {about.__version__ }")
     print(f"Installation Path: {m80.__file__}")
 
 

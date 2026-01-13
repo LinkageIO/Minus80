@@ -1,5 +1,3 @@
-__version__ = "2.0.0"
-
 API_VERSION = "v2"
 
 import logging
