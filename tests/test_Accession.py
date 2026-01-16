@@ -1,5 +1,7 @@
-from minus80 import Accession
+import pathlib
+import pytest
 
+from minus80 import Accession
 
 def test_bare_accession():
     x = Accession("empty")
@@ -56,5 +58,5 @@ def test_accession_files_are_set(simpleAccession):
     assert len(simpleAccession.files) == len_files
 
 
-def test_load_from_yaml():
-    Accession.from_yaml("data/test_accession.yaml")
+def test_load_from_yaml(test_data_dir):
+    Accession.from_yaml(test_data_dir / "test_accession.yaml")

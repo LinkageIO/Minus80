@@ -1,6 +1,7 @@
 import pytest
 import shutil
 import tempfile
+import pathlib
 
 import numpy as np
 
@@ -47,10 +48,11 @@ def test_frozen_dir(simpleProject):
 
 
 # Create a bunch of tags
-def test_create_tag_v1(simpleProject):
+def test_create_tag_v1(simpleProject, test_data_dir ):
+
     # copy a file into the project dir
     shutil.copyfile(
-        src="data/Sample1_ATGTCA_L007_R1_001.fastq",
+        src=test_data_dir / "Sample1_ATGTCA_L007_R1_001.fastq",
         dst=simpleProject.m80.thawed_dir / "Sample1_ATGTCA_L007_R1_001.fastq",
     )
     # The parent tag shouldnt exists until after the first freeze
@@ -68,16 +70,16 @@ def test_duplicate_tag(simpleProject):
         simpleProject.m80.freeze("v1")
 
 
-def test_create_tag_v2(simpleProject):
+def test_create_tag_v2(simpleProject, test_data_dir):
     # Create v1 tag
     shutil.copyfile(
-        src="data/Sample1_ATGTCA_L007_R1_001.fastq",
+        src=test_data_dir / "Sample1_ATGTCA_L007_R1_001.fastq",
         dst=simpleProject.m80.thawed_dir / "Sample1_ATGTCA_L007_R1_001.fastq",
     )
     simpleProject.m80.freeze("v1")
     # create v2 tag
     shutil.copyfile(
-        src="data/Sample1_ATGTCA_L007_R2_001.fastq",
+        src=test_data_dir / "Sample1_ATGTCA_L007_R2_001.fastq",
         dst=simpleProject.m80.thawed_dir / "Sample1_ATGTCA_L007_R2_001.fastq",
     )
     simpleProject.m80.freeze("v2")
@@ -96,16 +98,16 @@ def test_thaw_nonexistant(simpleProject):
         simpleProject.m80.thaw("nope")
 
 
-def test_thaw_with_unsaved_changes(simpleProject):
+def test_thaw_with_unsaved_changes(simpleProject,test_data_dir):
     # Create v1 tag
     shutil.copyfile(
-        src="data/Sample1_ATGTCA_L007_R1_001.fastq",
+        src=test_data_dir / "Sample1_ATGTCA_L007_R1_001.fastq",
         dst=simpleProject.m80.thawed_dir / "Sample1_ATGTCA_L007_R1_001.fastq",
     )
     simpleProject.m80.freeze("v1")
     # create v2 tag
     shutil.copyfile(
-        src="data/Sample1_ATGTCA_L007_R2_001.fastq",
+        src=test_data_dir / "Sample1_ATGTCA_L007_R2_001.fastq",
         dst=simpleProject.m80.thawed_dir / "Sample1_ATGTCA_L007_R2_001.fastq",
     )
     simpleProject.m80.freeze("v2")
@@ -116,7 +118,7 @@ def test_thaw_with_unsaved_changes(simpleProject):
     os.remove(simpleProject.m80.thawed_dir / "Sample1_ATGTCA_L007_R2_001.fastq")
     # add a new file
     shutil.copyfile(
-        src="data/Sample2_ATGTCA_L005_R1_001.fastq",
+        src=test_data_dir / "Sample2_ATGTCA_L005_R1_001.fastq",
         dst=simpleProject.m80.thawed_dir / "Sample2_ATGTCA_L005_R1_001.fastq",
     )
     # change a file

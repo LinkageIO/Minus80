@@ -84,7 +84,7 @@ def test_project_freeze_not_valid_freezable_type():
 
 def test_project_thaw():
     foobar = m80.Project("foobar")
-    rand_tag = random.sample(foobar.m80.tags, 1).pop()
+    rand_tag = random.sample(sorted(foobar.m80.tags), 1).pop()
     x = subprocess.run(f"minus80 thaw Project.foobar:{rand_tag}".split())
     assert x.returncode == 0
 

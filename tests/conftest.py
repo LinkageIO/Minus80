@@ -1,5 +1,6 @@
 import os
 import pytest
+import pathlib
 from minus80 import Accession
 from minus80 import Cohort
 from minus80.Freezable import FreezableAPI
@@ -7,6 +8,11 @@ from minus80.Freezable import FreezableAPI
 
 # from minus80 import CloudData
 from minus80.FireBaseCloudData import FireBaseCloudData
+
+@pytest.fixture
+def test_data_dir():
+    pwd = pathlib.Path(__file__).parent.resolve()
+    return pwd / "data" 
 
 
 @pytest.fixture(scope="module")

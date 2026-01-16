@@ -66,6 +66,7 @@ dev = [
     "pytest >= 8.3.5",
     "pytest-cov",
     "pytest-xprocess>=1.0.2",
+	"setuptools==80.9.0"
 ]
 
 [build-system]
