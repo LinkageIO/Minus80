@@ -31,7 +31,10 @@ class Level(dict):
 
     def __getattr__(self, item):
         if "dir" in item and "~" in self[item]:
-            return os.path.expanduser(self[item])
+            # Expand and make all dirs
+            dir = os.path.expanduser(self[item])
+            os.makedirs(dir, exist_ok=True)
+            return dir
         return self[item]
 
     def __setattr__(self, item, val):
