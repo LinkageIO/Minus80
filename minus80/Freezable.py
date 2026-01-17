@@ -395,7 +395,7 @@ class FreezableAPI(object):
         else:
             rootdir = Path(rootdir).expanduser()
         if not rootdir.exists():
-            raise ValueError(f"rootdir does not exist: {rootdir}")
+            os.makedirs(rootdir, exist_ok=True)
 
         files = sorted(glob(str(rootdir/ FreezableAPI.to_slug(dtype,name))))
         if fullpath:
