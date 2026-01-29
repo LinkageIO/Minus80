@@ -3,14 +3,18 @@ import h5py
 import numpy
 import pandas
 
+import pandas as pd
+
+from pathlib import Path
+
 __all__ = ["columnar_db"]
 
 
-def columnar_db(rootdir, engine="hdf5"):  # pragma: no cover
-    if engine == "hdf5":
-        return hdf5_db(rootdir)
+def columnar_db(rootdir, engine="parquet"):  # pragma: no cover
+    if engine == "parquet":
+        return parquet_db(rootdir)
     else:
-        raise ValueError("Engine must be one of: ['hdf5']")
+        raise ValueError("Engine must be one of: ['parquet']")
 
 
 class ColumnarDB(object):  # pragma: no cover
@@ -35,76 +39,39 @@ class ColumnarDB(object):  # pragma: no cover
         raise NotImplementedError()
 
 
-class bcolz_db(ColumnarDB):  # pragma: no cover
-    def __init__(self, rootdire):
-        raise NotImplementedError()
+class parquet_db(ColumnarDB):
+    """
+    A Parquet engine for storing columnar data in Minus80
+    """
+
+    _MAGICKEY = "__MINUS80ARRAY__"
+    
+    def __init__(self, rootdir):
+        self._pqdir = Path(os.path.expanduser(os.path.join(rootdir, "pq")))
+        os.makedirs(self._pqdir, exist_ok=True)
 
     def remove(self, name):
-        raise NotImplementedError()
+        os.remove(self._pqdir / f"{name}.pq") 
 
     def list(self):
-        raise NotImplementedError()
+        return [pq.removesuffix(".pq") for pq in os.listdir(self._pqdir)]
 
     def __contains__(self, key):
-        raise NotImplementedError()
+        return f"{key}.pq" in os.listdir(self._pqdir)
 
     def __setitem__(self, name, val):
-        raise NotImplementedError()
-
-    def __getitem__(self, name):
-        raise NotImplementedError()
-
-
-class hdf5_db(ColumnarDB):
-    """
-    An HDF5 engine for storing columnar data in Minus80
-    """
-
-    def __init__(self, rootdir):
-        self.filename = os.path.expanduser(os.path.join(rootdir, "db.hdf5"))
-        # This creates an empty db if it doesnt exist
-        with h5py.File(self.filename, "a") as hdf:
-            assert hdf
-
-    def remove(self, name):
-        """
-        Remove a  dataframe/array from disk
-        """
-        with h5py.File(self.filename, "a") as hdf:
-            del hdf[name]
-
-    def list(self):
-        """
-        List the available bcolz datasets
-        """
-        with h5py.File(self.filename, "r") as hdf:
-            keys = list(hdf.keys())
-        return keys
-
-    def __contains__(self, name):
-        with h5py.File(self.filename, "r") as hdf:
-            return name in hdf
-
-    def __setitem__(self, name, val):
-        # Handle normal numpy datatypes
         if isinstance(val, numpy.ndarray):
-            # Handle numeric data
-            if name in self:
-                # check if exists and if so, delete
-                self.remove(name)
-            with h5py.File(self.filename, "a") as hdf:
-                hdf[name] = val
+            val = pd.DataFrame({self._MAGICKEY: val})
+            val.to_parquet(self._pqdir / f"{name}.pq")
         # Handle data frames
         elif isinstance(val, pandas.DataFrame):
-            val.to_hdf(self.filename, key=name, mode="a")
+            val.to_parquet(self._pqdir / f"{name}.pq")
         else:
             raise ValueError("Datatype must be either a numpy array or a dataframe")
 
+
     def __getitem__(self, name):
-        with h5py.File(self.filename, "r") as hdf:
-            val = hdf[name]
-            # dataset -> np.array
-            if isinstance(val, h5py.Dataset):
-                return val[:]
-            elif isinstance(val, h5py.Group):
-                return pandas.read_hdf(self.filename, key=name, mode="r")
+        val = pd.read_parquet(self._pqdir / f"{name}.pq") 
+        if '__MINUS80ARRAY__' in val.columns and val.columns[0] == '__MINUS80ARRAY__':
+            return val['__MINUS80ARRAY__'].to_numpy()
+        return val
